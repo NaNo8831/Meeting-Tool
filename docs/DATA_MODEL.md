@@ -1,7 +1,7 @@
 # Data Model
 
 ## Current Storage
-Local Workspace persists workspace data as JSON in browser `localStorage`. Export/import backs up and restores the same Meeting Tool workspace keys. Selected Cloud Workspaces save/load that full backup object in Supabase while retaining browser fallback state and without forcing migration from Local Workspace.
+Local Workspace persists workspace data as JSON in browser `localStorage`. Export/import backs up and restores the same Meeting Tool workspace keys. Selected Cloud Workspaces save/load that full backup object in Supabase while retaining browser fallback state and without forcing migration from Local Workspace. Optional local-to-cloud migration uses the same backup object shape and leaves Local Workspace `localStorage` intact after a successful cloud save.
 
 ## Logical Entities
 | Entity | Current Meaning |
@@ -22,7 +22,7 @@ Local Workspace persists workspace data as JSON in browser `localStorage`. Expor
 
 ## Phase 2 Open Design Items
 - Whether basic JSONB workspace persistence should later be normalized into separate tables.
-- How to migrate local workspace data without duplicates or overwrites.
+- Whether later normalized storage should replace or complement the current JSON backup object.
 - How owner/editor/viewer permissions affect entity access and mutation.
 - Whether realtime collaboration is required after basic cloud persistence.
 
@@ -78,4 +78,4 @@ create table if not exists public.workspaces (
 );
 ```
 
-Only authenticated owners can select/update rows through RLS. New cloud workspaces may have `workspace_data = null`; the app does not auto-copy Local Workspace data on first selection, and dropdown selection does not load `workspace_data` until the user clicks Load Cloud Workspace. Saving current data to cloud requires an overwrite confirmation. No forced migration, realtime collaboration, team sharing, or member-role model is included in this basic persistence step.
+Only authenticated owners can select/update rows through RLS. New cloud workspaces may have `workspace_data = null`; the app does not auto-copy Local Workspace data on first selection, and dropdown selection does not load `workspace_data` until the user clicks Load Cloud Workspace. Saving current data to cloud requires an overwrite confirmation. Optional Local Workspace migration writes the current unscoped `leadership-*` Local Workspace entries into the selected Cloud Workspace using the same backup shape, checks whether the selected cloud workspace already has `workspace_data`, warns before overwrite, and records a browser-local migrated/skipped signature keyed by user and cloud workspace. No forced migration, realtime collaboration, team sharing, or member-role model is included in this basic persistence step.

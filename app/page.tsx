@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+} from "react";
 import { AuthModal } from "@/app/components/auth/AuthModal";
 import { BackupRestoreModal } from "@/app/components/dashboard/BackupRestoreModal";
 import { MeetingSetupModal } from "@/app/components/dashboard/MeetingSetupModal";
@@ -27,8 +34,11 @@ import {
   objectiveColorClasses,
 } from "@/app/lib/objectiveOptions";
 import {
+  collectLocalWorkspaceStorage,
   collectWorkspaceStorage,
   createWorkspaceBackup,
+  getWorkspaceStorageSignature,
+  hasMeaningfulWorkspaceStorage,
   validateWorkspaceBackup,
   type WorkspaceBackupFeedback,
   type WorkspaceBackupFile,
@@ -54,6 +64,49 @@ type MeetingSpecificSectionKey =
   | "cascadeItems";
 
 const cloudWorkspaceStorageKeyPrefix = "meeting-tool-cloud-workspace";
+const localToCloudMigrationStorageKeyPrefix =
+  "meeting-tool-local-to-cloud-migration";
+
+type LocalToCloudMigrationState = {
+  migratedSignature?: string;
+  skippedSignature?: string;
+};
+
+const getLocalToCloudMigrationStorageKey = (
+  userId: string,
+  cloudWorkspaceId: string,
+) => `${localToCloudMigrationStorageKeyPrefix}:${userId}:${cloudWorkspaceId}`;
+
+const readLocalToCloudMigrationState = (
+  userId: string,
+  cloudWorkspaceId: string,
+): LocalToCloudMigrationState => {
+  if (typeof window === "undefined") return {};
+
+  const storedValue = window.localStorage.getItem(
+    getLocalToCloudMigrationStorageKey(userId, cloudWorkspaceId),
+  );
+  if (!storedValue) return {};
+
+  try {
+    return JSON.parse(storedValue) as LocalToCloudMigrationState;
+  } catch {
+    return {};
+  }
+};
+
+const writeLocalToCloudMigrationState = (
+  userId: string,
+  cloudWorkspaceId: string,
+  state: LocalToCloudMigrationState,
+) => {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(
+    getLocalToCloudMigrationStorageKey(userId, cloudWorkspaceId),
+    JSON.stringify(state),
+  );
+};
 
 const getWorkspaceScopedStorageKey = (
   baseKey: string,
@@ -187,6 +240,18 @@ export default function Home() {
   const [cloudSaveStatus, setCloudSaveStatus] =
     useState<CloudSaveStatus>("local");
   const [cloudWorkspaceMessage, setCloudWorkspaceMessage] = useState("");
+  const [selectedCloudWorkspaceHasData, setSelectedCloudWorkspaceHasData] =
+    useState(false);
+  const [isCheckingCloudWorkspaceData, setIsCheckingCloudWorkspaceData] =
+    useState(false);
+  const [isMigratingLocalWorkspace, setIsMigratingLocalWorkspace] =
+    useState(false);
+  const [
+    localWorkspaceMigrationSignature,
+    setLocalWorkspaceMigrationSignature,
+  ] = useState("");
+  const [localWorkspaceMigrationState, setLocalWorkspaceMigrationState] =
+    useState<LocalToCloudMigrationState>({});
   const workspaceMode = selectedCloudWorkspaceId ? "cloud" : "local";
   const getStorageKey = (baseKey: string) =>
     getWorkspaceScopedStorageKey(baseKey, activeCloudWorkspaceId);
@@ -222,9 +287,15 @@ export default function Home() {
       initialMeetings[0].id,
     );
   const [dashboardTitle, setDashboardTitle, hasLoadedDashboardTitle] =
-    useLocalStorage(getStorageKey("leadership-dashboard-title"), defaultDashboardTitle);
+    useLocalStorage(
+      getStorageKey("leadership-dashboard-title"),
+      defaultDashboardTitle,
+    );
   const [organizationInfo, setOrganizationInfo, hasLoadedOrganizationInfo] =
-    useLocalStorage(getStorageKey("leadership-organization-info"), defaultOrganizationInfo);
+    useLocalStorage(
+      getStorageKey("leadership-organization-info"),
+      defaultOrganizationInfo,
+    );
   const [
     hasCompletedMeetingSetup,
     setHasCompletedMeetingSetup,
@@ -242,7 +313,10 @@ export default function Home() {
     strategicTopicItems,
     setStrategicTopicItems,
     hasLoadedStrategicTopicItems,
-  ] = useLocalStorage<MeetingItem[]>(getStorageKey(strategicTopicsStorageKey), []);
+  ] = useLocalStorage<MeetingItem[]>(
+    getStorageKey(strategicTopicsStorageKey),
+    [],
+  );
   const [
     standardOperatingObjectives,
     setStandardOperatingObjectives,
@@ -315,6 +389,16 @@ export default function Home() {
   const shouldShowMeetingSetup =
     showMeetingSetup ||
     (hasLoadedDashboardStorage && !hasCompletedMeetingSetup);
+
+  const shouldShowLocalToCloudMigrationPrompt = Boolean(
+    authSession &&
+    selectedCloudWorkspaceId &&
+    localWorkspaceMigrationSignature &&
+    localWorkspaceMigrationState.migratedSignature !==
+      localWorkspaceMigrationSignature &&
+    localWorkspaceMigrationState.skippedSignature !==
+      localWorkspaceMigrationSignature,
+  );
 
   useEffect(() => {
     if (!showSettingsMenu) return;
@@ -931,6 +1015,191 @@ export default function Home() {
     ],
   );
 
+  const refreshLocalWorkspaceMigrationSignature = useCallback(() => {
+    if (typeof window === "undefined") return;
+
+    const localEntries = collectLocalWorkspaceStorage();
+    if (!hasMeaningfulWorkspaceStorage(localEntries)) {
+      setLocalWorkspaceMigrationSignature("");
+      return;
+    }
+
+    setLocalWorkspaceMigrationSignature(
+      getWorkspaceStorageSignature(localEntries),
+    );
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(
+      refreshLocalWorkspaceMigrationSignature,
+      0,
+    );
+
+    return () => window.clearTimeout(timeoutId);
+  }, [refreshLocalWorkspaceMigrationSignature, selectedCloudWorkspaceId]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      if (!authSession || !selectedCloudWorkspaceId) {
+        setLocalWorkspaceMigrationState({});
+        return;
+      }
+
+      setLocalWorkspaceMigrationState(
+        readLocalToCloudMigrationState(
+          authSession.user.id,
+          selectedCloudWorkspaceId,
+        ),
+      );
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [authSession, selectedCloudWorkspaceId, localWorkspaceMigrationSignature]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkSelectedCloudWorkspaceData = async () => {
+      if (!authSession || !selectedCloudWorkspaceId) {
+        setSelectedCloudWorkspaceHasData(false);
+        return;
+      }
+
+      setIsCheckingCloudWorkspaceData(true);
+      try {
+        const cloudData = await supabaseWorkspaceClient.loadWorkspaceData({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedCloudWorkspaceId,
+        });
+        if (!isMounted) return;
+
+        setSelectedCloudWorkspaceHasData(Boolean(cloudData));
+      } catch {
+        if (!isMounted) return;
+
+        setSelectedCloudWorkspaceHasData(true);
+      } finally {
+        if (isMounted) setIsCheckingCloudWorkspaceData(false);
+      }
+    };
+
+    void checkSelectedCloudWorkspaceData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [authSession, selectedCloudWorkspaceId]);
+
+  const recordLocalWorkspaceMigrationState = useCallback(
+    (state: LocalToCloudMigrationState) => {
+      if (!authSession || !selectedCloudWorkspaceId) return;
+
+      const nextState = {
+        ...localWorkspaceMigrationState,
+        ...state,
+      };
+      writeLocalToCloudMigrationState(
+        authSession.user.id,
+        selectedCloudWorkspaceId,
+        nextState,
+      );
+      setLocalWorkspaceMigrationState(nextState);
+    },
+    [authSession, localWorkspaceMigrationState, selectedCloudWorkspaceId],
+  );
+
+  const handleSkipLocalWorkspaceMigration = useCallback(() => {
+    if (!localWorkspaceMigrationSignature) return;
+
+    recordLocalWorkspaceMigrationState({
+      skippedSignature: localWorkspaceMigrationSignature,
+    });
+    setCloudWorkspaceMessage(
+      "Cloud workspace unchanged. Local Workspace remains available in this browser.",
+    );
+  }, [localWorkspaceMigrationSignature, recordLocalWorkspaceMigrationState]);
+
+  const handleContinueLocalWorkspace = useCallback(() => {
+    setSelectedCloudWorkspaceId("");
+    setSelectedCloudWorkspaceName("");
+    setCloudWorkspaceMessage("");
+  }, []);
+
+  const handleMigrateLocalWorkspaceToCloud = useCallback(async () => {
+    if (!authSession || !selectedCloudWorkspaceId || isMigratingLocalWorkspace)
+      return;
+
+    const localEntries = collectLocalWorkspaceStorage();
+    if (!hasMeaningfulWorkspaceStorage(localEntries)) {
+      setLocalWorkspaceMigrationSignature("");
+      setCloudWorkspaceMessage(
+        "No meaningful Local Workspace data was found to migrate.",
+      );
+      return;
+    }
+
+    const workspaceName = selectedCloudWorkspaceName || "this cloud workspace";
+    const warning = selectedCloudWorkspaceHasData
+      ? `This will overwrite the saved cloud data for ${workspaceName} with the current Local Workspace data.`
+      : `This will save the current Local Workspace data into ${workspaceName}.`;
+    const shouldMigrate = window.confirm(
+      `${warning}\n\nExport a JSON backup first if you want an extra rollback copy. Local Workspace data will remain in this browser. Continue?`,
+    );
+
+    if (!shouldMigrate) {
+      setCloudWorkspaceMessage(
+        "Migration canceled. Cloud data was not changed.",
+      );
+      return;
+    }
+
+    setIsMigratingLocalWorkspace(true);
+    setCloudSaveStatus("saving");
+    setCloudWorkspaceMessage("Migrating Local Workspace data to cloud…");
+
+    try {
+      const backup = createWorkspaceBackup(localEntries);
+      await supabaseWorkspaceClient.saveWorkspaceData({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedCloudWorkspaceId,
+        data: backup,
+      });
+
+      const signature = getWorkspaceStorageSignature(localEntries);
+      storeWorkspaceBackupInBrowser(backup, selectedCloudWorkspaceId);
+      setActiveCloudWorkspaceId(selectedCloudWorkspaceId);
+      applyWorkspaceBackupToState(backup);
+      setSelectedCloudWorkspaceHasData(true);
+      recordLocalWorkspaceMigrationState({
+        migratedSignature: signature,
+        skippedSignature: undefined,
+      });
+      setLocalWorkspaceMigrationSignature(signature);
+      setCloudSaveStatus("saved");
+      setCloudWorkspaceMessage(
+        "Local Workspace data migrated to cloud. Local Workspace data remains in this browser.",
+      );
+    } catch (error) {
+      setCloudSaveStatus("error");
+      setCloudWorkspaceMessage(
+        error instanceof Error
+          ? error.message
+          : "Local Workspace data could not be migrated to cloud.",
+      );
+    } finally {
+      setIsMigratingLocalWorkspace(false);
+    }
+  }, [
+    applyWorkspaceBackupToState,
+    authSession,
+    isMigratingLocalWorkspace,
+    recordLocalWorkspaceMigrationState,
+    selectedCloudWorkspaceHasData,
+    selectedCloudWorkspaceId,
+    selectedCloudWorkspaceName,
+    storeWorkspaceBackupInBrowser,
+  ]);
+
   const handleLoadCloudWorkspace = useCallback(async () => {
     if (!authSession || !selectedCloudWorkspaceId) return;
 
@@ -982,7 +1251,9 @@ export default function Home() {
 
     if (!shouldOverwrite) {
       setCloudSaveStatus("idle");
-      setCloudWorkspaceMessage("Cloud save canceled. Saved cloud data was not changed.");
+      setCloudWorkspaceMessage(
+        "Cloud save canceled. Saved cloud data was not changed.",
+      );
       return;
     }
 
@@ -998,6 +1269,7 @@ export default function Home() {
       });
       storeWorkspaceBackupInBrowser(backup, selectedCloudWorkspaceId);
       setActiveCloudWorkspaceId(selectedCloudWorkspaceId);
+      setSelectedCloudWorkspaceHasData(true);
       setCloudSaveStatus("saved");
       setCloudWorkspaceMessage("Saved to cloud.");
     } catch (error) {
@@ -1033,7 +1305,6 @@ export default function Home() {
 
     return () => window.clearTimeout(timeoutId);
   }, [selectedCloudWorkspaceId, workspaceMode]);
-
 
   const handleExportWorkspaceBackup = () => {
     try {
@@ -1165,6 +1436,55 @@ export default function Home() {
               onLoadCloudWorkspace={handleLoadCloudWorkspace}
               onSaveCloudWorkspace={handleSaveCloudWorkspace}
             />
+
+            {shouldShowLocalToCloudMigrationPrompt ? (
+              <section className="w-full rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm sm:w-96">
+                <p className="font-semibold text-amber-950">
+                  Local Workspace data is available to migrate.
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-amber-900">
+                  You selected{" "}
+                  {selectedCloudWorkspaceName || "a Cloud Workspace"}. Migration
+                  is optional and will not happen automatically. Export a JSON
+                  backup first if you want an extra rollback copy.
+                </p>
+                {selectedCloudWorkspaceHasData ? (
+                  <p className="mt-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700">
+                    This will overwrite the saved cloud data for{" "}
+                    {selectedCloudWorkspaceName || "this workspace"} with the
+                    current Local Workspace data.
+                  </p>
+                ) : null}
+                <div className="mt-3 grid gap-2">
+                  <button
+                    type="button"
+                    onClick={handleMigrateLocalWorkspaceToCloud}
+                    disabled={
+                      isMigratingLocalWorkspace || isCheckingCloudWorkspaceData
+                    }
+                    className="rounded-xl bg-amber-600 px-3 py-2 font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isMigratingLocalWorkspace
+                      ? "Migrating…"
+                      : "Save Local Workspace into Cloud Workspace"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSkipLocalWorkspaceMigration}
+                    className="rounded-xl border border-amber-300 bg-white px-3 py-2 font-semibold text-amber-900 hover:bg-amber-100"
+                  >
+                    Keep existing Cloud Workspace unchanged
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleContinueLocalWorkspace}
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Continue using Local Workspace
+                  </button>
+                </div>
+              </section>
+            ) : null}
 
             {isAuthLoading ? (
               <div className="flex h-14 items-center rounded-full border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-500 shadow-sm">
