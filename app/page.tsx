@@ -348,6 +348,8 @@ export default function Home() {
     useState<MeetingSectionKey | null>(null);
   const [draggingStandardObjectiveId, setDraggingStandardObjectiveId] =
     useState<number | null>(null);
+  const cloudAutosaveTimeoutRef = useRef<number | null>(null);
+  const lastCloudAutosaveSignatureRef = useRef("");
   const organizationInfoWithDefaults = {
     ...defaultOrganizationInfo,
     ...organizationInfo,
@@ -1175,9 +1177,10 @@ export default function Home() {
         skippedSignature: undefined,
       });
       setLocalWorkspaceMigrationSignature(signature);
+      lastCloudAutosaveSignatureRef.current = signature;
       setCloudSaveStatus("saved");
       setCloudWorkspaceMessage(
-        "Local Workspace data migrated to cloud. Local Workspace data remains in this browser.",
+        "Local Workspace data was saved to this Cloud Workspace. Local data remains available in this browser.",
       );
     } catch (error) {
       setCloudSaveStatus("error");
@@ -1221,9 +1224,11 @@ export default function Home() {
       }
 
       const backup = validateWorkspaceBackup(cloudData);
+      const signature = getWorkspaceStorageSignature(backup.localStorage);
       storeWorkspaceBackupInBrowser(backup, selectedCloudWorkspaceId);
       setActiveCloudWorkspaceId(selectedCloudWorkspaceId);
       applyWorkspaceBackupToState(backup);
+      lastCloudAutosaveSignatureRef.current = signature;
       setCloudSaveStatus("saved");
       setCloudWorkspaceMessage("Cloud workspace loaded.");
     } catch (error) {
@@ -1267,9 +1272,11 @@ export default function Home() {
         workspaceId: selectedCloudWorkspaceId,
         data: backup,
       });
+      const signature = getWorkspaceStorageSignature(backup.localStorage);
       storeWorkspaceBackupInBrowser(backup, selectedCloudWorkspaceId);
       setActiveCloudWorkspaceId(selectedCloudWorkspaceId);
       setSelectedCloudWorkspaceHasData(true);
+      lastCloudAutosaveSignatureRef.current = signature;
       setCloudSaveStatus("saved");
       setCloudWorkspaceMessage("Saved to cloud.");
     } catch (error) {
@@ -1291,6 +1298,7 @@ export default function Home() {
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       if (workspaceMode === "local") {
+        lastCloudAutosaveSignatureRef.current = "";
         setCloudSaveStatus("local");
         setCloudWorkspaceMessage("");
         setActiveCloudWorkspaceId("");
@@ -1299,12 +1307,68 @@ export default function Home() {
 
       setCloudSaveStatus("idle");
       setCloudWorkspaceMessage(
-        "Cloud workspace selected. Click Load cloud workspace to replace the current view, or Save current workspace to cloud.",
+        "Cloud workspace selected. Load cloud data when needed. After you intentionally load or save, future edits autosave in the background.",
       );
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
   }, [selectedCloudWorkspaceId, workspaceMode]);
+
+  useEffect(() => {
+    if (!authSession || workspaceMode !== "cloud") return;
+    if (!selectedCloudWorkspaceId || activeCloudWorkspaceId !== selectedCloudWorkspaceId)
+      return;
+    if (!hasLoadedDashboardStorage) return;
+
+    const workspaceEntries = getCurrentWorkspaceStorage();
+    const signature = getWorkspaceStorageSignature(workspaceEntries);
+    if (signature === lastCloudAutosaveSignatureRef.current) return;
+
+    if (cloudAutosaveTimeoutRef.current !== null) {
+      window.clearTimeout(cloudAutosaveTimeoutRef.current);
+    }
+
+    cloudAutosaveTimeoutRef.current = window.setTimeout(() => {
+      void (async () => {
+        setCloudSaveStatus("saving");
+        try {
+          const backup = createWorkspaceBackup(workspaceEntries);
+          await supabaseWorkspaceClient.saveWorkspaceData({
+            accessToken: authSession.accessToken,
+            workspaceId: selectedCloudWorkspaceId,
+            data: backup,
+          });
+          storeWorkspaceBackupInBrowser(backup, selectedCloudWorkspaceId);
+          setSelectedCloudWorkspaceHasData(true);
+          lastCloudAutosaveSignatureRef.current = signature;
+          setCloudSaveStatus("saved");
+          setCloudWorkspaceMessage("Saved to cloud.");
+        } catch (error) {
+          setCloudSaveStatus("error");
+          setCloudWorkspaceMessage(
+            error instanceof Error
+              ? error.message
+              : "Cloud workspace could not be saved.",
+          );
+        }
+      })();
+    }, 1200);
+
+    return () => {
+      if (cloudAutosaveTimeoutRef.current !== null) {
+        window.clearTimeout(cloudAutosaveTimeoutRef.current);
+        cloudAutosaveTimeoutRef.current = null;
+      }
+    };
+  }, [
+    activeCloudWorkspaceId,
+    authSession,
+    getCurrentWorkspaceStorage,
+    hasLoadedDashboardStorage,
+    selectedCloudWorkspaceId,
+    storeWorkspaceBackupInBrowser,
+    workspaceMode,
+  ]);
 
   const handleExportWorkspaceBackup = () => {
     try {
@@ -1431,6 +1495,7 @@ export default function Home() {
               selectedCloudWorkspaceId={selectedCloudWorkspaceId}
               onSelectedCloudWorkspaceIdChange={setSelectedCloudWorkspaceId}
               onSelectedCloudWorkspaceNameChange={setSelectedCloudWorkspaceName}
+              onCloudWorkspaceCreated={setCloudWorkspaceMessage}
               saveStatus={cloudSaveStatus}
               message={cloudWorkspaceMessage}
               onLoadCloudWorkspace={handleLoadCloudWorkspace}

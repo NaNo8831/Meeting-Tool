@@ -16,6 +16,7 @@ type WorkspaceSelectorProps = {
   selectedCloudWorkspaceId: string;
   onSelectedCloudWorkspaceIdChange: (workspaceId: string) => void;
   onSelectedCloudWorkspaceNameChange: (workspaceName: string) => void;
+  onCloudWorkspaceCreated: (message: string) => void;
   saveStatus: SaveStatus;
   message: string;
   onLoadCloudWorkspace: () => void;
@@ -91,6 +92,7 @@ export function WorkspaceSelector({
   selectedCloudWorkspaceId,
   onSelectedCloudWorkspaceIdChange,
   onSelectedCloudWorkspaceNameChange,
+  onCloudWorkspaceCreated,
   saveStatus,
   message,
   onLoadCloudWorkspace,
@@ -238,10 +240,9 @@ export function WorkspaceSelector({
       onSelectedCloudWorkspaceIdChange(workspace.id);
       onSelectedCloudWorkspaceNameChange(workspace.name);
       setNewWorkspaceName("");
-      setWorkspaceMessage({
-        type: "success",
-        text: "Cloud workspace created. Local data was not migrated.",
-      });
+      onCloudWorkspaceCreated(
+        "Cloud workspace created. Local data has not been copied.",
+      );
     } catch (error) {
       setWorkspaceMessage({
         type: "error",
