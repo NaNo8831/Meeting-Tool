@@ -5,6 +5,7 @@
 - Supabase email/password auth is available on `phase-2-cloud` when environment variables are configured.
 - Authenticated users can create and select owner-only Cloud Workspaces; selected cloud workspace IDs are scoped by signed-in user in browser state.
 - Selected Cloud Workspaces can save and load full Meeting Tool workspace backup JSON in owner-only Supabase storage through explicit load/save actions.
+- Authenticated owners can explicitly migrate their browser-local Local Workspace data into a selected Cloud Workspace they own; RLS prevents migrating into another user’s workspace.
 - Tester feedback can be submitted to Supabase separately from workspace persistence.
 
 ## Current Supabase RLS
@@ -32,6 +33,6 @@
 - Workspace transfer or recovery behavior.
 - Export/import behavior for each role.
 - Whether realtime collaboration is part of initial cloud launch.
-- Local-to-cloud migration and conflict behavior.
+- Future conflict behavior if sharing or realtime collaboration is introduced.
 
-This file documents the current owner-only basic Cloud Workspace persistence foundation plus future planning. Do not implement broader permissions unless a future scoped task explicitly requests it on the correct branch.
+This file documents the current owner-only basic Cloud Workspace persistence and optional local-to-cloud migration foundation plus future planning. Do not implement broader permissions unless a future scoped task explicitly requests it on the correct branch.
