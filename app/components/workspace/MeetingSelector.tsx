@@ -3,17 +3,17 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   isSupabaseConfigured,
-  supabaseWorkspaceClient,
+  supabaseMeetingClient,
   type SupabaseAuthSession,
-  type SupabaseWorkspace,
+  type SupabaseMeeting,
 } from "@/app/lib/supabaseClient";
 
 type WorkspaceMode = "local" | "cloud";
 type SaveStatus = "local" | "idle" | "saving" | "saved" | "error";
 
-type WorkspaceSelectorProps = {
+type MeetingSelectorProps = {
   session: SupabaseAuthSession | null;
-  selectedCloudWorkspaceId: string;
+  selectedMeetingId: string;
   onSelectedCloudWorkspaceIdChange: (workspaceId: string) => void;
   onSelectedCloudWorkspaceNameChange: (workspaceName: string) => void;
   onCloudWorkspaceCreated: (message: string) => void;
@@ -28,11 +28,11 @@ type WorkspaceMessage = {
   text: string;
 };
 
-const selectedCloudWorkspaceStorageKeyPrefix =
+const selectedMeetingStorageKeyPrefix =
   "meeting-tool-selected-cloud-workspace-id";
 
 const getSelectedCloudWorkspaceStorageKey = (userId: string) =>
-  `${selectedCloudWorkspaceStorageKeyPrefix}:${userId}`;
+  `${selectedMeetingStorageKeyPrefix}:${userId}`;
 
 const readStoredCloudWorkspaceId = (userId: string) => {
   if (typeof window === "undefined") return "";
@@ -64,7 +64,7 @@ const getStatusLabel = (status: SaveStatus) => {
     case "error":
       return "Save error";
     case "idle":
-      return "Cloud Workspace";
+      return "Cloud Meeting";
     case "local":
     default:
       return "Local only";
@@ -87,9 +87,9 @@ const getStatusClasses = (status: SaveStatus) => {
   }
 };
 
-export function WorkspaceSelector({
+export function MeetingSelector({
   session,
-  selectedCloudWorkspaceId,
+  selectedMeetingId,
   onSelectedCloudWorkspaceIdChange,
   onSelectedCloudWorkspaceNameChange,
   onCloudWorkspaceCreated,
@@ -97,10 +97,10 @@ export function WorkspaceSelector({
   message,
   onLoadCloudWorkspace,
   onSaveCloudWorkspace,
-}: WorkspaceSelectorProps) {
+}: MeetingSelectorProps) {
   const [hasLoadedWorkspaceSelection, setHasLoadedWorkspaceSelection] =
     useState(false);
-  const [workspaces, setWorkspaces] = useState<SupabaseWorkspace[]>([]);
+  const [workspaces, setWorkspaces] = useState<SupabaseMeeting[]>([]);
   const [workspaceOwnerId, setWorkspaceOwnerId] = useState<string | null>(null);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
   const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(false);
@@ -115,9 +115,9 @@ export function WorkspaceSelector({
   const selectedWorkspace = useMemo(
     () =>
       visibleWorkspaces.find(
-        (workspace) => workspace.id === selectedCloudWorkspaceId,
+        (workspace) => workspace.id === selectedMeetingId,
       ) ?? null,
-    [selectedCloudWorkspaceId, visibleWorkspaces],
+    [selectedMeetingId, visibleWorkspaces],
   );
   const effectiveWorkspaceMode: WorkspaceMode = selectedWorkspace
     ? "cloud"
@@ -146,7 +146,7 @@ export function WorkspaceSelector({
       setIsLoadingWorkspaces(true);
 
       try {
-        const nextWorkspaces = await supabaseWorkspaceClient.listWorkspaces(
+        const nextWorkspaces = await supabaseMeetingClient.listWorkspaces(
           session.accessToken,
         );
         if (!isMounted) return;
@@ -199,8 +199,8 @@ export function WorkspaceSelector({
   useEffect(() => {
     if (!session || !hasLoadedWorkspaceSelection) return;
 
-    writeStoredCloudWorkspaceId(session.user.id, selectedCloudWorkspaceId);
-  }, [hasLoadedWorkspaceSelection, selectedCloudWorkspaceId, session]);
+    writeStoredCloudWorkspaceId(session.user.id, selectedMeetingId);
+  }, [hasLoadedWorkspaceSelection, selectedMeetingId, session]);
 
   const selectLocalWorkspace = () => {
     onSelectedCloudWorkspaceIdChange("");
@@ -221,7 +221,7 @@ export function WorkspaceSelector({
 
     const trimmedName = newWorkspaceName.trim();
     if (!trimmedName) {
-      setWorkspaceMessage({ type: "error", text: "Name the cloud workspace first." });
+      setWorkspaceMessage({ type: "error", text: "Name the cloud meeting first." });
       return;
     }
 
@@ -229,7 +229,7 @@ export function WorkspaceSelector({
     setWorkspaceMessage(null);
 
     try {
-      const workspace = await supabaseWorkspaceClient.createWorkspace({
+      const workspace = await supabaseMeetingClient.createWorkspace({
         accessToken: session.accessToken,
         ownerId: session.user.id,
         name: trimmedName,
@@ -269,7 +269,7 @@ export function WorkspaceSelector({
               : "Local Workspace"}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            Mode: {effectiveWorkspaceMode === "cloud" ? "Cloud Workspace" : "Local only"}
+            Mode: {effectiveWorkspaceMode === "cloud" ? "Cloud Meeting" : "Local only"}
           </p>
         </div>
         <span
@@ -282,35 +282,35 @@ export function WorkspaceSelector({
       </div>
 
       <p className="mt-3 text-xs leading-relaxed text-slate-500">
-        Local Workspace keeps this browser&apos;s localStorage data. Cloud Workspace
+        Local Workspace keeps this browser&apos;s localStorage data. Cloud Meeting
         saves and loads the selected workspace in Supabase without auto-migrating
         local data.
       </p>
 
       {!session ? (
         <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Sign in to create or select cloud workspaces. Signed-out users can keep
+          Sign in to create or select cloud meetings. Signed-out users can keep
           using Local Workspace.
         </p>
       ) : !isSupabaseConfigured ? (
         <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Supabase is not configured in this environment, so cloud workspaces are
+          Supabase is not configured in this environment, so cloud meetings are
           unavailable.
         </p>
       ) : (
         <div className="mt-4 space-y-3">
           <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
             <select
-              value={selectedCloudWorkspaceId}
+              value={selectedMeetingId}
               onChange={(event) => selectCloudWorkspace(event.target.value)}
               disabled={isLoadingWorkspaces || visibleWorkspaces.length === 0}
               className="min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2 font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
-              aria-label="Select cloud workspace"
+              aria-label="Select cloud meeting"
             >
               <option value="" disabled>
                 {visibleWorkspaces.length === 0
-                  ? "No cloud workspaces yet"
-                  : "Select Cloud Workspace"}
+                  ? "No cloud meetings yet"
+                  : "Select Cloud Meeting"}
               </option>
               {visibleWorkspaces.map((workspace) => (
                 <option key={workspace.id} value={workspace.id}>
@@ -335,7 +335,7 @@ export function WorkspaceSelector({
                 disabled={saveStatus === "saving"}
                 className="rounded-xl border border-blue-200 px-3 py-2 font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Load cloud workspace
+                Load cloud meeting
               </button>
               <button
                 type="button"
@@ -357,7 +357,7 @@ export function WorkspaceSelector({
               value={newWorkspaceName}
               onChange={(event) => setNewWorkspaceName(event.target.value)}
               maxLength={80}
-              placeholder="New cloud workspace name"
+              placeholder="New cloud meeting name"
               className="min-w-0 rounded-xl border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
             <button
@@ -370,7 +370,7 @@ export function WorkspaceSelector({
           </form>
 
           {isLoadingWorkspaces ? (
-            <p className="text-xs text-slate-500">Loading cloud workspaces…</p>
+            <p className="text-xs text-slate-500">Loading cloud meetings…</p>
           ) : null}
         </div>
       )}
