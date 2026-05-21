@@ -2,6 +2,7 @@
 
 | Date | Decision | Rationale / Notes |
 | --- | --- | --- |
+| 2026-05-21 | Track deferred non-critical roadmap items in `planning/FUTURE_PHASES.md`. | Creates an explicit scope-control backlog so future UX/org/sharing/roles/realtime/template/recap/mobile ideas are preserved without expanding active sprint scope. |
 | 2026-05-17 | Make Local Workspace migration explicit, optional, and backup-shaped. | Migration into Cloud Workspace uses the same JSON backup object as export/import and `workspace_data`, warns before overwriting cloud data, leaves localStorage intact, and records a browser-local signature per user/workspace to avoid repeated prompts for the same local data. |
 | 2026-05-17 | Store basic Cloud Workspace data as nullable JSONB on `workspaces.workspace_data`. | Keeps the Phase 2 persistence step small by saving the existing JSON backup shape for owner-only Cloud Workspaces while preserving Local Workspace, export/import, and no forced migration. |
 | 2026-05-17 | Keep Cloud Workspace load/save explicit. | Selecting a cloud workspace container must not load or overwrite visible workspace data; saving to cloud requires an overwrite confirmation so local imports and current data are not silently pushed to Supabase. |
