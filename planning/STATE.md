@@ -7,7 +7,7 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Workspaces can save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and autosave after intentional cloud establish/load/save actions.
 - Backup: JSON export/import workspace backup.
-- Current focus: production UX stabilization, Meeting Setup follow-through, and basic Phase 2 cloud persistence validation.
+- Current focus: production UX stabilization, Meeting Setup follow-through, basic Phase 2 cloud persistence validation, and explicit capture of deferred future-phase scope in `planning/FUTURE_PHASES.md`.
 - Current branch note: Cloud Workspace Foundation is based from the updated `phase-2-cloud` branch context.
 
 ## Production State
@@ -18,13 +18,21 @@
 
 ## Active Work
 
-- Cloud Workspace Persistence adds owner-only Supabase save/load plus debounced autosave (only after intentional cloud establish/load/save), an intentional Local Workspace migration prompt for selected Cloud Workspaces, and concise current-state messaging while preserving Local Workspace `localStorage`, per-user cloud selection, explicit load/save actions, overwrite confirmation, duplicate-prompt suppression, and JSON export/import backup.
-- Keep the 120x operating structure accurate through lightweight planning and documentation maintenance.
+- Keep the planning source of truth current, including the new deferred-scope registry in `planning/FUTURE_PHASES.md`.
 - Keep `main` stable for production and UX stabilization.
 - Treat the Meeting Setup flow as part of the current production baseline on `main` after PR #23.
+- Validate the existing Cloud Workspace Persistence behavior in preview environments without broadening into collaboration or role expansion.
+
+## Sprint Status
+
+- Completed sprint: Sprint 001 Operational Stabilization (requirements/blueprint/acceptance are documented under `planning/sprints/001-operational-stabilization/`).
+- Current architecture status: Hybrid local-first + basic owner-only cloud persistence is in place (Local Workspace in `localStorage`, Cloud Workspace backup-shaped JSON in Supabase for selected workspaces, export/import preserved).
+- Next recommended sprint: Cloud Workspace hardening and production-readiness validation (behavioral QA, reliability checks, and UX refinement without adding organizations/realtime/advanced permissions yet).
+- Blockers: No immediate implementation blocker recorded; open design questions remain for normalization, invitations/sharing, advanced roles, and realtime collaboration.
 
 ## Parked / Deferred Work
 - Full collaboration-grade Phase 2 remains deferred. Basic Cloud Workspace persistence stores the full backup JSON in `workspaces.workspace_data`, but realtime collaboration, team sharing, editor/viewer roles, and forced migration remain out of scope.
+- Deferred ideas are now tracked in `planning/FUTURE_PHASES.md` to prevent scope creep in active delivery work.
 
 ## Next Actions
 
