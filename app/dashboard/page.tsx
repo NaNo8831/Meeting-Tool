@@ -35,7 +35,7 @@ const formatRelativeTimestamp = (timestamp: string) => {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { session, isLoading } = useSupabaseAuth();
+  const { session, isLoading, signOut } = useSupabaseAuth();
   const [meetings, setMeetings] = useState<SupabaseMeeting[]>([]);
   const [isLoadingMeetings, setIsLoadingMeetings] = useState(false);
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
@@ -158,6 +158,19 @@ export default function DashboardPage() {
             >
               Continue Locally
             </Link>
+            <button
+              type="button"
+              onClick={() =>
+                void signOut()
+                  .then(() => {
+                    router.replace("/");
+                  })
+                  .catch(() => undefined)
+              }
+              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+            >
+              Log Out
+            </button>
           </div>
         </header>
 

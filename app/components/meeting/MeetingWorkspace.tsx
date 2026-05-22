@@ -8,6 +8,8 @@ import {
   useState,
   type DragEvent,
 } from "react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import { AuthModal } from "@/app/components/auth/AuthModal";
 import { BackupRestoreModal } from "@/app/components/dashboard/BackupRestoreModal";
 import { MeetingSetupModal } from "@/app/components/dashboard/MeetingSetupModal";
@@ -224,6 +226,11 @@ const getLegacyStrategicTopics = (): MeetingItem[] => {
 };
 
 export default function MeetingWorkspace() {
+  const router = useRouter();
+  const params = useParams<{ id?: string }>();
+  const routeMeetingId = typeof params?.id === "string" ? params.id : "";
+  const isLocalRoute = routeMeetingId === "local";
+  const isCloudRoute = Boolean(routeMeetingId) && !isLocalRoute;
   const initialMeetings = useMemo(() => getInitialMeetings(), []);
   const {
     session: authSession,
@@ -254,7 +261,7 @@ export default function MeetingWorkspace() {
     useState<LocalToCloudMigrationState>({});
   const workspaceMode = selectedMeetingId ? "cloud" : "local";
   const getStorageKey = (baseKey: string) =>
-    getWorkspaceScopedStorageKey(baseKey, activeCloudWorkspaceId);
+    getWorkspaceScopedStorageKey(baseKey, selectedMeetingId);
 
   const {
     objectives,
@@ -401,6 +408,47 @@ export default function MeetingWorkspace() {
     localWorkspaceMigrationState.skippedSignature !==
       localWorkspaceMigrationSignature,
   );
+
+  useEffect(() => {
+    if (isLocalRoute) {
+      const timeoutId = window.setTimeout(() => {
+        setSelectedMeetingId("");
+        setSelectedMeetingName("");
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
+    }
+
+    if (isCloudRoute && selectedMeetingId !== routeMeetingId) {
+      const timeoutId = window.setTimeout(() => {
+        setSelectedMeetingId(routeMeetingId);
+        setCloudMeetingMessage("Loading cloud meeting from route…");
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
+    }
+
+    return undefined;
+  }, [isCloudRoute, isLocalRoute, routeMeetingId, selectedMeetingId]);
+
+  useEffect(() => {
+    if (isAuthLoading) return;
+    if (authSession) return;
+    if (!isCloudRoute) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setCloudSaveStatus("error");
+      setCloudMeetingMessage(
+        "Sign in to access this cloud meeting route. This URL does not use local mode.",
+      );
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [authSession, isAuthLoading, isCloudRoute]);
+
+  useEffect(() => {
+    if (isAuthLoading) return;
+    if (authSession) return;
+    router.replace("/");
+  }, [authSession, isAuthLoading, router]);
 
   useEffect(() => {
     if (!showSettingsMenu) return;
@@ -1246,6 +1294,23 @@ export default function MeetingWorkspace() {
     storeWorkspaceBackupInBrowser,
   ]);
 
+  useEffect(() => {
+    if (!authSession || !isCloudRoute) return;
+    if (!selectedMeetingId || selectedMeetingId !== routeMeetingId) return;
+
+    const timeoutId = window.setTimeout(() => {
+      void handleLoadCloudMeeting();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    authSession,
+    handleLoadCloudMeeting,
+    isCloudRoute,
+    routeMeetingId,
+    selectedMeetingId,
+  ]);
+
   const handleSaveCloudMeeting = useCallback(async () => {
     if (!authSession || !selectedMeetingId) return;
 
@@ -1562,7 +1627,13 @@ export default function MeetingWorkspace() {
                 </span>
                 <button
                   type="button"
-                  onClick={() => void signOut().catch(() => undefined)}
+                  onClick={() =>
+                    void signOut()
+                      .then(() => {
+                        router.replace("/");
+                      })
+                      .catch(() => undefined)
+                  }
                   className="self-start font-semibold text-blue-600 hover:text-blue-800"
                 >
                   Sign Out
@@ -1599,6 +1670,14 @@ export default function MeetingWorkspace() {
                   role="menu"
                   aria-label="Dashboard menu"
                 >
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setShowSettingsMenu(false)}
+                    className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                    role="menuitem"
+                  >
+                    Dashboard
+                  </Link>
                   <button
                     type="button"
                     onClick={() => {

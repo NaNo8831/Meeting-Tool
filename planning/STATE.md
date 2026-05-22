@@ -26,7 +26,7 @@
 ## Sprint Status
 
 - Completed sprint: Dashboard / Meeting Selector (authenticated dashboard cards, user-scoped meeting list, open-route entry, and local fallback completed on `phase-2-cloud`).
-- Current architecture status: App now has route separation with ` / ` as landing/auth entry, `/dashboard` as authenticated meeting selector dashboard, and `/meeting/[id]` as active recurring meeting workspace while keeping owner-scoped Cloud Meeting visibility and Local Workspace + backup/import/export behavior intact.
+- Current architecture status: App now has route separation with ` / ` as landing/auth entry, `/dashboard` as authenticated meeting selector dashboard, and `/meeting/[id]` as route-driven cloud meeting mode that auto-selects/loads the URL meeting when accessible while preserving `/meeting/local` local mode and backup/import/export behavior.
 - Next recommended sprint: Dashboard hardening + meeting flow regression QA (empty/loading/error UX polish, create/open telemetry decisions, and manual regression across feedback/export/import + cloud load/save flows).
 - Blockers: No immediate implementation blocker recorded; open design questions remain for normalization, invitations/sharing, advanced roles, and realtime collaboration.
 
