@@ -19,8 +19,8 @@ type MeetingSelectorProps = {
   onCloudWorkspaceCreated: (message: string) => void;
   saveStatus: SaveStatus;
   message: string;
-  onLoadCloudWorkspace: () => void;
-  onSaveCloudWorkspace: () => void;
+  onLoadCloudMeeting: () => void;
+  onSaveCloudMeeting: () => void;
 };
 
 type WorkspaceMessage = {
@@ -95,8 +95,8 @@ export function MeetingSelector({
   onCloudWorkspaceCreated,
   saveStatus,
   message,
-  onLoadCloudWorkspace,
-  onSaveCloudWorkspace,
+  onLoadCloudMeeting,
+  onSaveCloudMeeting,
 }: MeetingSelectorProps) {
   const [hasLoadedWorkspaceSelection, setHasLoadedWorkspaceSelection] =
     useState(false);
@@ -331,7 +331,7 @@ export function MeetingSelector({
             <div className="grid gap-2 sm:grid-cols-2">
               <button
                 type="button"
-                onClick={onLoadCloudWorkspace}
+                onClick={onLoadCloudMeeting}
                 disabled={saveStatus === "saving"}
                 className="rounded-xl border border-blue-200 px-3 py-2 font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -339,7 +339,7 @@ export function MeetingSelector({
               </button>
               <button
                 type="button"
-                onClick={onSaveCloudWorkspace}
+                onClick={onSaveCloudMeeting}
                 disabled={saveStatus === "saving"}
                 className="rounded-xl bg-blue-600 px-3 py-2 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
