@@ -357,6 +357,7 @@ export default function MeetingWorkspace() {
     useState<number | null>(null);
   const cloudAutosaveTimeoutRef = useRef<number | null>(null);
   const lastCloudAutosaveSignatureRef = useRef("");
+  const lastAutoLoadedCloudMeetingIdRef = useRef("");
   const organizationInfoWithDefaults = {
     ...defaultOrganizationInfo,
     ...organizationInfo,
@@ -447,8 +448,9 @@ export default function MeetingWorkspace() {
   useEffect(() => {
     if (isAuthLoading) return;
     if (authSession) return;
+    if (!isCloudRoute) return;
     router.replace("/");
-  }, [authSession, isAuthLoading, router]);
+  }, [authSession, isAuthLoading, isCloudRoute, router]);
 
   useEffect(() => {
     if (!showSettingsMenu) return;
@@ -1297,8 +1299,10 @@ export default function MeetingWorkspace() {
   useEffect(() => {
     if (!authSession || !isCloudRoute) return;
     if (!selectedMeetingId || selectedMeetingId !== routeMeetingId) return;
+    if (lastAutoLoadedCloudMeetingIdRef.current === routeMeetingId) return;
 
     const timeoutId = window.setTimeout(() => {
+      lastAutoLoadedCloudMeetingIdRef.current = routeMeetingId;
       void handleLoadCloudMeeting();
     }, 0);
 
@@ -1310,6 +1314,13 @@ export default function MeetingWorkspace() {
     routeMeetingId,
     selectedMeetingId,
   ]);
+
+  useEffect(() => {
+    if (routeMeetingId !== lastAutoLoadedCloudMeetingIdRef.current) return;
+    if (!authSession) {
+      lastAutoLoadedCloudMeetingIdRef.current = "";
+    }
+  }, [authSession, routeMeetingId]);
 
   const handleSaveCloudMeeting = useCallback(async () => {
     if (!authSession || !selectedMeetingId) return;
@@ -1555,19 +1566,47 @@ export default function MeetingWorkspace() {
           </div>
 
           <div className="flex flex-col gap-3 self-start sm:flex-row sm:items-start">
-            <MeetingSelector
-              session={authSession}
-              selectedMeetingId={selectedMeetingId}
-              onSelectedCloudWorkspaceIdChange={setSelectedMeetingId}
-              onSelectedCloudWorkspaceNameChange={setSelectedMeetingName}
-              onCloudWorkspaceCreated={setCloudMeetingMessage}
-              saveStatus={cloudSaveStatus}
-              message={cloudMeetingMessage}
-              onLoadCloudMeeting={handleLoadCloudMeeting}
-              onSaveCloudMeeting={handleSaveCloudMeeting}
-            />
+            {isLocalRoute ? (
+              <MeetingSelector
+                session={authSession}
+                selectedMeetingId={selectedMeetingId}
+                onSelectedCloudWorkspaceIdChange={setSelectedMeetingId}
+                onSelectedCloudWorkspaceNameChange={setSelectedMeetingName}
+                onCloudWorkspaceCreated={setCloudMeetingMessage}
+                saveStatus={cloudSaveStatus}
+                message={cloudMeetingMessage}
+                onLoadCloudMeeting={handleLoadCloudMeeting}
+                onSaveCloudMeeting={handleSaveCloudMeeting}
+              />
+            ) : (
+              <section className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm sm:w-96">
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+                  Cloud Meeting
+                </p>
+                <p className="mt-1 font-semibold text-slate-900">
+                  {selectedMeetingName || "Selected from route"}
+                </p>
+                <p className="mt-2 text-xs text-slate-500">{cloudMeetingMessage}</p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={handleLoadCloudMeeting}
+                    className="rounded-xl border border-blue-200 px-3 py-2 font-semibold text-blue-700 hover:bg-blue-50"
+                  >
+                    Load
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveCloudMeeting}
+                    className="rounded-xl bg-blue-600 px-3 py-2 font-semibold text-white hover:bg-blue-700"
+                  >
+                    Save
+                  </button>
+                </div>
+              </section>
+            )}
 
-            {shouldShowLocalToCloudMigrationPrompt ? (
+            {isLocalRoute && shouldShowLocalToCloudMigrationPrompt ? (
               <section className="w-full rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm sm:w-96">
                 <p className="font-semibold text-amber-950">
                   Local Workspace data is available to migrate.
