@@ -261,6 +261,30 @@ const getRestErrorMessage = async (response: Response, fallback: string) => {
   }
 };
 
+const meetingTableCandidates = ["meetings", "workspaces"] as const;
+
+const requestMeetingsRest = async (
+  buildPath: (table: (typeof meetingTableCandidates)[number]) => string,
+  init: RequestInit,
+) => {
+  let lastResponse: Response | null = null;
+
+  for (const table of meetingTableCandidates) {
+    const response = await fetch(buildPath(table), init);
+    if (response.ok || response.status !== 404) {
+      return { response, table };
+    }
+
+    lastResponse = response;
+  }
+
+  if (!lastResponse) {
+    throw new Error("Supabase request did not return a response.");
+  }
+
+  return { response: lastResponse, table: "meetings" as const };
+};
+
 export const supabaseFeedbackClient = {
   async submitFeedback({
     accessToken,
@@ -286,8 +310,8 @@ export const supabaseFeedbackClient = {
 
 export const supabaseMeetingClient = {
   async listWorkspaces(accessToken: string) {
-    const response = await fetch(
-      `${getRestUrl("meetings")}?select=*&order=updated_at.desc`,
+    const { response } = await requestMeetingsRest(
+      (table) => `${getRestUrl(table)}?select=*&order=updated_at.desc`,
       {
         method: "GET",
         headers: getSupabaseHeaders(accessToken),
@@ -310,7 +334,7 @@ export const supabaseMeetingClient = {
     ownerId: string;
     name: string;
   }) {
-    const response = await fetch(getRestUrl("meetings"), {
+    const createInit = (table: "meetings" | "workspaces"): RequestInit => ({
       method: "POST",
       headers: {
         ...getSupabaseHeaders(accessToken),
@@ -320,9 +344,16 @@ export const supabaseMeetingClient = {
         owner_id: ownerId,
         name,
         metadata_json: null,
-        meeting_data: null,
+        ...(table === "meetings"
+          ? { meeting_data: null }
+          : { workspace_data: null }),
       }),
     });
+    const meetingsAttempt = await fetch(getRestUrl("meetings"), createInit("meetings"));
+    const response =
+      meetingsAttempt.status === 404
+        ? await fetch(getRestUrl("workspaces"), createInit("workspaces"))
+        : meetingsAttempt;
 
     if (!response.ok) {
       throw new Error(await getRestErrorMessage(response, "Workspace create"));
@@ -344,10 +375,13 @@ export const supabaseMeetingClient = {
     accessToken: string;
     workspaceId: string;
   }) {
-    const response = await fetch(
-      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(
-        workspaceId,
-      )}&select=id,meeting_data&limit=1`,
+    const { response, table } = await requestMeetingsRest(
+      (tableName) =>
+        `${getRestUrl(tableName)}?id=eq.${encodeURIComponent(
+          workspaceId,
+        )}&select=id,${
+          tableName === "meetings" ? "meeting_data" : "workspace_data"
+        }&limit=1`,
       {
         method: "GET",
         headers: getSupabaseHeaders(accessToken),
@@ -358,16 +392,20 @@ export const supabaseMeetingClient = {
       throw new Error(await getRestErrorMessage(response, "Workspace load"));
     }
 
-    const meetings = (await response.json()) as Pick<
-      SupabaseMeeting,
-      "id" | "meeting_data"
-    >[];
+    const meetings = (await response.json()) as Array<
+      Pick<SupabaseMeeting, "id"> & {
+        meeting_data?: Record<string, unknown> | null;
+        workspace_data?: Record<string, unknown> | null;
+      }
+    >;
     const meeting = meetings[0];
     if (!meeting) {
       throw new Error("Cloud meeting was not found or is not accessible.");
     }
 
-    return meeting.meeting_data;
+    return table === "meetings"
+      ? meeting.meeting_data ?? null
+      : meeting.workspace_data ?? null;
   },
 
   async saveWorkspaceData({
@@ -379,17 +417,27 @@ export const supabaseMeetingClient = {
     workspaceId: string;
     data: Record<string, unknown>;
   }) {
-    const response = await fetch(
-      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}`,
-      {
-        method: "PATCH",
-        headers: {
-          ...getSupabaseHeaders(accessToken),
-          Prefer: "return=representation",
-        },
-        body: JSON.stringify({ meeting_data: data }),
+    const saveInit = (table: "meetings" | "workspaces"): RequestInit => ({
+      method: "PATCH",
+      headers: {
+        ...getSupabaseHeaders(accessToken),
+        Prefer: "return=representation",
       },
+      body: JSON.stringify(
+        table === "meetings" ? { meeting_data: data } : { workspace_data: data },
+      ),
+    });
+    const meetingsAttempt = await fetch(
+      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}`,
+      saveInit("meetings"),
     );
+    const response =
+      meetingsAttempt.status === 404
+        ? await fetch(
+            `${getRestUrl("workspaces")}?id=eq.${encodeURIComponent(workspaceId)}`,
+            saveInit("workspaces"),
+          )
+        : meetingsAttempt;
 
     if (!response.ok) {
       throw new Error(await getRestErrorMessage(response, "Workspace save"));
