@@ -360,7 +360,6 @@ export default function MeetingWorkspace() {
   const lastAutoLoadedCloudMeetingIdRef = useRef("");
   const [isRouteCloudBootstrapping, setIsRouteCloudBootstrapping] =
     useState(false);
-  const [isSigningOut, setIsSigningOut] = useState(false);
   const organizationInfoWithDefaults = {
     ...defaultOrganizationInfo,
     ...organizationInfo,
@@ -471,9 +470,12 @@ export default function MeetingWorkspace() {
     setShowBackupRestore(false);
     setShowMeetingSetup(false);
     setShowPlaybookDefinitions(false);
-    setIsSigningOut(true);
     router.replace("/");
-    void signOut().catch(() => undefined);
+    void signOut()
+      .catch(() => undefined)
+      .finally(() => {
+        router.replace("/");
+      });
   };
 
   useEffect(() => {
@@ -1419,8 +1421,7 @@ export default function MeetingWorkspace() {
 
   useEffect(() => {
     if (!authSession || workspaceMode !== "cloud") return;
-    if (!selectedMeetingId || activeCloudWorkspaceId !== selectedMeetingId)
-      return;
+    if (!selectedMeetingId) return;
     if (!hasLoadedDashboardStorage) return;
 
     const workspaceEntries = getCurrentWorkspaceStorage();
@@ -1464,7 +1465,6 @@ export default function MeetingWorkspace() {
       }
     };
   }, [
-    activeCloudWorkspaceId,
     authSession,
     getCurrentWorkspaceStorage,
     hasLoadedDashboardStorage,
@@ -1583,7 +1583,7 @@ export default function MeetingWorkspace() {
     );
   }
 
-  if (isSigningOut || (isLocalRoute && authSession)) {
+  if (isLocalRoute && authSession) {
     return (
       <main className="min-h-screen bg-slate-100 p-8">
         <div className="mx-auto flex min-h-[60vh] max-w-[1600px] items-center justify-center">
