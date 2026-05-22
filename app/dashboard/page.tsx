@@ -41,6 +41,7 @@ export default function DashboardPage() {
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [newMeetingName, setNewMeetingName] = useState("");
   const [message, setMessage] = useState("");
+  const [createMeetingError, setCreateMeetingError] = useState("");
 
   useEffect(() => {
     if (!isLoading && !session) {
@@ -93,12 +94,13 @@ export default function DashboardPage() {
 
     const trimmedName = newMeetingName.trim();
     if (!trimmedName) {
-      setMessage("Name the meeting before creating it.");
+      setCreateMeetingError("Name the meeting before creating it.");
       return;
     }
 
     setIsCreatingMeeting(true);
     setMessage("");
+    setCreateMeetingError("");
 
     try {
       const meeting = await supabaseMeetingClient.createWorkspace({
@@ -138,7 +140,10 @@ export default function DashboardPage() {
               <input
                 type="text"
                 value={newMeetingName}
-                onChange={(event) => setNewMeetingName(event.target.value)}
+                onChange={(event) => {
+                  setNewMeetingName(event.target.value);
+                  if (createMeetingError) setCreateMeetingError("");
+                }}
                 placeholder="Create a recurring meeting"
                 maxLength={80}
                 className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
@@ -151,6 +156,11 @@ export default function DashboardPage() {
                 {isCreatingMeeting ? "Creating…" : "Create Meeting"}
               </button>
             </form>
+            {createMeetingError ? (
+              <p className="basis-full pl-1 text-xs text-amber-800">
+                {createMeetingError}
+              </p>
+            ) : null}
 
             <Link
               href="/meeting/local"

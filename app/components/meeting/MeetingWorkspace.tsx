@@ -360,6 +360,7 @@ export default function MeetingWorkspace() {
   const lastAutoLoadedCloudMeetingIdRef = useRef("");
   const [isRouteCloudBootstrapping, setIsRouteCloudBootstrapping] =
     useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const organizationInfoWithDefaults = {
     ...defaultOrganizationInfo,
     ...organizationInfo,
@@ -428,6 +429,7 @@ export default function MeetingWorkspace() {
       const timeoutId = window.setTimeout(() => {
         setIsRouteCloudBootstrapping(true);
         setSelectedMeetingId(routeMeetingId);
+        setActiveCloudWorkspaceId(routeMeetingId);
         setCloudMeetingMessage("Loading cloud meeting from route…");
       }, 0);
       return () => window.clearTimeout(timeoutId);
@@ -462,6 +464,17 @@ export default function MeetingWorkspace() {
     if (!isCloudRoute) return;
     router.replace("/");
   }, [authSession, isAuthLoading, isCloudRoute, router]);
+
+  const handleSignOutAndExit = () => {
+    setShowSettingsMenu(false);
+    setShowAuthModal(false);
+    setShowBackupRestore(false);
+    setShowMeetingSetup(false);
+    setShowPlaybookDefinitions(false);
+    setIsSigningOut(true);
+    router.replace("/");
+    void signOut().catch(() => undefined);
+  };
 
   useEffect(() => {
     if (!showSettingsMenu) return;
@@ -1570,6 +1583,18 @@ export default function MeetingWorkspace() {
     );
   }
 
+  if (isSigningOut || (isLocalRoute && authSession)) {
+    return (
+      <main className="min-h-screen bg-slate-100 p-8">
+        <div className="mx-auto flex min-h-[60vh] max-w-[1600px] items-center justify-center">
+          <div className="rounded-3xl border border-slate-200 bg-white px-6 py-5 text-center text-slate-600 shadow-sm">
+            Redirecting…
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-slate-100 p-8">
       <div className="mx-auto max-w-[1600px]">
@@ -1681,13 +1706,7 @@ export default function MeetingWorkspace() {
                 </span>
                 <button
                   type="button"
-                  onClick={() =>
-                    void signOut()
-                      .then(() => {
-                        router.replace("/");
-                      })
-                      .catch(() => undefined)
-                  }
+                  onClick={handleSignOutAndExit}
                   className="self-start font-semibold text-blue-600 hover:text-blue-800"
                 >
                   Sign Out
@@ -2019,8 +2038,7 @@ export default function MeetingWorkspace() {
           return result;
         }}
         onSignOut={async () => {
-          await signOut();
-          router.replace("/");
+          handleSignOutAndExit();
         }}
       />
 
