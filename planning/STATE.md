@@ -7,8 +7,8 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and autosave after intentional cloud establish/load/save actions.
 - Backup: JSON export/import workspace backup.
-- Current focus: production UX stabilization, Meeting Setup follow-through, basic Phase 2 cloud persistence validation, and explicit capture of deferred future-phase scope in `planning/FUTURE_PHASES.md`.
-- Current branch note: Cloud Meeting Foundation is based from the updated `phase-2-cloud` branch context.
+- Current focus: routed app foundation (`/`, `/dashboard`, `/meeting/[id]`) while preserving local/cloud persistence behavior and existing backup/import/export safety.
+- Current branch note: Routing Foundation work is based from the updated `phase-2-cloud` branch context.
 
 ## Production State
 
@@ -25,9 +25,9 @@
 
 ## Sprint Status
 
-- Completed sprint: Sprint 001 Operational Stabilization (requirements/blueprint/acceptance are documented under `planning/sprints/001-operational-stabilization/`).
-- Current architecture status: Hybrid local-first + basic owner-only cloud persistence is in place (Local Workspace in `localStorage`, Cloud Meeting backup-shaped JSON in Supabase for selected workspaces, export/import preserved).
-- Next recommended sprint: Cloud Meeting hardening and production-readiness validation (behavioral QA, reliability checks, and UX refinement without adding organizations/realtime/advanced permissions yet).
+- Completed sprint: Routing Foundation (landing + dashboard placeholder + meeting route split completed on `phase-2-cloud`).
+- Current architecture status: App now has route separation with ` / ` as landing/auth entry, `/dashboard` as authenticated placeholder, and `/meeting/[id]` as active recurring meeting workspace while keeping Local Workspace + Cloud Meeting persistence paths and backup/import/export behavior intact.
+- Next recommended sprint: Dashboard and meeting-entry hardening (route guard refinement, authenticated meeting selection UX, and regression QA across feedback/export/import and cloud load/save flows).
 - Blockers: No immediate implementation blocker recorded; open design questions remain for normalization, invitations/sharing, advanced roles, and realtime collaboration.
 
 ## Parked / Deferred Work
