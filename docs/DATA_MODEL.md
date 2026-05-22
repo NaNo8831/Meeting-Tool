@@ -1,7 +1,7 @@
 # Data Model
 
 ## Current Storage
-Local Workspace persists workspace data as JSON in browser `localStorage`. Export/import backs up and restores the same Meeting Tool workspace keys. Selected Cloud Workspaces save/load that full backup object in Supabase while retaining browser fallback state and without forcing migration from Local Workspace. Optional local-to-cloud migration uses the same backup object shape and leaves Local Workspace `localStorage` intact after a successful cloud save.
+Local Workspace persists workspace data as JSON in browser `localStorage`. Export/import backs up and restores the same Meeting Tool workspace keys. Selected Cloud Meetings save/load that full backup object in Supabase while retaining browser fallback state and without forcing migration from Local Workspace. Optional local-to-cloud migration uses the same backup object shape and leaves Local Workspace `localStorage` intact after a successful cloud save.
 
 ## Logical Entities
 | Entity | Current Meaning |
@@ -60,11 +60,11 @@ create policy "Allow tester feedback inserts"
 
 No admin dashboard, ticket status, assignment, notifications, threaded comments, file upload, or screenshot data is part of this foundation.
 
-## Phase 2 Cloud Workspace Persistence
+## Phase 2 Cloud Meeting Persistence
 
-Cloud workspace persistence keeps the lightweight Supabase `workspaces` table as the workspace identity/container and adds a nullable `workspace_data` JSONB column for the full Meeting Tool backup object. The saved object uses the same export shape as JSON Backup/Restore: `app`, `backupVersion`, `exportedAt`, and `localStorage` entries for Meeting Tool workspace keys.
+Cloud workspace persistence keeps the lightweight Supabase `meetings` table as the workspace identity/container and adds a nullable `meeting_data` JSONB column for the full Meeting Tool backup object. The saved object uses the same export shape as JSON Backup/Restore: `app`, `backupVersion`, `exportedAt`, and `localStorage` entries for Meeting Tool workspace keys.
 
-Supabase migrations: `supabase/migrations/20260516000000_create_workspaces.sql` and `supabase/migrations/20260517000000_add_workspace_data.sql`.
+Supabase migrations: `supabase/migrations/20260516000000_create_workspaces.sql` and `supabase/migrations/20260517000000_add_meeting_data.sql`.
 
 ```sql
 create table if not exists public.workspaces (
@@ -74,8 +74,8 @@ create table if not exists public.workspaces (
   owner_id uuid not null references auth.users(id) on delete cascade,
   name text not null check (char_length(trim(name)) > 0),
   metadata_json jsonb null,
-  workspace_data jsonb null
+  meeting_data jsonb null
 );
 ```
 
-Only authenticated owners can select/update rows through RLS. New cloud workspaces may have `workspace_data = null`; the app does not auto-copy Local Workspace data on first selection, and dropdown selection does not load `workspace_data` until the user clicks Load Cloud Workspace. Saving current data to cloud requires an overwrite confirmation. Optional Local Workspace migration writes the current unscoped `leadership-*` Local Workspace entries into the selected Cloud Workspace using the same backup shape, checks whether the selected cloud workspace already has `workspace_data`, warns before overwrite, and records a browser-local migrated/skipped signature keyed by user and cloud workspace. No forced migration, realtime collaboration, team sharing, or member-role model is included in this basic persistence step.
+Only authenticated owners can select/update rows through RLS. New cloud meetings may have `meeting_data = null`; the app does not auto-copy Local Workspace data on first selection, and dropdown selection does not load `meeting_data` until the user clicks Load Cloud Meeting. Saving current data to cloud requires an overwrite confirmation. Optional Local Workspace migration writes the current unscoped `leadership-*` Local Workspace entries into the selected Cloud Meeting using the same backup shape, checks whether the selected cloud meeting already has `meeting_data`, warns before overwrite, and records a browser-local migrated/skipped signature keyed by user and cloud meeting. No forced migration, realtime collaboration, team sharing, or member-role model is included in this basic persistence step.

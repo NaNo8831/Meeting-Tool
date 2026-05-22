@@ -10,7 +10,7 @@ This file preserves intentionally deferred ideas so the team can avoid unplanned
 
 ## Later UX polish
 - Refine dense screens for faster in-meeting scanning, especially task and meeting sections.
-- Improve microcopy consistency across setup, tasks, and cloud workspace actions.
+- Improve microcopy consistency across setup, tasks, and cloud meeting actions.
 - Revisit drag/drop affordances and empty states after additional user testing.
 - Add non-invasive keyboard/accessibility polish where it improves live meeting speed.
 
@@ -21,7 +21,7 @@ This file preserves intentionally deferred ideas so the team can avoid unplanned
 - Plan org-aware data boundaries before any schema normalization.
 
 ## Invitations/sharing
-- Define invite lifecycle (send, accept, revoke, expire) for shared cloud workspaces.
+- Define invite lifecycle (send, accept, revoke, expire) for shared cloud meetings.
 - Decide whether invitations are workspace-scoped, org-scoped, or both.
 - Add clear onboarding flows for first-time invited users.
 - Ensure invite/share additions do not break local-first backup and migration behavior.

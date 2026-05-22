@@ -15,14 +15,14 @@ export type SupabaseAuthSession = {
   user: SupabaseAuthUser;
 };
 
-export type SupabaseWorkspace = {
+export type SupabaseMeeting = {
   id: string;
   created_at: string;
   updated_at: string;
   owner_id: string;
   name: string;
   metadata_json: Record<string, unknown> | null;
-  workspace_data: Record<string, unknown> | null;
+  meeting_data: Record<string, unknown> | null;
 };
 
 type SupabaseAuthUserResponse = {
@@ -284,10 +284,10 @@ export const supabaseFeedbackClient = {
   },
 };
 
-export const supabaseWorkspaceClient = {
+export const supabaseMeetingClient = {
   async listWorkspaces(accessToken: string) {
     const response = await fetch(
-      `${getRestUrl("workspaces")}?select=*&order=updated_at.desc`,
+      `${getRestUrl("meetings")}?select=*&order=updated_at.desc`,
       {
         method: "GET",
         headers: getSupabaseHeaders(accessToken),
@@ -298,7 +298,7 @@ export const supabaseWorkspaceClient = {
       throw new Error(await getRestErrorMessage(response, "Workspace list"));
     }
 
-    return (await response.json()) as SupabaseWorkspace[];
+    return (await response.json()) as SupabaseMeeting[];
   },
 
   async createWorkspace({
@@ -310,7 +310,7 @@ export const supabaseWorkspaceClient = {
     ownerId: string;
     name: string;
   }) {
-    const response = await fetch(getRestUrl("workspaces"), {
+    const response = await fetch(getRestUrl("meetings"), {
       method: "POST",
       headers: {
         ...getSupabaseHeaders(accessToken),
@@ -320,7 +320,7 @@ export const supabaseWorkspaceClient = {
         owner_id: ownerId,
         name,
         metadata_json: null,
-        workspace_data: null,
+        meeting_data: null,
       }),
     });
 
@@ -328,13 +328,13 @@ export const supabaseWorkspaceClient = {
       throw new Error(await getRestErrorMessage(response, "Workspace create"));
     }
 
-    const workspaces = (await response.json()) as SupabaseWorkspace[];
-    const workspace = workspaces[0];
-    if (!workspace) {
-      throw new Error("Supabase did not return the created workspace.");
+    const meetings = (await response.json()) as SupabaseMeeting[];
+    const meeting = meetings[0];
+    if (!meeting) {
+      throw new Error("Supabase did not return the created meeting.");
     }
 
-    return workspace;
+    return meeting;
   },
 
   async loadWorkspaceData({
@@ -345,9 +345,9 @@ export const supabaseWorkspaceClient = {
     workspaceId: string;
   }) {
     const response = await fetch(
-      `${getRestUrl("workspaces")}?id=eq.${encodeURIComponent(
+      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(
         workspaceId,
-      )}&select=id,workspace_data&limit=1`,
+      )}&select=id,meeting_data&limit=1`,
       {
         method: "GET",
         headers: getSupabaseHeaders(accessToken),
@@ -358,16 +358,16 @@ export const supabaseWorkspaceClient = {
       throw new Error(await getRestErrorMessage(response, "Workspace load"));
     }
 
-    const workspaces = (await response.json()) as Pick<
-      SupabaseWorkspace,
-      "id" | "workspace_data"
+    const meetings = (await response.json()) as Pick<
+      SupabaseMeeting,
+      "id" | "meeting_data"
     >[];
-    const workspace = workspaces[0];
-    if (!workspace) {
-      throw new Error("Cloud workspace was not found or is not accessible.");
+    const meeting = meetings[0];
+    if (!meeting) {
+      throw new Error("Cloud meeting was not found or is not accessible.");
     }
 
-    return workspace.workspace_data;
+    return meeting.meeting_data;
   },
 
   async saveWorkspaceData({
@@ -380,14 +380,14 @@ export const supabaseWorkspaceClient = {
     data: Record<string, unknown>;
   }) {
     const response = await fetch(
-      `${getRestUrl("workspaces")}?id=eq.${encodeURIComponent(workspaceId)}`,
+      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}`,
       {
         method: "PATCH",
         headers: {
           ...getSupabaseHeaders(accessToken),
           Prefer: "return=representation",
         },
-        body: JSON.stringify({ workspace_data: data }),
+        body: JSON.stringify({ meeting_data: data }),
       },
     );
 
@@ -395,12 +395,12 @@ export const supabaseWorkspaceClient = {
       throw new Error(await getRestErrorMessage(response, "Workspace save"));
     }
 
-    const workspaces = (await response.json()) as SupabaseWorkspace[];
-    const workspace = workspaces[0];
-    if (!workspace) {
-      throw new Error("Cloud workspace was not found or is not accessible.");
+    const meetings = (await response.json()) as SupabaseMeeting[];
+    const meeting = meetings[0];
+    if (!meeting) {
+      throw new Error("Cloud meeting was not found or is not accessible.");
     }
 
-    return workspace;
+    return meeting;
   },
 };

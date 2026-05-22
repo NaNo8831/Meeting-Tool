@@ -17,7 +17,7 @@ import { MeetingSection } from "@/app/components/meeting/MeetingSection";
 import { ObjectiveCard } from "@/app/components/objectives/ObjectiveCard";
 import { TaskDetailsModal } from "@/app/components/objectives/TaskDetailsModal";
 import { ColorSquareSelect } from "@/app/components/ui/ColorSquareSelect";
-import { WorkspaceSelector } from "@/app/components/workspace/WorkspaceSelector";
+import { MeetingSelector } from "@/app/components/workspace/MeetingSelector";
 import {
   RichTextEditor,
   RichTextRenderer,
@@ -43,7 +43,7 @@ import {
   type WorkspaceBackupFeedback,
   type WorkspaceBackupFile,
 } from "@/app/lib/workspaceBackup";
-import { supabaseWorkspaceClient } from "@/app/lib/supabaseClient";
+import { supabaseMeetingClient } from "@/app/lib/supabaseClient";
 import type {
   MeetingItem,
   MeetingRecord,
@@ -233,14 +233,14 @@ export default function Home() {
     signIn,
     signOut,
   } = useSupabaseAuth();
-  const [selectedCloudWorkspaceId, setSelectedCloudWorkspaceId] = useState("");
-  const [selectedCloudWorkspaceName, setSelectedCloudWorkspaceName] =
+  const [selectedMeetingId, setSelectedMeetingId] = useState("");
+  const [selectedMeetingName, setSelectedMeetingName] =
     useState("");
   const [activeCloudWorkspaceId, setActiveCloudWorkspaceId] = useState("");
   const [cloudSaveStatus, setCloudSaveStatus] =
     useState<CloudSaveStatus>("local");
-  const [cloudWorkspaceMessage, setCloudWorkspaceMessage] = useState("");
-  const [selectedCloudWorkspaceHasData, setSelectedCloudWorkspaceHasData] =
+  const [cloudMeetingMessage, setCloudMeetingMessage] = useState("");
+  const [selectedMeetingHasData, setSelectedMeetingHasData] =
     useState(false);
   const [isCheckingCloudWorkspaceData, setIsCheckingCloudWorkspaceData] =
     useState(false);
@@ -252,7 +252,7 @@ export default function Home() {
   ] = useState("");
   const [localWorkspaceMigrationState, setLocalWorkspaceMigrationState] =
     useState<LocalToCloudMigrationState>({});
-  const workspaceMode = selectedCloudWorkspaceId ? "cloud" : "local";
+  const workspaceMode = selectedMeetingId ? "cloud" : "local";
   const getStorageKey = (baseKey: string) =>
     getWorkspaceScopedStorageKey(baseKey, activeCloudWorkspaceId);
 
@@ -394,7 +394,7 @@ export default function Home() {
 
   const shouldShowLocalToCloudMigrationPrompt = Boolean(
     authSession &&
-    selectedCloudWorkspaceId &&
+    selectedMeetingId &&
     localWorkspaceMigrationSignature &&
     localWorkspaceMigrationState.migratedSignature !==
       localWorkspaceMigrationSignature &&
@@ -1038,11 +1038,11 @@ export default function Home() {
     );
 
     return () => window.clearTimeout(timeoutId);
-  }, [refreshLocalWorkspaceMigrationSignature, selectedCloudWorkspaceId]);
+  }, [refreshLocalWorkspaceMigrationSignature, selectedMeetingId]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      if (!authSession || !selectedCloudWorkspaceId) {
+      if (!authSession || !selectedMeetingId) {
         setLocalWorkspaceMigrationState({});
         return;
       }
@@ -1050,36 +1050,36 @@ export default function Home() {
       setLocalWorkspaceMigrationState(
         readLocalToCloudMigrationState(
           authSession.user.id,
-          selectedCloudWorkspaceId,
+          selectedMeetingId,
         ),
       );
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [authSession, selectedCloudWorkspaceId, localWorkspaceMigrationSignature]);
+  }, [authSession, selectedMeetingId, localWorkspaceMigrationSignature]);
 
   useEffect(() => {
     let isMounted = true;
 
     const checkSelectedCloudWorkspaceData = async () => {
-      if (!authSession || !selectedCloudWorkspaceId) {
-        setSelectedCloudWorkspaceHasData(false);
+      if (!authSession || !selectedMeetingId) {
+        setSelectedMeetingHasData(false);
         return;
       }
 
       setIsCheckingCloudWorkspaceData(true);
       try {
-        const cloudData = await supabaseWorkspaceClient.loadWorkspaceData({
+        const cloudData = await supabaseMeetingClient.loadWorkspaceData({
           accessToken: authSession.accessToken,
-          workspaceId: selectedCloudWorkspaceId,
+          workspaceId: selectedMeetingId,
         });
         if (!isMounted) return;
 
-        setSelectedCloudWorkspaceHasData(Boolean(cloudData));
+        setSelectedMeetingHasData(Boolean(cloudData));
       } catch {
         if (!isMounted) return;
 
-        setSelectedCloudWorkspaceHasData(true);
+        setSelectedMeetingHasData(true);
       } finally {
         if (isMounted) setIsCheckingCloudWorkspaceData(false);
       }
@@ -1090,11 +1090,11 @@ export default function Home() {
     return () => {
       isMounted = false;
     };
-  }, [authSession, selectedCloudWorkspaceId]);
+  }, [authSession, selectedMeetingId]);
 
   const recordLocalWorkspaceMigrationState = useCallback(
     (state: LocalToCloudMigrationState) => {
-      if (!authSession || !selectedCloudWorkspaceId) return;
+      if (!authSession || !selectedMeetingId) return;
 
       const nextState = {
         ...localWorkspaceMigrationState,
@@ -1102,12 +1102,12 @@ export default function Home() {
       };
       writeLocalToCloudMigrationState(
         authSession.user.id,
-        selectedCloudWorkspaceId,
+        selectedMeetingId,
         nextState,
       );
       setLocalWorkspaceMigrationState(nextState);
     },
-    [authSession, localWorkspaceMigrationState, selectedCloudWorkspaceId],
+    [authSession, localWorkspaceMigrationState, selectedMeetingId],
   );
 
   const handleSkipLocalWorkspaceMigration = useCallback(() => {
@@ -1116,32 +1116,32 @@ export default function Home() {
     recordLocalWorkspaceMigrationState({
       skippedSignature: localWorkspaceMigrationSignature,
     });
-    setCloudWorkspaceMessage(
+    setCloudMeetingMessage(
       "Cloud workspace unchanged. Local Workspace remains available in this browser.",
     );
   }, [localWorkspaceMigrationSignature, recordLocalWorkspaceMigrationState]);
 
   const handleContinueLocalWorkspace = useCallback(() => {
-    setSelectedCloudWorkspaceId("");
-    setSelectedCloudWorkspaceName("");
-    setCloudWorkspaceMessage("");
+    setSelectedMeetingId("");
+    setSelectedMeetingName("");
+    setCloudMeetingMessage("");
   }, []);
 
   const handleMigrateLocalWorkspaceToCloud = useCallback(async () => {
-    if (!authSession || !selectedCloudWorkspaceId || isMigratingLocalWorkspace)
+    if (!authSession || !selectedMeetingId || isMigratingLocalWorkspace)
       return;
 
     const localEntries = collectLocalWorkspaceStorage();
     if (!hasMeaningfulWorkspaceStorage(localEntries)) {
       setLocalWorkspaceMigrationSignature("");
-      setCloudWorkspaceMessage(
+      setCloudMeetingMessage(
         "No meaningful Local Workspace data was found to migrate.",
       );
       return;
     }
 
-    const workspaceName = selectedCloudWorkspaceName || "this cloud workspace";
-    const warning = selectedCloudWorkspaceHasData
+    const workspaceName = selectedMeetingName || "this cloud meeting";
+    const warning = selectedMeetingHasData
       ? `This will overwrite the saved cloud data for ${workspaceName} with the current Local Workspace data.`
       : `This will save the current Local Workspace data into ${workspaceName}.`;
     const shouldMigrate = window.confirm(
@@ -1149,7 +1149,7 @@ export default function Home() {
     );
 
     if (!shouldMigrate) {
-      setCloudWorkspaceMessage(
+      setCloudMeetingMessage(
         "Migration canceled. Cloud data was not changed.",
       );
       return;
@@ -1157,21 +1157,21 @@ export default function Home() {
 
     setIsMigratingLocalWorkspace(true);
     setCloudSaveStatus("saving");
-    setCloudWorkspaceMessage("Migrating Local Workspace data to cloud…");
+    setCloudMeetingMessage("Migrating Local Workspace data to cloud…");
 
     try {
       const backup = createWorkspaceBackup(localEntries);
-      await supabaseWorkspaceClient.saveWorkspaceData({
+      await supabaseMeetingClient.saveWorkspaceData({
         accessToken: authSession.accessToken,
-        workspaceId: selectedCloudWorkspaceId,
+        workspaceId: selectedMeetingId,
         data: backup,
       });
 
       const signature = getWorkspaceStorageSignature(localEntries);
-      storeWorkspaceBackupInBrowser(backup, selectedCloudWorkspaceId);
-      setActiveCloudWorkspaceId(selectedCloudWorkspaceId);
+      storeWorkspaceBackupInBrowser(backup, selectedMeetingId);
+      setActiveCloudWorkspaceId(selectedMeetingId);
       applyWorkspaceBackupToState(backup);
-      setSelectedCloudWorkspaceHasData(true);
+      setSelectedMeetingHasData(true);
       recordLocalWorkspaceMigrationState({
         migratedSignature: signature,
         skippedSignature: undefined,
@@ -1179,12 +1179,12 @@ export default function Home() {
       setLocalWorkspaceMigrationSignature(signature);
       lastCloudAutosaveSignatureRef.current = signature;
       setCloudSaveStatus("saved");
-      setCloudWorkspaceMessage(
-        "Local Workspace data was saved to this Cloud Workspace. Local data remains available in this browser.",
+      setCloudMeetingMessage(
+        "Local Workspace data was saved to this Cloud Meeting. Local data remains available in this browser.",
       );
     } catch (error) {
       setCloudSaveStatus("error");
-      setCloudWorkspaceMessage(
+      setCloudMeetingMessage(
         error instanceof Error
           ? error.message
           : "Local Workspace data could not be migrated to cloud.",
@@ -1197,43 +1197,43 @@ export default function Home() {
     authSession,
     isMigratingLocalWorkspace,
     recordLocalWorkspaceMigrationState,
-    selectedCloudWorkspaceHasData,
-    selectedCloudWorkspaceId,
-    selectedCloudWorkspaceName,
+    selectedMeetingHasData,
+    selectedMeetingId,
+    selectedMeetingName,
     storeWorkspaceBackupInBrowser,
   ]);
 
-  const handleLoadCloudWorkspace = useCallback(async () => {
-    if (!authSession || !selectedCloudWorkspaceId) return;
+  const handleLoadCloudMeeting = useCallback(async () => {
+    if (!authSession || !selectedMeetingId) return;
 
     setCloudSaveStatus("saving");
-    setCloudWorkspaceMessage("Loading cloud workspace…");
+    setCloudMeetingMessage("Loading cloud meeting…");
 
     try {
-      const cloudData = await supabaseWorkspaceClient.loadWorkspaceData({
+      const cloudData = await supabaseMeetingClient.loadWorkspaceData({
         accessToken: authSession.accessToken,
-        workspaceId: selectedCloudWorkspaceId,
+        workspaceId: selectedMeetingId,
       });
 
       if (!cloudData) {
         setCloudSaveStatus("idle");
-        setCloudWorkspaceMessage(
-          "This cloud workspace has no saved data yet. Use Save current workspace to cloud when ready.",
+        setCloudMeetingMessage(
+          "This cloud meeting has no saved data yet. Use Save current workspace to cloud when ready.",
         );
         return;
       }
 
       const backup = validateWorkspaceBackup(cloudData);
       const signature = getWorkspaceStorageSignature(backup.localStorage);
-      storeWorkspaceBackupInBrowser(backup, selectedCloudWorkspaceId);
-      setActiveCloudWorkspaceId(selectedCloudWorkspaceId);
+      storeWorkspaceBackupInBrowser(backup, selectedMeetingId);
+      setActiveCloudWorkspaceId(selectedMeetingId);
       applyWorkspaceBackupToState(backup);
       lastCloudAutosaveSignatureRef.current = signature;
       setCloudSaveStatus("saved");
-      setCloudWorkspaceMessage("Cloud workspace loaded.");
+      setCloudMeetingMessage("Cloud workspace loaded.");
     } catch (error) {
       setCloudSaveStatus("error");
-      setCloudWorkspaceMessage(
+      setCloudMeetingMessage(
         error instanceof Error
           ? error.message
           : "Cloud workspace could not be loaded.",
@@ -1242,46 +1242,46 @@ export default function Home() {
   }, [
     applyWorkspaceBackupToState,
     authSession,
-    selectedCloudWorkspaceId,
+    selectedMeetingId,
     storeWorkspaceBackupInBrowser,
   ]);
 
-  const handleSaveCloudWorkspace = useCallback(async () => {
-    if (!authSession || !selectedCloudWorkspaceId) return;
+  const handleSaveCloudMeeting = useCallback(async () => {
+    if (!authSession || !selectedMeetingId) return;
 
-    const workspaceName = selectedCloudWorkspaceName || "this cloud workspace";
+    const workspaceName = selectedMeetingName || "this cloud meeting";
     const shouldOverwrite = window.confirm(
       `This will overwrite the saved cloud data for ${workspaceName} with the current workspace data. Continue?`,
     );
 
     if (!shouldOverwrite) {
       setCloudSaveStatus("idle");
-      setCloudWorkspaceMessage(
+      setCloudMeetingMessage(
         "Cloud save canceled. Saved cloud data was not changed.",
       );
       return;
     }
 
     setCloudSaveStatus("saving");
-    setCloudWorkspaceMessage("Saving cloud workspace…");
+    setCloudMeetingMessage("Saving cloud meeting…");
 
     try {
       const backup = createWorkspaceBackup(getCurrentWorkspaceStorage());
-      await supabaseWorkspaceClient.saveWorkspaceData({
+      await supabaseMeetingClient.saveWorkspaceData({
         accessToken: authSession.accessToken,
-        workspaceId: selectedCloudWorkspaceId,
+        workspaceId: selectedMeetingId,
         data: backup,
       });
       const signature = getWorkspaceStorageSignature(backup.localStorage);
-      storeWorkspaceBackupInBrowser(backup, selectedCloudWorkspaceId);
-      setActiveCloudWorkspaceId(selectedCloudWorkspaceId);
-      setSelectedCloudWorkspaceHasData(true);
+      storeWorkspaceBackupInBrowser(backup, selectedMeetingId);
+      setActiveCloudWorkspaceId(selectedMeetingId);
+      setSelectedMeetingHasData(true);
       lastCloudAutosaveSignatureRef.current = signature;
       setCloudSaveStatus("saved");
-      setCloudWorkspaceMessage("Saved to cloud.");
+      setCloudMeetingMessage("Saved to cloud.");
     } catch (error) {
       setCloudSaveStatus("error");
-      setCloudWorkspaceMessage(
+      setCloudMeetingMessage(
         error instanceof Error
           ? error.message
           : "Cloud workspace could not be saved.",
@@ -1290,8 +1290,8 @@ export default function Home() {
   }, [
     authSession,
     getCurrentWorkspaceStorage,
-    selectedCloudWorkspaceId,
-    selectedCloudWorkspaceName,
+    selectedMeetingId,
+    selectedMeetingName,
     storeWorkspaceBackupInBrowser,
   ]);
 
@@ -1300,23 +1300,23 @@ export default function Home() {
       if (workspaceMode === "local") {
         lastCloudAutosaveSignatureRef.current = "";
         setCloudSaveStatus("local");
-        setCloudWorkspaceMessage("");
+        setCloudMeetingMessage("");
         setActiveCloudWorkspaceId("");
         return;
       }
 
       setCloudSaveStatus("idle");
-      setCloudWorkspaceMessage(
+      setCloudMeetingMessage(
         "Cloud workspace selected. Load cloud data when needed. After you intentionally load or save, future edits autosave in the background.",
       );
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [selectedCloudWorkspaceId, workspaceMode]);
+  }, [selectedMeetingId, workspaceMode]);
 
   useEffect(() => {
     if (!authSession || workspaceMode !== "cloud") return;
-    if (!selectedCloudWorkspaceId || activeCloudWorkspaceId !== selectedCloudWorkspaceId)
+    if (!selectedMeetingId || activeCloudWorkspaceId !== selectedMeetingId)
       return;
     if (!hasLoadedDashboardStorage) return;
 
@@ -1333,19 +1333,19 @@ export default function Home() {
         setCloudSaveStatus("saving");
         try {
           const backup = createWorkspaceBackup(workspaceEntries);
-          await supabaseWorkspaceClient.saveWorkspaceData({
+          await supabaseMeetingClient.saveWorkspaceData({
             accessToken: authSession.accessToken,
-            workspaceId: selectedCloudWorkspaceId,
+            workspaceId: selectedMeetingId,
             data: backup,
           });
-          storeWorkspaceBackupInBrowser(backup, selectedCloudWorkspaceId);
-          setSelectedCloudWorkspaceHasData(true);
+          storeWorkspaceBackupInBrowser(backup, selectedMeetingId);
+          setSelectedMeetingHasData(true);
           lastCloudAutosaveSignatureRef.current = signature;
           setCloudSaveStatus("saved");
-          setCloudWorkspaceMessage("Saved to cloud.");
+          setCloudMeetingMessage("Saved to cloud.");
         } catch (error) {
           setCloudSaveStatus("error");
-          setCloudWorkspaceMessage(
+          setCloudMeetingMessage(
             error instanceof Error
               ? error.message
               : "Cloud workspace could not be saved.",
@@ -1365,7 +1365,7 @@ export default function Home() {
     authSession,
     getCurrentWorkspaceStorage,
     hasLoadedDashboardStorage,
-    selectedCloudWorkspaceId,
+    selectedMeetingId,
     storeWorkspaceBackupInBrowser,
     workspaceMode,
   ]);
@@ -1421,7 +1421,7 @@ export default function Home() {
       storeWorkspaceBackupInBrowser(backup, activeCloudWorkspaceId);
       applyWorkspaceBackupToState(backup);
       setCloudSaveStatus(workspaceMode === "cloud" ? "idle" : "local");
-      setCloudWorkspaceMessage(
+      setCloudMeetingMessage(
         workspaceMode === "cloud"
           ? "Backup imported into the current view. Click Save current workspace to cloud when ready."
           : "",
@@ -1430,7 +1430,7 @@ export default function Home() {
         type: "success",
         message:
           workspaceMode === "cloud"
-            ? "Workspace backup imported into the selected Cloud Workspace view. Cloud data was not saved."
+            ? "Workspace backup imported into the selected Cloud Meeting view. Cloud data was not saved."
             : "Workspace backup imported successfully.",
       });
     } catch (error) {
@@ -1490,16 +1490,16 @@ export default function Home() {
           </div>
 
           <div className="flex flex-col gap-3 self-start sm:flex-row sm:items-start">
-            <WorkspaceSelector
+            <MeetingSelector
               session={authSession}
-              selectedCloudWorkspaceId={selectedCloudWorkspaceId}
-              onSelectedCloudWorkspaceIdChange={setSelectedCloudWorkspaceId}
-              onSelectedCloudWorkspaceNameChange={setSelectedCloudWorkspaceName}
-              onCloudWorkspaceCreated={setCloudWorkspaceMessage}
+              selectedMeetingId={selectedMeetingId}
+              onSelectedCloudWorkspaceIdChange={setSelectedMeetingId}
+              onSelectedCloudWorkspaceNameChange={setSelectedMeetingName}
+              onCloudWorkspaceCreated={setCloudMeetingMessage}
               saveStatus={cloudSaveStatus}
-              message={cloudWorkspaceMessage}
-              onLoadCloudWorkspace={handleLoadCloudWorkspace}
-              onSaveCloudWorkspace={handleSaveCloudWorkspace}
+              message={cloudMeetingMessage}
+              onLoadCloudMeeting={handleLoadCloudMeeting}
+              onSaveCloudMeeting={handleSaveCloudMeeting}
             />
 
             {shouldShowLocalToCloudMigrationPrompt ? (
@@ -1509,14 +1509,14 @@ export default function Home() {
                 </p>
                 <p className="mt-2 text-xs leading-relaxed text-amber-900">
                   You selected{" "}
-                  {selectedCloudWorkspaceName || "a Cloud Workspace"}. Migration
+                  {selectedMeetingName || "a Cloud Meeting"}. Migration
                   is optional and will not happen automatically. Export a JSON
                   backup first if you want an extra rollback copy.
                 </p>
-                {selectedCloudWorkspaceHasData ? (
+                {selectedMeetingHasData ? (
                   <p className="mt-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700">
                     This will overwrite the saved cloud data for{" "}
-                    {selectedCloudWorkspaceName || "this workspace"} with the
+                    {selectedMeetingName || "this workspace"} with the
                     current Local Workspace data.
                   </p>
                 ) : null}
@@ -1531,14 +1531,14 @@ export default function Home() {
                   >
                     {isMigratingLocalWorkspace
                       ? "Migrating…"
-                      : "Save Local Workspace into Cloud Workspace"}
+                      : "Save Local Workspace into Cloud Meeting"}
                   </button>
                   <button
                     type="button"
                     onClick={handleSkipLocalWorkspaceMigration}
                     className="rounded-xl border border-amber-300 bg-white px-3 py-2 font-semibold text-amber-900 hover:bg-amber-100"
                   >
-                    Keep existing Cloud Workspace unchanged
+                    Keep existing Cloud Meeting unchanged
                   </button>
                   <button
                     type="button"
