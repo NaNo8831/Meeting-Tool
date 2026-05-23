@@ -1020,6 +1020,37 @@ export default function MeetingWorkspace() {
     ],
   );
 
+  const currentWorkspaceEntries = useMemo(
+    () =>
+      collectWorkspaceStorage({
+        "leadership-objectives": objectives,
+        "leadership-meetings": meetings,
+        "leadership-active-meeting-id": activeMeeting.id,
+        "leadership-dashboard-title": dashboardTitle,
+        "leadership-organization-info": organizationInfo,
+        [meetingSetupCompletedStorageKey]: hasCompletedMeetingSetup,
+        "leadership-meeting-section-order": meetingSectionOrder,
+        [strategicTopicsStorageKey]: strategicTopicItems,
+        "leadership-standard-operating-objectives": standardOperatingObjectives,
+      }),
+    [
+      activeMeeting.id,
+      dashboardTitle,
+      hasCompletedMeetingSetup,
+      meetingSectionOrder,
+      meetings,
+      objectives,
+      organizationInfo,
+      standardOperatingObjectives,
+      strategicTopicItems,
+    ],
+  );
+
+  const currentWorkspaceSignature = useMemo(
+    () => getWorkspaceStorageSignature(currentWorkspaceEntries),
+    [currentWorkspaceEntries],
+  );
+
   const storeWorkspaceBackupInBrowser = useCallback(
     (backup: WorkspaceBackupFile, cloudWorkspaceId = "") => {
       if (typeof window === "undefined") return;
@@ -1477,9 +1508,8 @@ export default function MeetingWorkspace() {
     if (!isCloudMeetingReadyForAutosave) return;
     if (!hasLoadedDashboardStorage) return;
 
-    const workspaceEntries = getCurrentWorkspaceStorage();
-    const signature = getWorkspaceStorageSignature(workspaceEntries);
-    if (signature === lastCloudAutosaveSignatureRef.current) return;
+    if (currentWorkspaceSignature === lastCloudAutosaveSignatureRef.current)
+      return;
 
     if (cloudAutosaveTimeoutRef.current !== null) {
       window.clearTimeout(cloudAutosaveTimeoutRef.current);
@@ -1489,7 +1519,10 @@ export default function MeetingWorkspace() {
       void (async () => {
         setCloudSaveStatus("saving");
         try {
-          await saveWorkspaceBackupToCloud(workspaceEntries, "Saved to cloud.");
+          await saveWorkspaceBackupToCloud(
+            currentWorkspaceEntries,
+            "Saved to cloud.",
+          );
         } catch (error) {
           setCloudSaveStatus("error");
           setCloudMeetingMessage(
@@ -1510,7 +1543,8 @@ export default function MeetingWorkspace() {
   }, [
     activeCloudWorkspaceId,
     authSession,
-    getCurrentWorkspaceStorage,
+    currentWorkspaceEntries,
+    currentWorkspaceSignature,
     hasLoadedDashboardStorage,
     isCloudMeetingReadyForAutosave,
     saveWorkspaceBackupToCloud,
