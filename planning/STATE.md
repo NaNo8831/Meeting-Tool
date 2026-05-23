@@ -7,7 +7,7 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can save/load full workspace backup JSON in Supabase, and optionally receive explicit Local Workspace migration.
 - Backup: JSON export/import workspace backup.
-- Current focus: Dashboard / Meeting Selector PR scope (`/dashboard` cards + `/meeting/[id]` route load + manual cloud save) while preserving backup/import/export safety.
+- Current focus: Cloud Autosave Repair / Persistence Hardening (`/meeting/[id]` cloud route autosave reliability, shared save helper behavior, and refresh persistence hardening) while preserving backup/import/export safety.
 - Current branch note: Routing Foundation work is based from the updated `phase-2-cloud` branch context.
 
 ## Production State
@@ -26,12 +26,13 @@
 ## Sprint Status
 
 - Completed sprint: Dashboard / Meeting Selector (authenticated dashboard cards, user-scoped meeting list, open-route entry, and local fallback completed on `phase-2-cloud`).
-- Current architecture status: App route separation is active with ` / ` landing/auth entry, `/dashboard` authenticated meeting selector cards, and `/meeting/[id]` route-driven cloud meeting load with manual cloud save preserved; autosave repair is deferred.
-- Next recommended sprint: Cloud Autosave Repair / Persistence Hardening (route autosave reliability, save status correctness, and refresh persistence verification) plus regression QA across feedback/export/import + cloud load/save flows.
-- Blockers: Autosave reliability on route-driven cloud meetings is deferred from PR #40 into the next sprint/PR.
+- Completed sprint: Cloud Autosave Repair / Persistence Hardening (route-driven cloud meeting autosave restored with debounce + load guards, shared cloud save helper retained for manual save backup, and refresh persistence reliability improved).
+- Current architecture status: App route separation remains active with ` / ` landing/auth entry, `/dashboard` authenticated meeting selector cards, and `/meeting/[id]` route-driven cloud meeting load with manual save + guarded autosave for cloud routes.
+- Next recommended sprint: Cloud persistence regression QA and UX polish across autosave status messaging, feedback/export/import, and owner-scoped route/load/save behavior.
+- Blockers: Structured persistence normalization and realtime collaboration remain intentionally deferred beyond this sprint.
 
 ## Parked / Deferred Work
-- Full collaboration-grade Phase 2 remains deferred. Basic Cloud Meeting persistence stores the full backup JSON in `meetings.meeting_data`, but realtime collaboration, team sharing, editor/viewer roles, and forced migration remain out of scope.
+- Full collaboration-grade Phase 2 remains deferred. Basic Cloud Meeting persistence stores the full backup JSON in `meetings.meeting_data`; structured persistence normalization, realtime collaboration, team sharing, editor/viewer roles, and forced migration remain out of scope.
 - Deferred ideas are now tracked in `planning/FUTURE_PHASES.md` to prevent scope creep in active delivery work.
 
 ## Next Actions
