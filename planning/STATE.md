@@ -23,6 +23,7 @@
 - Treat the Meeting Setup flow as part of the current production baseline on `main` after PR #23.
 - Keep structured persistence schema foundation aligned with owner-only RLS and no runtime read/write switch yet.
 - Document and sequence next migration slices without breaking current owner-only cloud save/load behavior.
+- Keep membership architecture, role direction (`owner`/`editor`/`viewer`), and ownership-handling rules documented as the permission foundation for future sharing work.
 
 ## Sprint Status
 
