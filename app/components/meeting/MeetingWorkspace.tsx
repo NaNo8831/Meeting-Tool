@@ -360,6 +360,7 @@ export default function MeetingWorkspace() {
   const lastAutoLoadedCloudMeetingIdRef = useRef("");
   const [isRouteCloudBootstrapping, setIsRouteCloudBootstrapping] =
     useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const organizationInfoWithDefaults = {
     ...defaultOrganizationInfo,
     ...organizationInfo,
@@ -464,18 +465,21 @@ export default function MeetingWorkspace() {
     router.replace("/");
   }, [authSession, isAuthLoading, isCloudRoute, router]);
 
-  const handleSignOutAndExit = () => {
+  const handleSignOutAndExit = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
     setShowSettingsMenu(false);
     setShowAuthModal(false);
     setShowBackupRestore(false);
     setShowMeetingSetup(false);
     setShowPlaybookDefinitions(false);
-    router.replace("/");
-    void signOut()
-      .catch(() => undefined)
-      .finally(() => {
-        router.replace("/");
-      });
+    try {
+      await signOut();
+    } catch {
+      // Redirect regardless of sign-out API completion.
+    } finally {
+      router.replace("/");
+    }
   };
 
   useEffect(() => {
@@ -1706,10 +1710,11 @@ export default function MeetingWorkspace() {
                 </span>
                 <button
                   type="button"
-                  onClick={handleSignOutAndExit}
+                  onClick={() => void handleSignOutAndExit()}
+                  disabled={isSigningOut}
                   className="self-start font-semibold text-blue-600 hover:text-blue-800"
                 >
-                  Sign Out
+                  {isSigningOut ? "Signing out…" : "Sign Out"}
                 </button>
               </div>
             ) : (
@@ -2038,7 +2043,7 @@ export default function MeetingWorkspace() {
           return result;
         }}
         onSignOut={async () => {
-          handleSignOutAndExit();
+          await handleSignOutAndExit();
         }}
       />
 
