@@ -23,6 +23,7 @@ export type SupabaseMeeting = {
   name: string;
   metadata_json: Record<string, unknown> | null;
   meeting_data: Record<string, unknown> | null;
+  archived_at: string | null;
 };
 
 type SupabaseAuthUserResponse = {
@@ -332,6 +333,78 @@ export const supabaseMeetingClient = {
     const meeting = meetings[0];
     if (!meeting) {
       throw new Error("Supabase did not return the created meeting.");
+    }
+
+    return meeting;
+  },
+
+
+
+  async duplicateWorkspace({
+    accessToken,
+    ownerId,
+    sourceMeeting,
+  }: {
+    accessToken: string;
+    ownerId: string;
+    sourceMeeting: SupabaseMeeting;
+  }) {
+    const response = await fetch(getRestUrl("meetings"), {
+      method: "POST",
+      headers: {
+        ...getSupabaseHeaders(accessToken),
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({
+        owner_id: ownerId,
+        name: sourceMeeting.name.trim().endsWith("Copy")
+          ? `${sourceMeeting.name.trim()} 2`
+          : `${sourceMeeting.name.trim()} Copy`,
+        metadata_json: sourceMeeting.metadata_json,
+        meeting_data: sourceMeeting.meeting_data,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Workspace duplicate"));
+    }
+
+    const meetings = (await response.json()) as SupabaseMeeting[];
+    const meeting = meetings[0];
+    if (!meeting) {
+      throw new Error("Supabase did not return the duplicated meeting.");
+    }
+
+    return meeting;
+  },
+
+  async archiveWorkspace({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}`,
+      {
+        method: "PATCH",
+        headers: {
+          ...getSupabaseHeaders(accessToken),
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify({ archived_at: new Date().toISOString() }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Workspace archive"));
+    }
+
+    const meetings = (await response.json()) as SupabaseMeeting[];
+    const meeting = meetings[0];
+    if (!meeting) {
+      throw new Error("Cloud meeting was not found or is not accessible.");
     }
 
     return meeting;
