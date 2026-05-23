@@ -7,6 +7,7 @@
 - Backup/Restore JSON export/import remains operational and must stay intact.
 - Feedback remains separate from meeting persistence.
 - Auth sign out returns to `/`.
+- Tactical session history capture is available as an archival flow via `tactical_sessions` + `snapshot_json`, separate from runtime operational persistence.
 
 ## Persistence Direction Decision
 Stop treating full-workspace JSONB autosave as the long-term architecture.
@@ -39,3 +40,4 @@ New direction:
 - Do not break export/import backup behavior.
 - Do not remove `meeting_data` yet.
 - Keep rollouts reversible and feature-scoped.
+- Keep tactical history snapshots archival-first; do not couple them to realtime or full runtime persistence migration.
