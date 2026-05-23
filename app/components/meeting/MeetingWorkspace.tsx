@@ -477,12 +477,16 @@ export default function MeetingWorkspace() {
     setShowBackupRestore(false);
     setShowMeetingSetup(false);
     setShowPlaybookDefinitions(false);
+    router.replace("/");
     try {
       await signOut();
     } catch {
       // Redirect regardless of sign-out API completion.
     } finally {
       router.replace("/");
+      if (typeof window !== "undefined") {
+        window.location.assign("/");
+      }
     }
   };
 
@@ -1447,6 +1451,25 @@ export default function MeetingWorkspace() {
 
     return () => window.clearTimeout(timeoutId);
   }, [selectedMeetingId, workspaceMode]);
+
+  useEffect(() => {
+    if (workspaceMode !== "cloud") return;
+    if (!selectedMeetingId) return;
+    if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
+      return;
+    if (isRouteCloudBootstrapping) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setIsCloudMeetingReadyForAutosave(true);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    activeCloudWorkspaceId,
+    isRouteCloudBootstrapping,
+    selectedMeetingId,
+    workspaceMode,
+  ]);
 
   useEffect(() => {
     if (!authSession || workspaceMode !== "cloud") return;
