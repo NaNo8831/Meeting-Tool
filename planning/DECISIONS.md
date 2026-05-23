@@ -2,6 +2,7 @@
 
 | Date | Decision | Rationale / Notes |
 | --- | --- | --- |
+| 2026-05-22 | Make `/dashboard` the authenticated Meeting selector with owner-scoped meeting cards and secondary local fallback. | Keeps recurring meeting entry calm and focused, uses existing owner-only RLS for visibility boundaries, and preserves Local Workspace as a non-primary path. |
 | 2026-05-22 | Establish routed app foundation: `/` landing, `/dashboard` placeholder, `/meeting/[id]` active workspace route. | Separates authentication entry from operational meeting workspace and creates a stable path for future dashboard evolution without changing existing local/cloud persistence model. |
 | 2026-05-21 | Track deferred non-critical roadmap items in `planning/FUTURE_PHASES.md`. | Creates an explicit scope-control backlog so future UX/org/sharing/roles/realtime/template/recap/mobile ideas are preserved without expanding active sprint scope. |
 | 2026-05-17 | Make Local Workspace migration explicit, optional, and backup-shaped. | Migration into Cloud Meeting uses the same JSON backup object as export/import and `meeting_data`, warns before overwriting cloud data, leaves localStorage intact, and records a browser-local signature per user/workspace to avoid repeated prompts for the same local data. |
