@@ -1482,8 +1482,6 @@ export default function MeetingWorkspace() {
     if (isLocalRoute) return;
     if (isRouteCloudBootstrapping) return;
     if (!hasLoadedDashboardStorage) return;
-    if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
-      return;
     if (
       currentWorkspaceSignature === lastCloudAutosaveSignatureRef.current
     ) {
