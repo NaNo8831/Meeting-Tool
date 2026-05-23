@@ -20,6 +20,12 @@ Permission design should move from owner-only row access to membership-based acc
 - Use authenticated user IDs and membership relationships.
 - `owner_email` (if kept) is convenience metadata only (admin/debug), not policy authority.
 
+## Current Structured Table Policy Baseline
+The structured persistence foundation migration enables RLS on all newly introduced structured tables and applies an initial safe owner-only rule:
+- authenticated users can select/insert/update/delete only rows whose `meeting_id` belongs to a meeting they own (`meetings.owner_id = auth.uid()`).
+- this is enforced per table through owner-check policies and a shared meeting ownership helper.
+- `meeting_members` exists now for future sharing expansion, but does **not** yet grant non-owner access in runtime policies.
+
 ## Out of Scope in This Planning Stage
 - Invitation flows.
 - Full org/team hierarchy.

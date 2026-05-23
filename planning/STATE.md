@@ -7,7 +7,7 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can save/load full workspace backup JSON in Supabase, and optionally receive explicit Local Workspace migration.
 - Backup: JSON export/import workspace backup.
-- Current focus: Cloud Persistence Architecture Plan (docs-only) to move from full-workspace JSONB autosave attempts toward structured section/item persistence while preserving manual save/load and backup safety.
+- Current focus: Structured Persistence Phase A/B schema foundation on `phase-2-cloud` direction, introducing non-breaking structured tables while preserving current manual save/load and backup behavior.
 - Current branch note: Routing Foundation work is based from the updated `phase-2-cloud` branch context.
 
 ## Production State
@@ -21,13 +21,14 @@
 - Keep the planning source of truth current, including the new deferred-scope registry in `planning/FUTURE_PHASES.md`.
 - Keep `main` stable for production and UX stabilization.
 - Treat the Meeting Setup flow as part of the current production baseline on `main` after PR #23.
-- Document and sequence structured persistence migration planning without changing runtime behavior or breaking current owner-only cloud save/load.
+- Keep structured persistence schema foundation aligned with owner-only RLS and no runtime read/write switch yet.
+- Document and sequence next migration slices without breaking current owner-only cloud save/load behavior.
 
 ## Sprint Status
 
 - Completed sprint: Dashboard / Meeting Selector (authenticated dashboard cards, user-scoped meeting list, open-route entry, and local fallback completed on `phase-2-cloud`).
 - Current architecture status: App route separation is active with ` / ` landing/auth entry, `/dashboard` authenticated meeting selector cards, and `/meeting/[id]` route-driven cloud meeting load with manual cloud save preserved; autosave repair is deferred.
-- Next recommended sprint: Structured Persistence Phase A/B planning and non-breaking schema introduction sequence (docs + migration design only, no runtime switch).
+- Next recommended sprint: First structured write pilot on a narrow surface (likely `meeting_settings` or `strategic_topics`) after validating the schema foundation.
 - Blockers: Full-workspace autosave approach was abandoned (PR #41); structured section/item persistence design and sequencing is now required before new cloud persistence implementation.
 
 ## Parked / Deferred Work

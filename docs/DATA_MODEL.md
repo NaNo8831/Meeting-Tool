@@ -68,6 +68,27 @@ Planned save flow:
 - **Phase D:** Keep `meeting_data` for backup/export snapshot only.
 - **Phase E:** Add members/realtime features on top of structured tables.
 
+## Structured Persistence Foundation (Phase A/B Schema Introduction)
+Supabase migration `20260523000000_add_structured_persistence_foundation.sql` introduces non-breaking structured tables:
+- `meeting_members`
+- `meeting_settings`
+- `objectives`
+- `tasks`
+- `standard_operating_objectives`
+- `strategic_topics`
+- `tactical_sessions`
+- `tactical_items`
+- `strategic_sessions`
+- `strategic_session_notes`
+
+This is schema-only groundwork:
+- Runtime app reads/writes are **not** switched to these tables yet.
+- `meetings.meeting_data` remains the active source of truth for current app behavior.
+- Manual Save/Load and JSON export/import remain unchanged.
+
+Recommended next step after this PR:
+- Validate one small structured write surface first (likely `meeting_settings` or `strategic_topics`) before any broader runtime migration.
+
 ## Explicit Out of Scope (This Plan)
 - Realtime behavior.
 - Invitations.
