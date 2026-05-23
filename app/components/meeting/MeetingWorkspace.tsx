@@ -361,6 +361,8 @@ export default function MeetingWorkspace() {
   const [isRouteCloudBootstrapping, setIsRouteCloudBootstrapping] =
     useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isCloudMeetingReadyForAutosave, setIsCloudMeetingReadyForAutosave] =
+    useState(false);
   const organizationInfoWithDefaults = {
     ...defaultOrganizationInfo,
     ...organizationInfo,
@@ -421,6 +423,7 @@ export default function MeetingWorkspace() {
         setSelectedMeetingId("");
         setSelectedMeetingName("");
         setIsRouteCloudBootstrapping(false);
+        setIsCloudMeetingReadyForAutosave(false);
       }, 0);
       return () => window.clearTimeout(timeoutId);
     }
@@ -428,6 +431,7 @@ export default function MeetingWorkspace() {
     if (isCloudRoute && selectedMeetingId !== routeMeetingId) {
       const timeoutId = window.setTimeout(() => {
         setIsRouteCloudBootstrapping(true);
+        setIsCloudMeetingReadyForAutosave(false);
         setSelectedMeetingId(routeMeetingId);
         setActiveCloudWorkspaceId(routeMeetingId);
         setCloudMeetingMessage("Loading cloud meeting from route…");
@@ -1301,6 +1305,7 @@ export default function MeetingWorkspace() {
           "This cloud meeting has no saved data yet. Use Save current workspace to cloud when ready.",
         );
         setIsRouteCloudBootstrapping(false);
+        setIsCloudMeetingReadyForAutosave(true);
         return;
       }
 
@@ -1313,6 +1318,7 @@ export default function MeetingWorkspace() {
       setCloudSaveStatus("saved");
       setCloudMeetingMessage("Cloud workspace loaded.");
       setIsRouteCloudBootstrapping(false);
+      setIsCloudMeetingReadyForAutosave(true);
     } catch (error) {
       setCloudSaveStatus("error");
       setCloudMeetingMessage(
@@ -1321,6 +1327,7 @@ export default function MeetingWorkspace() {
           : "Cloud workspace could not be loaded.",
       );
       setIsRouteCloudBootstrapping(false);
+      setIsCloudMeetingReadyForAutosave(false);
     }
   }, [
     applyWorkspaceBackupToState,
@@ -1355,6 +1362,28 @@ export default function MeetingWorkspace() {
     }
   }, [authSession, routeMeetingId]);
 
+  const saveWorkspaceBackupToCloud = useCallback(
+    async (workspaceEntries: Record<string, unknown>, statusMessage: string) => {
+      if (!authSession || !selectedMeetingId) return false;
+
+      const backup = createWorkspaceBackup(workspaceEntries);
+      await supabaseMeetingClient.saveWorkspaceData({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        data: backup,
+      });
+      const signature = getWorkspaceStorageSignature(backup.localStorage);
+      storeWorkspaceBackupInBrowser(backup, selectedMeetingId);
+      setActiveCloudWorkspaceId(selectedMeetingId);
+      setSelectedMeetingHasData(true);
+      lastCloudAutosaveSignatureRef.current = signature;
+      setCloudSaveStatus("saved");
+      setCloudMeetingMessage(statusMessage);
+      return true;
+    },
+    [authSession, selectedMeetingId, storeWorkspaceBackupInBrowser],
+  );
+
   const handleSaveCloudMeeting = useCallback(async () => {
     if (!authSession || !selectedMeetingId) return;
 
@@ -1375,19 +1404,14 @@ export default function MeetingWorkspace() {
     setCloudMeetingMessage("Saving cloud meeting…");
 
     try {
-      const backup = createWorkspaceBackup(getCurrentWorkspaceStorage());
-      await supabaseMeetingClient.saveWorkspaceData({
-        accessToken: authSession.accessToken,
-        workspaceId: selectedMeetingId,
-        data: backup,
-      });
-      const signature = getWorkspaceStorageSignature(backup.localStorage);
-      storeWorkspaceBackupInBrowser(backup, selectedMeetingId);
-      setActiveCloudWorkspaceId(selectedMeetingId);
-      setSelectedMeetingHasData(true);
-      lastCloudAutosaveSignatureRef.current = signature;
-      setCloudSaveStatus("saved");
-      setCloudMeetingMessage("Saved to cloud.");
+      const workspaceEntries = getCurrentWorkspaceStorage();
+      const wasSaved = await saveWorkspaceBackupToCloud(
+        workspaceEntries,
+        "Saved to cloud.",
+      );
+      if (wasSaved) {
+        setIsCloudMeetingReadyForAutosave(true);
+      }
     } catch (error) {
       setCloudSaveStatus("error");
       setCloudMeetingMessage(
@@ -1399,9 +1423,9 @@ export default function MeetingWorkspace() {
   }, [
     authSession,
     getCurrentWorkspaceStorage,
+    saveWorkspaceBackupToCloud,
     selectedMeetingId,
     selectedMeetingName,
-    storeWorkspaceBackupInBrowser,
   ]);
 
   useEffect(() => {
@@ -1411,6 +1435,7 @@ export default function MeetingWorkspace() {
         setCloudSaveStatus("local");
         setCloudMeetingMessage("");
         setActiveCloudWorkspaceId("");
+        setIsCloudMeetingReadyForAutosave(false);
         return;
       }
 
@@ -1425,7 +1450,8 @@ export default function MeetingWorkspace() {
 
   useEffect(() => {
     if (!authSession || workspaceMode !== "cloud") return;
-    if (!selectedMeetingId) return;
+    if (!selectedMeetingId || !activeCloudWorkspaceId) return;
+    if (!isCloudMeetingReadyForAutosave) return;
     if (!hasLoadedDashboardStorage) return;
 
     const workspaceEntries = getCurrentWorkspaceStorage();
@@ -1440,17 +1466,7 @@ export default function MeetingWorkspace() {
       void (async () => {
         setCloudSaveStatus("saving");
         try {
-          const backup = createWorkspaceBackup(workspaceEntries);
-          await supabaseMeetingClient.saveWorkspaceData({
-            accessToken: authSession.accessToken,
-            workspaceId: selectedMeetingId,
-            data: backup,
-          });
-          storeWorkspaceBackupInBrowser(backup, selectedMeetingId);
-          setSelectedMeetingHasData(true);
-          lastCloudAutosaveSignatureRef.current = signature;
-          setCloudSaveStatus("saved");
-          setCloudMeetingMessage("Saved to cloud.");
+          await saveWorkspaceBackupToCloud(workspaceEntries, "Saved to cloud.");
         } catch (error) {
           setCloudSaveStatus("error");
           setCloudMeetingMessage(
@@ -1469,11 +1485,13 @@ export default function MeetingWorkspace() {
       }
     };
   }, [
+    activeCloudWorkspaceId,
     authSession,
     getCurrentWorkspaceStorage,
     hasLoadedDashboardStorage,
+    isCloudMeetingReadyForAutosave,
+    saveWorkspaceBackupToCloud,
     selectedMeetingId,
-    storeWorkspaceBackupInBrowser,
     workspaceMode,
   ]);
 
