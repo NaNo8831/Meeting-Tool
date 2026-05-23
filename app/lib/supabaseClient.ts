@@ -26,6 +26,17 @@ export type SupabaseMeeting = {
   archived_at: string | null;
 };
 
+export type SupabaseTacticalSession = {
+  id: string;
+  meeting_id: string;
+  session_date: string;
+  title: string | null;
+  status: string;
+  snapshot_json: Record<string, unknown> | null;
+  created_at: string;
+  ended_at: string | null;
+};
+
 type SupabaseAuthUserResponse = {
   id?: string;
   email?: string;
@@ -475,5 +486,74 @@ export const supabaseMeetingClient = {
     }
 
     return meeting;
+  },
+
+  async listTacticalSessions({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("tactical_sessions")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}&select=*&order=created_at.desc`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Tactical sessions list"),
+      );
+    }
+
+    return (await response.json()) as SupabaseTacticalSession[];
+  },
+
+  async endTacticalSession({
+    accessToken,
+    workspaceId,
+    sessionDate,
+    title,
+    snapshotJson,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    sessionDate: string;
+    title: string;
+    snapshotJson: Record<string, unknown>;
+  }) {
+    const nowIso = new Date().toISOString();
+    const response = await fetch(getRestUrl("tactical_sessions"), {
+      method: "POST",
+      headers: {
+        ...getSupabaseHeaders(accessToken),
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({
+        meeting_id: workspaceId,
+        session_date: sessionDate,
+        title,
+        status: "ended",
+        snapshot_json: snapshotJson,
+        ended_at: nowIso,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "End meeting"));
+    }
+
+    const sessions = (await response.json()) as SupabaseTacticalSession[];
+    const session = sessions[0];
+    if (!session) {
+      throw new Error("Tactical session was not created.");
+    }
+
+    return session;
   },
 };

@@ -10,6 +10,7 @@
 - Sign out routes users to `/`.
 - `meetings.meeting_data` JSONB remains the backup/export/import shape and safety fallback.
 - `meetings.archived_at` (nullable timestamptz) marks archived meetings without deleting rows.
+- Tactical history foundation is active for cloud meetings: each **End Meeting** action creates a `tactical_sessions` row with archival `snapshot_json`, while runtime operational state remains unchanged.
 
 ## Why Full-Workspace JSONB Autosave Was Stopped
 The prior full-page autosave attempt (PR #41) was abandoned because it introduced regressions and did not deliver reliable persistence:
@@ -31,6 +32,12 @@ Architecture drawbacks of full JSONB autosave:
 - manual save/load payload.
 
 Do **not** remove `meeting_data` in this migration planning stage.
+
+## Tactical History Foundation (Archival Session Records)
+- `tactical_sessions` stores recurring tactical meeting history snapshots.
+- `snapshot_json` is intentionally acceptable for historical archival records.
+- This history path is separate from the structured operational persistence migration.
+- Ending a meeting creates a historical session record and **does not reset** the active meeting workspace.
 
 ## Target Structured Persistence Model (Planned)
 The long-term direction is section/item persistence with clear entity boundaries.

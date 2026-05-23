@@ -45,7 +45,10 @@ import {
   type WorkspaceBackupFeedback,
   type WorkspaceBackupFile,
 } from "@/app/lib/workspaceBackup";
-import { supabaseMeetingClient } from "@/app/lib/supabaseClient";
+import {
+  supabaseMeetingClient,
+  type SupabaseTacticalSession,
+} from "@/app/lib/supabaseClient";
 import type {
   MeetingItem,
   MeetingRecord,
@@ -360,6 +363,14 @@ export default function MeetingWorkspace() {
   const [isRouteCloudBootstrapping, setIsRouteCloudBootstrapping] =
     useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [tacticalSessions, setTacticalSessions] = useState<
+    SupabaseTacticalSession[]
+  >([]);
+  const [isLoadingTacticalSessions, setIsLoadingTacticalSessions] =
+    useState(false);
+  const [isEndingMeeting, setIsEndingMeeting] = useState(false);
+  const [selectedTacticalSessionId, setSelectedTacticalSessionId] =
+    useState("");
   const organizationInfoWithDefaults = {
     ...defaultOrganizationInfo,
     ...organizationInfo,
@@ -1381,6 +1392,68 @@ export default function MeetingWorkspace() {
     [authSession, selectedMeetingId, storeWorkspaceBackupInBrowser],
   );
 
+  const loadTacticalSessions = useCallback(async () => {
+    if (!authSession || !selectedMeetingId) {
+      setTacticalSessions([]);
+      return;
+    }
+
+    setIsLoadingTacticalSessions(true);
+    try {
+      const sessions = await supabaseMeetingClient.listTacticalSessions({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+      });
+      setTacticalSessions(sessions);
+      setSelectedTacticalSessionId((current) =>
+        current || sessions[0]?.id || "",
+      );
+    } catch {
+      setTacticalSessions([]);
+    } finally {
+      setIsLoadingTacticalSessions(false);
+    }
+  }, [authSession, selectedMeetingId]);
+
+  const handleEndMeeting = useCallback(async () => {
+    if (!authSession || !selectedMeetingId || isEndingMeeting) return;
+
+    const shouldEnd = window.confirm(
+      "End this tactical meeting and create a historical snapshot? This will not reset the current operational workspace.",
+    );
+    if (!shouldEnd) return;
+
+    setIsEndingMeeting(true);
+    try {
+      const workspaceEntries = getCurrentWorkspaceStorage();
+      const created = await supabaseMeetingClient.endTacticalSession({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        sessionDate: getTodayDate(),
+        title: `Tactical Session ${getTodayDate()}`,
+        snapshotJson: workspaceEntries,
+      });
+      setTacticalSessions((current) => [created, ...current]);
+      setSelectedTacticalSessionId(created.id);
+      setCloudMeetingMessage(
+        "Tactical session history snapshot saved. Current meeting workspace remains active.",
+      );
+    } catch (error) {
+      setCloudMeetingMessage(
+        error instanceof Error
+          ? error.message
+          : "Tactical session snapshot could not be created.",
+      );
+    } finally {
+      setIsEndingMeeting(false);
+    }
+  }, [
+    authSession,
+    getCurrentWorkspaceStorage,
+    isEndingMeeting,
+    selectedMeetingId,
+  ]);
+
   const handleSaveCloudMeeting = useCallback(async () => {
     if (!authSession || !selectedMeetingId) return;
 
@@ -1442,6 +1515,14 @@ export default function MeetingWorkspace() {
 
     return () => window.clearTimeout(timeoutId);
   }, [selectedMeetingId, workspaceMode]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadTacticalSessions();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadTacticalSessions]);
 
   useEffect(() => {
     if (workspaceMode !== "cloud") return;
@@ -1558,6 +1639,9 @@ export default function MeetingWorkspace() {
 
     return <p className="text-slate-700 whitespace-pre-line">{value}</p>;
   };
+  const selectedTacticalSession =
+    tacticalSessions.find((session) => session.id === selectedTacticalSessionId) ??
+    null;
 
   if (!hasLoadedDashboardStorage) {
     return (
@@ -1631,6 +1715,14 @@ export default function MeetingWorkspace() {
                     Save
                   </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={handleEndMeeting}
+                  disabled={isEndingMeeting}
+                  className="mt-2 w-full rounded-xl border border-emerald-200 px-3 py-2 font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isEndingMeeting ? "Ending Meeting…" : "End Meeting"}
+                </button>
               </section>
             )}
 
@@ -1789,6 +1881,73 @@ export default function MeetingWorkspace() {
             </div>
           </div>
         </div>
+
+        {workspaceMode === "cloud" && selectedMeetingId ? (
+          <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">
+              Tactical History
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Archived tactical sessions are stored as historical snapshots.
+            </p>
+            {isLoadingTacticalSessions ? (
+              <p className="mt-3 text-sm text-slate-500">Loading sessions…</p>
+            ) : tacticalSessions.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-500">
+                No tactical history yet. Use End Meeting to capture the first
+                session snapshot.
+              </p>
+            ) : (
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  {tacticalSessions.map((session) => (
+                    <button
+                      key={session.id}
+                      type="button"
+                      onClick={() => setSelectedTacticalSessionId(session.id)}
+                      className={`w-full rounded-xl border p-3 text-left ${
+                        session.id === selectedTacticalSessionId
+                          ? "border-blue-300 bg-blue-50"
+                          : "border-slate-200 bg-white hover:bg-slate-50"
+                      }`}
+                    >
+                      <p className="font-semibold text-slate-900">
+                        {session.title || `Tactical Session ${session.session_date}`}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Date: {session.session_date} · Created:{" "}
+                        {new Date(session.created_at).toLocaleString()} · Ended:{" "}
+                        {session.ended_at
+                          ? new Date(session.ended_at).toLocaleString()
+                          : "N/A"}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  {selectedTacticalSession ? (
+                    <>
+                      <p className="text-sm font-semibold text-slate-900">
+                        Session Snapshot
+                      </p>
+                      <pre className="mt-2 max-h-80 overflow-auto rounded-lg bg-white p-3 text-xs text-slate-700">
+                        {JSON.stringify(
+                          selectedTacticalSession.snapshot_json ?? {},
+                          null,
+                          2,
+                        )}
+                      </pre>
+                    </>
+                  ) : (
+                    <p className="text-sm text-slate-500">
+                      Select a tactical session to view its snapshot.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
+        ) : null}
 
         <div className="mb-10 space-y-5">
           <section className="bg-white rounded-3xl p-6 text-center shadow md:p-8">
