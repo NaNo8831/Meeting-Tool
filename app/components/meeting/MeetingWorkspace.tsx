@@ -1330,6 +1330,7 @@ export default function MeetingWorkspace() {
 
       if (!cloudData) {
         lastCloudAutosaveSignatureRef.current = currentWorkspaceSignature;
+        setActiveCloudWorkspaceId(selectedMeetingId);
         setCloudSaveStatus("idle");
         setCloudMeetingMessage(
           "This cloud meeting has no saved data yet. Use Save current workspace to cloud when ready.",
