@@ -1,38 +1,27 @@
 # Permissions
 
-## Current State
-- Signed-out users can use Local Workspace with browser `localStorage` and JSON export/import backup.
-- Supabase email/password auth is available on `phase-2-cloud` when environment variables are configured.
-- Authenticated users can create and select owner-only Cloud Meetings; selected cloud meeting IDs are scoped by signed-in user in browser state.
-- Selected Cloud Meetings can save and load full Meeting Tool workspace backup JSON in owner-only Supabase storage through explicit load/save actions.
-- Authenticated owners can explicitly migrate their browser-local Local Workspace data into a selected Cloud Meeting they own; RLS prevents migrating into another user’s workspace.
-- Tester feedback can be submitted to Supabase separately from workspace persistence.
+## Current State (Owner-Only Cloud Meetings)
+- Signed-out users can use Local Workspace via `localStorage` and export/import.
+- Signed-in users can create/select owner-only cloud meetings.
+- Owner can manually save/load meeting workspace data via `meetings.meeting_data`.
+- RLS currently protects owner-only access to meeting rows.
 
-## Current Supabase RLS
+## Direction for Structured Persistence Permissions
+Permission design should move from owner-only row access to membership-based access using explicit meeting membership rows.
 
-### `feedback`
-- Anonymous and authenticated users can insert tester feedback.
-- Authenticated feedback rows must either have `user_id` unset or match `auth.uid()`.
+### Planned model
+- `meeting_members` links users to meetings.
+- Future role direction: `owner`, `admin`, `member` (exact capability matrix deferred).
+- Meeting owner remains the meeting administrator.
+- Members gain row access through membership joins/policies.
 
-### `meetings`
-- Only authenticated users can insert workspace containers where `owner_id = auth.uid()`.
-- Only authenticated users can select workspace containers they own.
-- Only authenticated users can update the name, metadata, or `meeting_data` for workspaces they own.
-- Anonymous users have no workspace-container access.
+### Policy principles
+- Do not rely on email text fields for authorization.
+- Use authenticated user IDs and membership relationships.
+- `owner_email` (if kept) is convenience metadata only (admin/debug), not policy authority.
 
-## Future Planned Roles
-| Role | Planned Direction |
-| --- | --- |
-| Owner | Workspace creator/admin with full control over workspace settings, members, data, export, and destructive actions. |
-| Editor | Can participate in meeting operations and update workspace content. |
-| Viewer | Can read workspace content with limited or no mutation rights. |
-
-## Open Items After Basic Cloud Persistence
-- Exact owner/editor/viewer permissions.
-- Invitation and membership model.
-- Workspace transfer or recovery behavior.
-- Export/import behavior for each role.
-- Whether realtime collaboration is part of initial cloud launch.
-- Future conflict behavior if sharing or realtime collaboration is introduced.
-
-This file documents the current owner-only basic Cloud Meeting persistence and optional local-to-cloud migration foundation plus future planning. Do not implement broader permissions unless a future scoped task explicitly requests it on the correct branch.
+## Out of Scope in This Planning Stage
+- Invitation flows.
+- Full org/team hierarchy.
+- Realtime collaboration policies.
+- Final granular permission matrix per entity/action.
