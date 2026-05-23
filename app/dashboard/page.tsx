@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSupabaseAuth } from "@/app/hooks/useSupabaseAuth";
@@ -9,6 +9,7 @@ import {
   supabaseMeetingClient,
   type SupabaseMeeting,
 } from "@/app/lib/supabaseClient";
+import { validateWorkspaceBackup } from "@/app/lib/workspaceBackup";
 
 const formatRelativeTimestamp = (timestamp: string) => {
   const milliseconds = Date.parse(timestamp);
@@ -39,7 +40,10 @@ export default function DashboardPage() {
   const [meetings, setMeetings] = useState<SupabaseMeeting[]>([]);
   const [isLoadingMeetings, setIsLoadingMeetings] = useState(false);
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
+  const [isDuplicating, setIsDuplicating] = useState<string | null>(null);
+  const [isArchiving, setIsArchiving] = useState<string | null>(null);
   const [newMeetingName, setNewMeetingName] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
   const [message, setMessage] = useState("");
   const [createMeetingError, setCreateMeetingError] = useState("");
 
@@ -88,8 +92,7 @@ export default function DashboardPage() {
     ? `${session.user.email.split("@")[0]}'s Team`
     : "Your Team";
 
-  const handleCreateMeeting = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleCreateBlankMeeting = async () => {
     if (!session || isCreatingMeeting) return;
 
     const trimmedName = newMeetingName.trim();
@@ -111,6 +114,7 @@ export default function DashboardPage() {
 
       setMeetings((currentMeetings) => [meeting, ...currentMeetings]);
       setNewMeetingName("");
+      router.push(`/meeting/${meeting.id}`);
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -122,6 +126,92 @@ export default function DashboardPage() {
     }
   };
 
+  const handleDuplicateMeeting = async (sourceMeeting: SupabaseMeeting) => {
+    if (!session || isDuplicating) return;
+
+    setIsDuplicating(sourceMeeting.id);
+    setMessage("");
+
+    try {
+      const duplicated = await supabaseMeetingClient.duplicateWorkspace({
+        accessToken: session.accessToken,
+        ownerId: session.user.id,
+        sourceMeeting,
+      });
+      setMeetings((currentMeetings) => [duplicated, ...currentMeetings]);
+      setMessage(`Created ${duplicated.name}.`);
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not duplicate this meeting.",
+      );
+    } finally {
+      setIsDuplicating(null);
+    }
+  };
+
+  const handleArchiveMeeting = async (meeting: SupabaseMeeting) => {
+    if (!session || isArchiving) return;
+
+    const confirmed = window.confirm(
+      `Archive \"${meeting.name}\"? You can still show archived meetings later.`,
+    );
+    if (!confirmed) return;
+
+    setIsArchiving(meeting.id);
+    setMessage("");
+
+    try {
+      const archivedMeeting = await supabaseMeetingClient.archiveWorkspace({
+        accessToken: session.accessToken,
+        workspaceId: meeting.id,
+      });
+
+      setMeetings((currentMeetings) =>
+        currentMeetings.map((currentMeeting) =>
+          currentMeeting.id === archivedMeeting.id
+            ? archivedMeeting
+            : currentMeeting,
+        ),
+      );
+      setMessage(`Archived ${meeting.name}.`);
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Could not archive meeting.",
+      );
+    } finally {
+      setIsArchiving(null);
+    }
+  };
+
+  const handleImportBackupPlaceholder = async (
+    event: ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const parsed = JSON.parse(await file.text()) as unknown;
+      validateWorkspaceBackup(parsed);
+      setMessage(
+        "Import Backup for new cloud meeting is UI-ready, but write-to-new-meeting is deferred in this PR for safety.",
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not read this backup file.",
+      );
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const activeMeetings = meetings.filter((meeting) => !meeting.archived_at);
+  const archivedMeetings = meetings.filter((meeting) => Boolean(meeting.archived_at));
+  const visibleMeetings = showArchived ? meetings : activeMeetings;
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto w-full max-w-4xl space-y-6">
@@ -132,11 +222,8 @@ export default function DashboardPage() {
           <h1 className="mt-2 text-3xl font-semibold text-slate-900">Team</h1>
           <p className="mt-1 text-base text-slate-600">{teamName}</p>
 
-          <div className="mt-5 flex flex-wrap gap-3">
-            <form
-              className="flex min-w-0 flex-1 gap-2"
-              onSubmit={handleCreateMeeting}
-            >
+          <div className="mt-5 space-y-3">
+            <div className="flex min-w-0 gap-2">
               <input
                 type="text"
                 value={newMeetingName}
@@ -144,55 +231,87 @@ export default function DashboardPage() {
                   setNewMeetingName(event.target.value);
                   if (createMeetingError) setCreateMeetingError("");
                 }}
-                placeholder="Create a recurring meeting"
+                placeholder="Name your new recurring meeting"
                 maxLength={80}
                 className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
               />
+            </div>
+
+            <div className="flex flex-wrap gap-2">
               <button
-                type="submit"
+                type="button"
+                onClick={() => void handleCreateBlankMeeting()}
                 disabled={isCreatingMeeting}
                 className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isCreatingMeeting ? "Creating…" : "Create Meeting"}
+                {isCreatingMeeting ? "Creating…" : "Start Blank"}
               </button>
-            </form>
+              <button
+                type="button"
+                disabled={!activeMeetings.length || isCreatingMeeting}
+                onClick={() =>
+                  void handleDuplicateMeeting(activeMeetings[0] as SupabaseMeeting)
+                }
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Copy Existing Meeting
+              </button>
+              <label className="cursor-pointer rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                Import Backup
+                <input
+                  type="file"
+                  accept="application/json"
+                  className="hidden"
+                  onChange={(event) => void handleImportBackupPlaceholder(event)}
+                />
+              </label>
+            </div>
             {createMeetingError ? (
-              <p className="basis-full pl-1 text-xs text-amber-800">
-                {createMeetingError}
-              </p>
+              <p className="pl-1 text-xs text-amber-800">{createMeetingError}</p>
             ) : null}
 
-            <Link
-              href="/meeting/local"
-              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-            >
-              Continue Locally
-            </Link>
-            <button
-              type="button"
-              onClick={() =>
-                void signOut()
-                  .then(() => {
-                    router.replace("/");
-                  })
-                  .catch(() => undefined)
-              }
-              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-            >
-              Log Out
-            </button>
+            <div className="flex flex-wrap gap-3 pt-1">
+              <Link
+                href="/meeting/local"
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                Continue Locally
+              </Link>
+              <button
+                type="button"
+                onClick={() => setShowArchived((current) => !current)}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                {showArchived ? "Hide archived" : `Show archived (${archivedMeetings.length})`}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  void signOut()
+                    .then(() => {
+                      router.replace("/");
+                    })
+                    .catch(() => undefined)
+                }
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                Log Out
+              </button>
+            </div>
           </div>
         </header>
 
         <section className="space-y-3">
           {isLoadingMeetings ? (
             <p className="text-sm text-slate-500">Loading meetings…</p>
-          ) : meetings.length === 0 ? (
+          ) : visibleMeetings.length === 0 ? (
             <p className="rounded-2xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-600 shadow-sm">
-              No meetings yet. Create your first recurring meeting above.
+              {showArchived
+                ? "No meetings found for this filter."
+                : "No active meetings yet. Create your first recurring meeting above."}
             </p>
           ) : (
-            meetings.map((meeting) => (
+            visibleMeetings.map((meeting) => (
               <article
                 key={meeting.id}
                 className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
@@ -216,13 +335,18 @@ export default function DashboardPage() {
                   >
                     Open
                   </Link>
-                  <button
-                    type="button"
-                    className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-600"
-                    aria-label={`More options for ${meeting.name}`}
-                  >
-                    More
-                  </button>
+                  {!meeting.archived_at ? (
+                    <>
+                      <button type="button" onClick={() => void handleDuplicateMeeting(meeting)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" disabled={isDuplicating === meeting.id}>
+                        {isDuplicating === meeting.id ? "Duplicating…" : "Duplicate"}
+                      </button>
+                      <button type="button" onClick={() => void handleArchiveMeeting(meeting)} className="rounded-xl border border-amber-300 px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-50" disabled={isArchiving === meeting.id}>
+                        {isArchiving === meeting.id ? "Archiving…" : "Archive"}
+                      </button>
+                    </>
+                  ) : (
+                    <p className="text-xs text-slate-500">Archived</p>
+                  )}
                 </div>
               </article>
             ))

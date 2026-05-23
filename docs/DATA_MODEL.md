@@ -9,6 +9,7 @@
 - Feedback submission works.
 - Sign out routes users to `/`.
 - `meetings.meeting_data` JSONB remains the backup/export/import shape and safety fallback.
+- `meetings.archived_at` (nullable timestamptz) marks archived meetings without deleting rows.
 
 ## Why Full-Workspace JSONB Autosave Was Stopped
 The prior full-page autosave attempt (PR #41) was abandoned because it introduced regressions and did not deliver reliable persistence:
