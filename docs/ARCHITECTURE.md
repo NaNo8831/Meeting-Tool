@@ -1,36 +1,41 @@
 # Architecture
 
-## Current Architecture
+## Current Stable Architecture (No Behavior Change in This PR)
+- Next.js + TypeScript + Tailwind app deployed on Vercel.
+- Local Workspace remains browser `localStorage` based.
+- Cloud Meeting persistence currently uses manual save/load to `meetings.meeting_data` JSONB.
+- Backup/Restore JSON export/import remains operational and must stay intact.
+- Feedback remains separate from meeting persistence.
+- Auth sign out returns to `/`.
 
-- Application: existing Next.js app.
-- Language: TypeScript.
-- Styling: Tailwind CSS.
-- Deployment: Vercel.
-- Workspace persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can save/load the full workspace backup JSON in Supabase.
-- Backup/restore: JSON export/import workspace backup.
-- Authentication: optional Supabase email/password auth foundation on `phase-2-cloud`.
-- Tester feedback: lightweight Supabase-backed feedback submissions with optional workspace snapshot metadata.
-- Workspace mode: local-first selector with optional Supabase Cloud Meeting persistence for signed-in owners.
-- Current status: live/deployed operational beta.
+## Persistence Direction Decision
+Stop treating full-workspace JSONB autosave as the long-term architecture.
 
-## Current App Areas
+Reason:
+- It is operationally fragile (change detection, race conditions, and large write payloads).
+- It is a poor foundation for members, permissions, and realtime collaboration.
 
-- Meeting Setup first-run / edit flow for team or meeting name, playbook prompts, and Top Priority.
-- Playbook Definitions.
-- Top Priority / Thematic Goal.
-- Defining Objectives.
-- Tasks with `Planning → In Progress → Completed` workflow.
-- Task details modal with descriptions, comments, activity history, and subtasks.
-- Standard Operating Objectives.
-- Strategic Topics.
-- Meeting sections including Agenda Items, Decisions / Actions, and Cascading Communication.
-- Backup / Restore.
-- RichTextEditor with lightweight formatting.
+New direction:
+- Structured persistence by section/item, with incremental rollout and strict backward safety via `meeting_data` backup.
 
-## Persistence Boundary
+## Target Persistence Architecture
+### Data ownership layers
+1. **Meeting container layer** (`meetings`)
+2. **Membership/authorization layer** (`meeting_members`)
+3. **Domain section/item layer** (`objectives`, `tasks`, `strategic_topics`, etc.)
+4. **Session/history/rich text layer** (`tactical_sessions`, `strategic_sessions`, notes records)
+5. **Safety snapshot layer** (`meetings.meeting_data` backup/export format)
 
-Local Workspace data remains stored in browser `localStorage`, including the Meeting Setup completion flag and setup-backed workspace fields. Backup/export/import remains the safety mechanism for moving or restoring workspace data. In Cloud Meeting mode, the app uses per-workspace browser fallback keys for the active client state and saves/loads the same full workspace backup object to the selected owner-only Supabase `meetings.meeting_data` JSONB column. Selecting a Cloud Meeting only selects the container; it does not auto-load cloud data, auto-migrate local data, or silently overwrite the local workspace. Loading, saving, and local-to-cloud migration require explicit user actions. Cloud saves and migrations that replace existing cloud data require overwrite confirmation. Successful local-to-cloud migration records a lightweight browser-local signature per user/workspace so the same Local Workspace data is not repeatedly prompted as new.
+### Recommended PR sequence (structured persistence)
+1. **Planning + schema design PRs (docs only).**
+2. **Table introduction PR(s) (non-breaking, no app read switch).**
+3. **Scoped write-path PRs by feature area** (e.g., tasks first, then strategic topics).
+4. **Scoped read-path hydration PRs by feature area** with regression validation.
+5. **Backup-mode transition PR** where `meeting_data` becomes snapshot/export safety only.
+6. **Permissions + member expansion PRs** after structured model is stable.
 
-## Phase 2 Boundary
-
-Supabase is the Phase 2 platform direction. The current foundation enables email/password authentication, persisted auth sessions, lightweight tester feedback, owner-only Cloud Meeting persistence, and an optional Local Workspace migration prompt on `phase-2-cloud`; it does not force migration, add realtime collaboration, add team sharing, add editor/viewer roles, or replace export/import backup.
+## Guardrails During Migration
+- Do not break manual Save/Load behavior.
+- Do not break export/import backup behavior.
+- Do not remove `meeting_data` yet.
+- Keep rollouts reversible and feature-scoped.
