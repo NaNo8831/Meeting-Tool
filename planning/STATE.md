@@ -5,9 +5,9 @@
 - Product: Meeting Tool by LyArk in the `Meeting-Tool` repo.
 - Status: live/deployed operational beta.
 - Deployment: Vercel.
-- Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and autosave after intentional cloud establish/load/save actions.
+- Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can save/load full workspace backup JSON in Supabase, and optionally receive explicit Local Workspace migration.
 - Backup: JSON export/import workspace backup.
-- Current focus: routed app foundation (`/`, `/dashboard`, `/meeting/[id]`) while preserving local/cloud persistence behavior and existing backup/import/export safety.
+- Current focus: Dashboard / Meeting Selector PR scope (`/dashboard` cards + `/meeting/[id]` route load + manual cloud save) while preserving backup/import/export safety.
 - Current branch note: Routing Foundation work is based from the updated `phase-2-cloud` branch context.
 
 ## Production State
@@ -26,9 +26,9 @@
 ## Sprint Status
 
 - Completed sprint: Dashboard / Meeting Selector (authenticated dashboard cards, user-scoped meeting list, open-route entry, and local fallback completed on `phase-2-cloud`).
-- Current architecture status: App now has route separation with ` / ` as landing/auth entry, `/dashboard` as authenticated meeting selector dashboard, and `/meeting/[id]` as route-driven cloud meeting mode that auto-selects/loads the URL meeting when accessible while preserving `/meeting/local` local mode and backup/import/export behavior.
-- Next recommended sprint: Dashboard hardening + meeting flow regression QA (empty/loading/error UX polish, create/open telemetry decisions, and manual regression across feedback/export/import + cloud load/save flows).
-- Blockers: No immediate implementation blocker recorded; open design questions remain for normalization, invitations/sharing, advanced roles, and realtime collaboration.
+- Current architecture status: App route separation is active with ` / ` landing/auth entry, `/dashboard` authenticated meeting selector cards, and `/meeting/[id]` route-driven cloud meeting load with manual cloud save preserved; autosave repair is deferred.
+- Next recommended sprint: Cloud Autosave Repair / Persistence Hardening (route autosave reliability, save status correctness, and refresh persistence verification) plus regression QA across feedback/export/import + cloud load/save flows.
+- Blockers: Autosave reliability on route-driven cloud meetings is deferred from PR #40 into the next sprint/PR.
 
 ## Parked / Deferred Work
 - Full collaboration-grade Phase 2 remains deferred. Basic Cloud Meeting persistence stores the full backup JSON in `meetings.meeting_data`, but realtime collaboration, team sharing, editor/viewer roles, and forced migration remain out of scope.

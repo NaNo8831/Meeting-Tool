@@ -355,14 +355,11 @@ export default function MeetingWorkspace() {
     useState<MeetingSectionKey | null>(null);
   const [draggingStandardObjectiveId, setDraggingStandardObjectiveId] =
     useState<number | null>(null);
-  const cloudAutosaveTimeoutRef = useRef<number | null>(null);
   const lastCloudAutosaveSignatureRef = useRef("");
   const lastAutoLoadedCloudMeetingIdRef = useRef("");
   const [isRouteCloudBootstrapping, setIsRouteCloudBootstrapping] =
     useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [isCloudMeetingReadyForAutosave, setIsCloudMeetingReadyForAutosave] =
-    useState(false);
   const organizationInfoWithDefaults = {
     ...defaultOrganizationInfo,
     ...organizationInfo,
@@ -423,7 +420,6 @@ export default function MeetingWorkspace() {
         setSelectedMeetingId("");
         setSelectedMeetingName("");
         setIsRouteCloudBootstrapping(false);
-        setIsCloudMeetingReadyForAutosave(false);
       }, 0);
       return () => window.clearTimeout(timeoutId);
     }
@@ -431,7 +427,6 @@ export default function MeetingWorkspace() {
     if (isCloudRoute && selectedMeetingId !== routeMeetingId) {
       const timeoutId = window.setTimeout(() => {
         setIsRouteCloudBootstrapping(true);
-        setIsCloudMeetingReadyForAutosave(false);
         setSelectedMeetingId(routeMeetingId);
         setActiveCloudWorkspaceId(routeMeetingId);
         setCloudMeetingMessage("Loading cloud meeting from route…");
@@ -1020,36 +1015,6 @@ export default function MeetingWorkspace() {
     ],
   );
 
-  const currentWorkspaceEntries = useMemo(
-    () =>
-      collectWorkspaceStorage({
-        "leadership-objectives": objectives,
-        "leadership-meetings": meetings,
-        "leadership-active-meeting-id": activeMeeting.id,
-        "leadership-dashboard-title": dashboardTitle,
-        "leadership-organization-info": organizationInfo,
-        [meetingSetupCompletedStorageKey]: hasCompletedMeetingSetup,
-        "leadership-meeting-section-order": meetingSectionOrder,
-        [strategicTopicsStorageKey]: strategicTopicItems,
-        "leadership-standard-operating-objectives": standardOperatingObjectives,
-      }),
-    [
-      activeMeeting.id,
-      dashboardTitle,
-      hasCompletedMeetingSetup,
-      meetingSectionOrder,
-      meetings,
-      objectives,
-      organizationInfo,
-      standardOperatingObjectives,
-      strategicTopicItems,
-    ],
-  );
-
-  const currentWorkspaceSignature = useMemo(
-    () => getWorkspaceStorageSignature(currentWorkspaceEntries),
-    [currentWorkspaceEntries],
-  );
 
   const storeWorkspaceBackupInBrowser = useCallback(
     (backup: WorkspaceBackupFile, cloudWorkspaceId = "") => {
@@ -1340,7 +1305,6 @@ export default function MeetingWorkspace() {
           "This cloud meeting has no saved data yet. Use Save current workspace to cloud when ready.",
         );
         setIsRouteCloudBootstrapping(false);
-        setIsCloudMeetingReadyForAutosave(true);
         return;
       }
 
@@ -1353,7 +1317,6 @@ export default function MeetingWorkspace() {
       setCloudSaveStatus("saved");
       setCloudMeetingMessage("Cloud workspace loaded.");
       setIsRouteCloudBootstrapping(false);
-      setIsCloudMeetingReadyForAutosave(true);
     } catch (error) {
       setCloudSaveStatus("error");
       setCloudMeetingMessage(
@@ -1362,7 +1325,6 @@ export default function MeetingWorkspace() {
           : "Cloud workspace could not be loaded.",
       );
       setIsRouteCloudBootstrapping(false);
-      setIsCloudMeetingReadyForAutosave(false);
     }
   }, [
     applyWorkspaceBackupToState,
@@ -1445,7 +1407,6 @@ export default function MeetingWorkspace() {
         "Saved to cloud.",
       );
       if (wasSaved) {
-        setIsCloudMeetingReadyForAutosave(true);
       }
     } catch (error) {
       setCloudSaveStatus("error");
@@ -1470,13 +1431,12 @@ export default function MeetingWorkspace() {
         setCloudSaveStatus("local");
         setCloudMeetingMessage("");
         setActiveCloudWorkspaceId("");
-        setIsCloudMeetingReadyForAutosave(false);
         return;
       }
 
       setCloudSaveStatus("idle");
       setCloudMeetingMessage(
-        "Cloud workspace selected. Load cloud data when needed. After you intentionally load or save, future edits autosave in the background.",
+        "Cloud workspace selected. Load cloud data when needed.",
       );
     }, 0);
 
@@ -1491,63 +1451,12 @@ export default function MeetingWorkspace() {
     if (isRouteCloudBootstrapping) return;
 
     const timeoutId = window.setTimeout(() => {
-      setIsCloudMeetingReadyForAutosave(true);
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
   }, [
     activeCloudWorkspaceId,
     isRouteCloudBootstrapping,
-    selectedMeetingId,
-    workspaceMode,
-  ]);
-
-  useEffect(() => {
-    if (!authSession || workspaceMode !== "cloud") return;
-    if (!selectedMeetingId || !activeCloudWorkspaceId) return;
-    if (!isCloudMeetingReadyForAutosave) return;
-    if (!hasLoadedDashboardStorage) return;
-
-    if (currentWorkspaceSignature === lastCloudAutosaveSignatureRef.current)
-      return;
-
-    if (cloudAutosaveTimeoutRef.current !== null) {
-      window.clearTimeout(cloudAutosaveTimeoutRef.current);
-    }
-
-    cloudAutosaveTimeoutRef.current = window.setTimeout(() => {
-      void (async () => {
-        setCloudSaveStatus("saving");
-        try {
-          await saveWorkspaceBackupToCloud(
-            currentWorkspaceEntries,
-            "Saved to cloud.",
-          );
-        } catch (error) {
-          setCloudSaveStatus("error");
-          setCloudMeetingMessage(
-            error instanceof Error
-              ? error.message
-              : "Cloud workspace could not be saved.",
-          );
-        }
-      })();
-    }, 1200);
-
-    return () => {
-      if (cloudAutosaveTimeoutRef.current !== null) {
-        window.clearTimeout(cloudAutosaveTimeoutRef.current);
-        cloudAutosaveTimeoutRef.current = null;
-      }
-    };
-  }, [
-    activeCloudWorkspaceId,
-    authSession,
-    currentWorkspaceEntries,
-    currentWorkspaceSignature,
-    hasLoadedDashboardStorage,
-    isCloudMeetingReadyForAutosave,
-    saveWorkspaceBackupToCloud,
     selectedMeetingId,
     workspaceMode,
   ]);
