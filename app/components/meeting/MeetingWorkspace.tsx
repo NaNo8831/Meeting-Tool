@@ -379,6 +379,11 @@ export default function MeetingWorkspace() {
     useState<RichTextValue>("");
   const [isSavingStrategicTopicHistory, setIsSavingStrategicTopicHistory] =
     useState(false);
+  const [strategicTopicHistoryStatus, setStrategicTopicHistoryStatus] =
+    useState<{
+      type: "success" | "error";
+      message: string;
+    } | null>(null);
   const organizationInfoWithDefaults = {
     ...defaultOrganizationInfo,
     ...organizationInfo,
@@ -973,7 +978,21 @@ export default function MeetingWorkspace() {
       deleteItem: deleteStrategicTopicItem,
       updateCompleted: updateStrategicTopicCompleted,
       updateCompletedDate: updateStrategicTopicCompletedDate,
-      openTopicHistory: (itemId) => setSelectedStrategicTopicId(itemId),
+      openTopicHistory: (itemId) => {
+        if (!authSession || !selectedMeetingId) {
+          setStrategicTopicHistoryStatus({
+            type: "error",
+            message:
+              "Strategic topic history is available only in an authenticated Cloud Meeting.",
+          });
+          setCloudMeetingMessage(
+            "Sign in and open a Cloud Meeting to save strategic topic history.",
+          );
+          return;
+        }
+        setStrategicTopicHistoryStatus(null);
+        setSelectedStrategicTopicId(itemId);
+      },
       placeholder: "New strategic topic",
       editPlaceholder: "Add strategic topic",
     },
@@ -1671,8 +1690,14 @@ export default function MeetingWorkspace() {
         } else {
           setStrategicTopicHistoryDraft("");
         }
+        setStrategicTopicHistoryStatus(null);
       } catch {
         setStrategicTopicHistoryDraft("");
+        setStrategicTopicHistoryStatus({
+          type: "error",
+          message:
+            "Could not load strategic topic history from cloud. Check permissions or connection.",
+        });
       }
     };
     void loadTopicHistory();
@@ -1713,12 +1738,20 @@ export default function MeetingWorkspace() {
         contentText,
       });
       setCloudMeetingMessage("Strategic topic history saved.");
+      setStrategicTopicHistoryStatus({
+        type: "success",
+        message: "Strategic topic history saved.",
+      });
     } catch (error) {
-      setCloudMeetingMessage(
+      const errorMessage =
         error instanceof Error
           ? error.message
-          : "Strategic topic history could not be saved.",
-      );
+          : "Strategic topic history could not be saved.";
+      setCloudMeetingMessage(errorMessage);
+      setStrategicTopicHistoryStatus({
+        type: "error",
+        message: errorMessage,
+      });
     } finally {
       setIsSavingStrategicTopicHistory(false);
     }
@@ -2403,13 +2436,27 @@ export default function MeetingWorkspace() {
               </h3>
               <button
                 type="button"
-                onClick={() => setSelectedStrategicTopicId(null)}
+                onClick={() => {
+                  setSelectedStrategicTopicId(null);
+                  setStrategicTopicHistoryStatus(null);
+                }}
                 className="rounded-full px-3 py-1 text-2xl leading-none text-slate-500 hover:bg-slate-100"
                 aria-label="Close strategic topic history"
               >
                 ×
               </button>
             </div>
+            {strategicTopicHistoryStatus ? (
+              <p
+                className={`mb-3 rounded-xl border px-3 py-2 text-sm ${
+                  strategicTopicHistoryStatus.type === "success"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    : "border-red-200 bg-red-50 text-red-800"
+                }`}
+              >
+                {strategicTopicHistoryStatus.message}
+              </p>
+            ) : null}
             <RichTextEditor
               value={strategicTopicHistoryDraft}
               onChange={setStrategicTopicHistoryDraft}
@@ -2421,7 +2468,10 @@ export default function MeetingWorkspace() {
             <div className="mt-3 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setSelectedStrategicTopicId(null)}
+                onClick={() => {
+                  setSelectedStrategicTopicId(null);
+                  setStrategicTopicHistoryStatus(null);
+                }}
                 className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Close

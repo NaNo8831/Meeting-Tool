@@ -170,13 +170,15 @@ export default function DashboardPage() {
         workspaceId: meeting.id,
       });
 
-      setMeetings((currentMeetings) =>
-        currentMeetings.map((currentMeeting) =>
-          currentMeeting.id === archivedMeeting.id
-            ? archivedMeeting
-            : currentMeeting,
-        ),
-      );
+      setMeetings((currentMeetings) => {
+        const nextMeetings = [...currentMeetings];
+        const index = nextMeetings.findIndex(
+          (currentMeeting) => currentMeeting.id === archivedMeeting.id,
+        );
+        if (index === -1) return currentMeetings;
+        nextMeetings[index] = archivedMeeting;
+        return nextMeetings;
+      });
       setMessage(`Archived ${meeting.name}.`);
     } catch (error) {
       setMessage(
@@ -302,6 +304,16 @@ export default function DashboardPage() {
             </div>
           </div>
         </header>
+        <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Duplicating copies the current meeting workspace, but Tactical and
+          Strategic history records are not copied yet.
+        </p>
+
+        {message ? (
+          <p className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+            {message}
+          </p>
+        ) : null}
 
         <section className="space-y-3">
           {isLoadingMeetings ? (
@@ -355,11 +367,6 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {message ? (
-          <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            {message}
-          </p>
-        ) : null}
       </div>
     </main>
   );
