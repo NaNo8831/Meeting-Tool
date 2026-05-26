@@ -47,6 +47,7 @@ import {
 } from "@/app/lib/workspaceBackup";
 import {
   supabaseMeetingClient,
+  type SupabaseStrategicSession,
   type SupabaseTacticalSession,
 } from "@/app/lib/supabaseClient";
 import type {
@@ -57,7 +58,7 @@ import type {
   StandardOperatingObjective,
 } from "@/app/types/dashboard";
 import type { ObjectiveColor } from "@/app/types/objective";
-import type { RichTextValue } from "@/app/types/richText";
+import type { RichTextDocument, RichTextValue } from "@/app/types/richText";
 
 const getTodayDate = () => new Date().toISOString().slice(0, 10);
 
@@ -371,6 +372,21 @@ export default function MeetingWorkspace() {
   const [isEndingMeeting, setIsEndingMeeting] = useState(false);
   const [selectedTacticalSessionId, setSelectedTacticalSessionId] =
     useState("");
+
+  const [strategicSessions, setStrategicSessions] = useState<
+    SupabaseStrategicSession[]
+  >([]);
+  const [isLoadingStrategicSessions, setIsLoadingStrategicSessions] =
+    useState(false);
+  const [isCreatingStrategicSession, setIsCreatingStrategicSession] =
+    useState(false);
+  const [isSavingStrategicNotes, setIsSavingStrategicNotes] = useState(false);
+  const [selectedStrategicSessionId, setSelectedStrategicSessionId] =
+    useState("");
+  const [newStrategicSessionTitle, setNewStrategicSessionTitle] =
+    useState("");
+  const [strategicSessionDraft, setStrategicSessionDraft] =
+    useState<RichTextValue>("");
   const organizationInfoWithDefaults = {
     ...defaultOrganizationInfo,
     ...organizationInfo,
@@ -1454,6 +1470,56 @@ export default function MeetingWorkspace() {
     selectedMeetingId,
   ]);
 
+
+  const loadStrategicSessions = useCallback(async () => {
+    if (!authSession || !selectedMeetingId) {
+      setStrategicSessions([]);
+      return;
+    }
+
+    setIsLoadingStrategicSessions(true);
+    try {
+      const sessions = await supabaseMeetingClient.listStrategicSessions({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+      });
+      setStrategicSessions(sessions);
+      setSelectedStrategicSessionId((current) => current || sessions[0]?.id || "");
+    } catch {
+      setStrategicSessions([]);
+    } finally {
+      setIsLoadingStrategicSessions(false);
+    }
+  }, [authSession, selectedMeetingId]);
+
+  const handleCreateStrategicSession = useCallback(async () => {
+    if (!authSession || !selectedMeetingId || isCreatingStrategicSession) return;
+
+    setIsCreatingStrategicSession(true);
+    try {
+      const title = newStrategicSessionTitle.trim() || `Strategic Session ${getTodayDate()}`;
+      const created = await supabaseMeetingClient.createStrategicSession({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        sessionDate: getTodayDate(),
+        title,
+      });
+      setStrategicSessions((current) => [created, ...current]);
+      setSelectedStrategicSessionId(created.id);
+      setStrategicSessionDraft("");
+      setNewStrategicSessionTitle("");
+      setCloudMeetingMessage("Strategic session created.");
+    } catch (error) {
+      setCloudMeetingMessage(
+        error instanceof Error
+          ? error.message
+          : "Strategic session could not be created.",
+      );
+    } finally {
+      setIsCreatingStrategicSession(false);
+    }
+  }, [authSession, isCreatingStrategicSession, newStrategicSessionTitle, selectedMeetingId]);
+
   const handleSaveCloudMeeting = useCallback(async () => {
     if (!authSession || !selectedMeetingId) return;
 
@@ -1519,10 +1585,11 @@ export default function MeetingWorkspace() {
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       void loadTacticalSessions();
+      void loadStrategicSessions();
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [loadTacticalSessions]);
+  }, [loadStrategicSessions, loadTacticalSessions]);
 
   useEffect(() => {
     if (workspaceMode !== "cloud") return;
@@ -1642,6 +1709,71 @@ export default function MeetingWorkspace() {
   const selectedTacticalSession =
     tacticalSessions.find((session) => session.id === selectedTacticalSessionId) ??
     null;
+
+  const selectedStrategicSession =
+    strategicSessions.find((session) => session.id === selectedStrategicSessionId) ??
+    null;
+
+  useEffect(() => {
+    const loadNote = async () => {
+      if (!authSession || !selectedMeetingId || !selectedStrategicSessionId) {
+        setStrategicSessionDraft("");
+        return;
+      }
+
+      try {
+        const note = await supabaseMeetingClient.getStrategicSessionNote({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+          strategicSessionId: selectedStrategicSessionId,
+        });
+        if (note?.content_json) {
+          setStrategicSessionDraft(note.content_json as unknown as RichTextDocument);
+        } else if (note?.content_text) {
+          setStrategicSessionDraft(note.content_text);
+        } else {
+          setStrategicSessionDraft("");
+        }
+      } catch {
+        setStrategicSessionDraft("");
+      }
+    };
+
+    void loadNote();
+  }, [authSession, selectedMeetingId, selectedStrategicSessionId]);
+
+  const handleSaveStrategicNotes = useCallback(async () => {
+    if (!authSession || !selectedMeetingId || !selectedStrategicSessionId || isSavingStrategicNotes) return;
+
+    setIsSavingStrategicNotes(true);
+    try {
+      const contentJson =
+        typeof strategicSessionDraft === "string"
+          ? { version: 1, blocks: [{ type: "paragraph", children: [{ text: strategicSessionDraft }] }] }
+          : strategicSessionDraft;
+      const contentText =
+        typeof strategicSessionDraft === "string"
+          ? strategicSessionDraft
+          : JSON.stringify(strategicSessionDraft);
+
+      await supabaseMeetingClient.upsertStrategicSessionNote({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        strategicSessionId: selectedStrategicSessionId,
+        contentJson: contentJson as Record<string, unknown>,
+        contentText,
+      });
+      setCloudMeetingMessage("Strategic session notes saved.");
+    } catch (error) {
+      setCloudMeetingMessage(
+        error instanceof Error
+          ? error.message
+          : "Strategic session notes could not be saved.",
+      );
+    } finally {
+      setIsSavingStrategicNotes(false);
+    }
+  }, [authSession, isSavingStrategicNotes, selectedMeetingId, selectedStrategicSessionId, strategicSessionDraft]);
 
   if (!hasLoadedDashboardStorage) {
     return (
@@ -1942,6 +2074,83 @@ export default function MeetingWorkspace() {
                     <p className="text-sm text-slate-500">
                       Select a tactical session to view its snapshot.
                     </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
+        ) : null}
+
+
+
+        {workspaceMode === "cloud" && selectedMeetingId ? (
+          <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">Strategic History</h2>
+            <p className="mt-1 text-sm text-slate-600">Strategic sessions are long-term planning records and remain separate from tactical cadence snapshots.</p>
+            <div className="mt-3 flex gap-2">
+              <input
+                type="text"
+                value={newStrategicSessionTitle}
+                onChange={(event) => setNewStrategicSessionTitle(event.target.value)}
+                placeholder="Strategic session title"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              />
+              <button
+                type="button"
+                onClick={handleCreateStrategicSession}
+                disabled={isCreatingStrategicSession}
+                className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+              >
+                {isCreatingStrategicSession ? "Creating…" : "Create Session"}
+              </button>
+            </div>
+            {isLoadingStrategicSessions ? (
+              <p className="mt-3 text-sm text-slate-500">Loading strategic sessions…</p>
+            ) : strategicSessions.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-500">No strategic history yet.</p>
+            ) : (
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  {strategicSessions.map((session) => (
+                    <button
+                      key={session.id}
+                      type="button"
+                      onClick={() => setSelectedStrategicSessionId(session.id)}
+                      className={`w-full rounded-xl border p-3 text-left ${
+                        session.id === selectedStrategicSessionId
+                          ? "border-indigo-300 bg-indigo-50"
+                          : "border-slate-200 bg-white hover:bg-slate-50"
+                      }`}
+                    >
+                      <p className="font-semibold text-slate-900">{session.title || `Strategic Session ${session.session_date}`}</p>
+                      <p className="text-xs text-slate-500">Date: {session.session_date} · Created: {new Date(session.created_at).toLocaleString()}</p>
+                    </button>
+                  ))}
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  {selectedStrategicSession ? (
+                    <>
+                      <p className="mb-2 text-sm font-semibold text-slate-900">Session Notes</p>
+                      <RichTextEditor
+                        value={strategicSessionDraft}
+                        onChange={setStrategicSessionDraft}
+                        placeholder="Capture strategic planning notes..."
+                        className="bg-white"
+                        minHeightClassName="min-h-[220px]"
+                        editingMode="always"
+                        ariaLabel="Strategic session notes"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveStrategicNotes}
+                        disabled={isSavingStrategicNotes}
+                        className="mt-3 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+                      >
+                        {isSavingStrategicNotes ? "Saving…" : "Save Strategic Notes"}
+                      </button>
+                    </>
+                  ) : (
+                    <p className="text-sm text-slate-500">Select a strategic session to view or edit notes.</p>
                   )}
                 </div>
               </div>

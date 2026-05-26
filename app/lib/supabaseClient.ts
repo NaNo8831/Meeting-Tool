@@ -37,6 +37,26 @@ export type SupabaseTacticalSession = {
   ended_at: string | null;
 };
 
+export type SupabaseStrategicSession = {
+  id: string;
+  meeting_id: string;
+  session_date: string;
+  title: string | null;
+  status: string;
+  created_at: string;
+  ended_at: string | null;
+};
+
+export type SupabaseStrategicSessionNote = {
+  id: string;
+  meeting_id: string;
+  strategic_session_id: string;
+  content_json: Record<string, unknown> | null;
+  content_text: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type SupabaseAuthUserResponse = {
   id?: string;
   email?: string;
@@ -555,5 +575,173 @@ export const supabaseMeetingClient = {
     }
 
     return session;
+  },
+
+  async listStrategicSessions({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("strategic_sessions")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}&select=*&order=created_at.desc`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Strategic sessions list"),
+      );
+    }
+
+    return (await response.json()) as SupabaseStrategicSession[];
+  },
+
+  async createStrategicSession({
+    accessToken,
+    workspaceId,
+    sessionDate,
+    title,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    sessionDate: string;
+    title: string;
+  }) {
+    const response = await fetch(getRestUrl("strategic_sessions"), {
+      method: "POST",
+      headers: {
+        ...getSupabaseHeaders(accessToken),
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({
+        meeting_id: workspaceId,
+        session_date: sessionDate,
+        title,
+        status: "active",
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Strategic session create"),
+      );
+    }
+
+    const sessions = (await response.json()) as SupabaseStrategicSession[];
+    const session = sessions[0];
+    if (!session) {
+      throw new Error("Strategic session was not created.");
+    }
+
+    return session;
+  },
+
+  async getStrategicSessionNote({
+    accessToken,
+    workspaceId,
+    strategicSessionId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    strategicSessionId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl(
+        "strategic_session_notes",
+      )}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}&strategic_session_id=eq.${encodeURIComponent(
+        strategicSessionId,
+      )}&select=*&order=updated_at.desc&limit=1`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Strategic session note load"),
+      );
+    }
+
+    const notes = (await response.json()) as SupabaseStrategicSessionNote[];
+    return notes[0] ?? null;
+  },
+
+  async upsertStrategicSessionNote({
+    accessToken,
+    workspaceId,
+    strategicSessionId,
+    contentJson,
+    contentText,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    strategicSessionId: string;
+    contentJson: Record<string, unknown>;
+    contentText: string;
+  }) {
+    const existing = await this.getStrategicSessionNote({
+      accessToken,
+      workspaceId,
+      strategicSessionId,
+    });
+
+    if (existing) {
+      const response = await fetch(
+        `${getRestUrl("strategic_session_notes")}?id=eq.${encodeURIComponent(existing.id)}`,
+        {
+          method: "PATCH",
+          headers: {
+            ...getSupabaseHeaders(accessToken),
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify({
+            content_json: contentJson,
+            content_text: contentText,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          await getRestErrorMessage(response, "Strategic session note save"),
+        );
+      }
+
+      const notes = (await response.json()) as SupabaseStrategicSessionNote[];
+      return notes[0] ?? null;
+    }
+
+    const response = await fetch(getRestUrl("strategic_session_notes"), {
+      method: "POST",
+      headers: {
+        ...getSupabaseHeaders(accessToken),
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({
+        meeting_id: workspaceId,
+        strategic_session_id: strategicSessionId,
+        content_json: contentJson,
+        content_text: contentText,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Strategic session note create"),
+      );
+    }
+
+    const notes = (await response.json()) as SupabaseStrategicSessionNote[];
+    return notes[0] ?? null;
   },
 };

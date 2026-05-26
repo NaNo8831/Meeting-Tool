@@ -11,6 +11,7 @@
 - `meetings.meeting_data` JSONB remains the backup/export/import shape and safety fallback.
 - `meetings.archived_at` (nullable timestamptz) marks archived meetings without deleting rows.
 - Tactical history foundation is active for cloud meetings: each **End Meeting** action creates a `tactical_sessions` row with archival `snapshot_json`, while runtime operational state remains unchanged.
+- Strategic history foundation is active for cloud meetings: strategic planning records are persisted through `strategic_sessions` and `strategic_session_notes` and remain distinct from tactical cadence snapshots.
 
 ## Why Full-Workspace JSONB Autosave Was Stopped
 The prior full-page autosave attempt (PR #41) was abandoned because it introduced regressions and did not deliver reliable persistence:

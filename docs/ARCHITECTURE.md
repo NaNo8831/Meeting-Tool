@@ -8,6 +8,7 @@
 - Feedback remains separate from meeting persistence.
 - Auth sign out returns to `/`.
 - Tactical session history capture is available as an archival flow via `tactical_sessions` + `snapshot_json`, separate from runtime operational persistence.
+- Strategic session history capture is available as a planning-record flow via `strategic_sessions` + `strategic_session_notes`, separate from tactical snapshots and from `meeting_data` runtime backup behavior.
 
 ## Persistence Direction Decision
 Stop treating full-workspace JSONB autosave as the long-term architecture.
