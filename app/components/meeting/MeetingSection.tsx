@@ -48,6 +48,13 @@ function StrategicTopicControls({ item, section }: { item: MeetingItem; section:
           className="rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-900"
         />
       </label>
+      <button
+        type="button"
+        onClick={() => section.openHistoryNotes?.(item)}
+        className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+      >
+        History / Notes
+      </button>
     </div>
   );
 }
@@ -90,9 +97,6 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
                   ) : null}
                 </div>
                 <StrategicTopicControls item={item} section={section} />
-                {section.renderItemActions ? (
-                  <div className="mt-3">{section.renderItemActions(item)}</div>
-                ) : null}
               </div>
               <button
                 type="button"

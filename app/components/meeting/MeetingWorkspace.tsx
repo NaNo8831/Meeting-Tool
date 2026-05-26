@@ -974,15 +974,7 @@ export default function MeetingWorkspace() {
       updateCompletedDate: updateStrategicTopicCompletedDate,
       placeholder: "New strategic topic",
       editPlaceholder: "Add strategic topic",
-      renderItemActions: (item) => (
-        <button
-          type="button"
-          onClick={() => setSelectedStrategicTopicForHistory(item)}
-          className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-        >
-          History / Notes
-        </button>
-      ),
+      openHistoryNotes: setSelectedStrategicTopicForHistory,
     },
     decision: {
       id: "decision",
