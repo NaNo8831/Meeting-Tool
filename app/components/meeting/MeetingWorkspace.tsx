@@ -173,31 +173,27 @@ const normalizeStrategicTopic = (
   item: MeetingItem,
   fallbackMeeting: Pick<MeetingRecord, "id" | "date">,
   fallbackMeetingIndex = 0,
-): MeetingItem => {
-  const normalizedCapturedDate = item.capturedDate ?? fallbackMeeting.date;
-  const normalizedCapturedMeetingId =
-    item.capturedMeetingId ?? fallbackMeeting.id;
-  const stableTopicSeed = `${item.text ?? ""}|${normalizedCapturedDate}|${normalizedCapturedMeetingId}`;
-  const stableFallbackId = Array.from(stableTopicSeed).reduce(
-    (hash, char) => {
-      const next = (hash * 31 + char.charCodeAt(0)) % 2147483647;
-      return next <= 0 ? next + 2147483646 : next;
-    },
-    17,
-  );
+): MeetingItem => ({
+  ...item,
+  capturedDate: item.capturedDate ?? fallbackMeeting.date,
+  capturedMeetingId: item.capturedMeetingId ?? fallbackMeeting.id,
+  capturedMeetingIndex: item.capturedMeetingIndex ?? fallbackMeetingIndex,
+  completed: item.completed ?? false,
+  completedDate: item.completedDate ?? "",
+});
 
-  return {
-    ...item,
-    id:
-      typeof item.id === "number" && Number.isFinite(item.id)
-        ? item.id
-        : stableFallbackId,
-    capturedDate: normalizedCapturedDate,
-    capturedMeetingId: normalizedCapturedMeetingId,
-    capturedMeetingIndex: item.capturedMeetingIndex ?? fallbackMeetingIndex,
-    completed: item.completed ?? false,
-    completedDate: item.completedDate ?? "",
-  };
+const getStrategicTopicNoteKey = (item: MeetingItem): number => {
+  if (typeof item.id === "number" && Number.isFinite(item.id)) {
+    return item.id;
+  }
+
+  const fallbackSeed = `${item.text ?? ""}|${item.capturedDate ?? ""}|${
+    item.capturedMeetingId ?? ""
+  }`;
+  return Array.from(fallbackSeed).reduce((hash, char) => {
+    const next = (hash * 31 + char.charCodeAt(0)) % 2147483647;
+    return next <= 0 ? next + 2147483646 : next;
+  }, 17);
 };
 
 const dedupeMeetingItems = (
@@ -1008,8 +1004,16 @@ export default function MeetingWorkspace() {
           );
           return;
         }
+        const selectedItem = strategicTopicItems.find((item) => item.id === itemId);
+        if (!selectedItem) {
+          setStrategicTopicHistoryStatus({
+            type: "error",
+            message: "Could not find this strategic topic.",
+          });
+          return;
+        }
         setStrategicTopicHistoryStatus(null);
-        setSelectedStrategicTopicId(itemId);
+        setSelectedStrategicTopicId(getStrategicTopicNoteKey(selectedItem));
       },
       placeholder: "New strategic topic",
       editPlaceholder: "Add strategic topic",
