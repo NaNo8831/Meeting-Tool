@@ -90,6 +90,9 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
                   ) : null}
                 </div>
                 <StrategicTopicControls item={item} section={section} />
+                {section.renderItemActions ? (
+                  <div className="mt-3">{section.renderItemActions(item)}</div>
+                ) : null}
               </div>
               <button
                 type="button"

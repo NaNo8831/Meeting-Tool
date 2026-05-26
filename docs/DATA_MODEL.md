@@ -11,6 +11,7 @@
 - `meetings.meeting_data` JSONB remains the backup/export/import shape and safety fallback.
 - `meetings.archived_at` (nullable timestamptz) marks archived meetings without deleting rows.
 - Tactical history foundation is active for cloud meetings: each **End Meeting** action creates a `tactical_sessions` row with archival `snapshot_json`, while runtime operational state remains unchanged.
+- Strategic Topic History/Notes foundation is topic-scoped (not standalone sessions): `strategic_topic_notes` stores one notes record per `(meeting_id, strategic_topic_item_id)`.
 
 ## Why Full-Workspace JSONB Autosave Was Stopped
 The prior full-page autosave attempt (PR #41) was abandoned because it introduced regressions and did not deliver reliable persistence:
@@ -52,8 +53,7 @@ The long-term direction is section/item persistence with clear entity boundaries
 - `tactical_sessions`
 - `tactical_items`
 - `strategic_topics`
-- `strategic_sessions`
-- `strategic_session_notes` (or a rich-text records table)
+- `strategic_topic_notes` (topic-scoped history/notes)
 
 ### Relationship direction (high level)
 - `meetings` is the parent container.

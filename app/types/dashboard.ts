@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
 import type { RichTextValue } from "@/app/types/richText";
 import type { ObjectiveColor } from "@/app/types/objective";
 
@@ -55,6 +55,7 @@ export interface MeetingSectionConfig {
   updateCompletedDate?: (itemId: number, completedDate: string) => void;
   placeholder: string;
   editPlaceholder: string;
+  renderItemActions?: (item: MeetingItem) => ReactNode;
 }
 
 export interface TaskInput {

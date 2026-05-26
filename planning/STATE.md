@@ -7,7 +7,7 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can save/load full workspace backup JSON in Supabase, and optionally receive explicit Local Workspace migration.
 - Backup: JSON export/import workspace backup.
-- Current focus: Structured Persistence Phase A/B schema foundation on `phase-2-cloud` direction, introducing non-breaking structured tables while preserving current manual save/load and backup behavior, plus dashboard create/duplicate/archive meeting management.
+- Current focus: Structured Persistence Phase A/B schema foundation on `phase-2-cloud` direction, introducing non-breaking structured tables while preserving current manual save/load and backup behavior, plus dashboard create/duplicate/archive meeting management and topic-scoped Strategic Topic Notes/History.
 - Current branch note: Routing Foundation work is based from the updated `phase-2-cloud` branch context.
 
 ## Production State
@@ -30,6 +30,7 @@
 - Completed sprint: Dashboard / Meeting Selector (authenticated dashboard cards, user-scoped meeting list, open-route entry, and local fallback completed on `phase-2-cloud`).
 - Current architecture status: App route separation is active with ` / ` landing/auth entry, `/dashboard` authenticated meeting selector cards and create/duplicate/archive controls, and `/meeting/[id]` route-driven cloud meeting load with manual cloud save preserved; autosave repair is deferred.
 - Tactical history foundation added on cloud meetings: **End Meeting** now writes archival tactical session snapshots to `tactical_sessions` (with `snapshot_json`) and a lightweight Tactical History viewer is available in the meeting workspace; operational runtime state still remains on `meetings.meeting_data`.
+- Strategic Topic Notes/History foundation added for cloud meetings: each Strategic Topic item now has a lightweight History / Notes action that opens a per-topic notes modal with explicit manual Save History behavior backed by `strategic_topic_notes`.
 - Next recommended sprint: First structured write pilot on a narrow surface (likely `meeting_settings` or `strategic_topics`) after validating the schema foundation.
 - Blockers: Full-workspace autosave approach was abandoned (PR #41); structured section/item persistence design and sequencing is now required before new cloud persistence implementation.
 

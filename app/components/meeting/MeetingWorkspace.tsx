@@ -371,6 +371,13 @@ export default function MeetingWorkspace() {
   const [isEndingMeeting, setIsEndingMeeting] = useState(false);
   const [selectedTacticalSessionId, setSelectedTacticalSessionId] =
     useState("");
+  const [selectedStrategicTopicForHistory, setSelectedStrategicTopicForHistory] =
+    useState<MeetingItem | null>(null);
+  const [topicHistoryDraft, setTopicHistoryDraft] = useState("");
+  const [topicHistoryMessage, setTopicHistoryMessage] = useState("");
+  const [topicHistoryError, setTopicHistoryError] = useState("");
+  const [isTopicHistoryLoading, setIsTopicHistoryLoading] = useState(false);
+  const [isTopicHistorySaving, setIsTopicHistorySaving] = useState(false);
   const organizationInfoWithDefaults = {
     ...defaultOrganizationInfo,
     ...organizationInfo,
@@ -967,6 +974,15 @@ export default function MeetingWorkspace() {
       updateCompletedDate: updateStrategicTopicCompletedDate,
       placeholder: "New strategic topic",
       editPlaceholder: "Add strategic topic",
+      renderItemActions: (item) => (
+        <button
+          type="button"
+          onClick={() => setSelectedStrategicTopicForHistory(item)}
+          className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+        >
+          History / Notes
+        </button>
+      ),
     },
     decision: {
       id: "decision",
@@ -1642,6 +1658,60 @@ export default function MeetingWorkspace() {
   const selectedTacticalSession =
     tacticalSessions.find((session) => session.id === selectedTacticalSessionId) ??
     null;
+  useEffect(() => {
+    let isMounted = true;
+    const loadTopicHistory = async () => {
+      if (!selectedStrategicTopicForHistory) return;
+      setTopicHistoryDraft("");
+      setTopicHistoryMessage("");
+      setTopicHistoryError("");
+      if (!authSession || workspaceMode !== "cloud" || !selectedMeetingId) return;
+
+      setIsTopicHistoryLoading(true);
+      try {
+        const note = await supabaseMeetingClient.loadStrategicTopicNote({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+          strategicTopicItemId: selectedStrategicTopicForHistory.id,
+        });
+        if (!isMounted) return;
+        setTopicHistoryDraft(note?.content_text ?? "");
+      } catch (error) {
+        if (!isMounted) return;
+        setTopicHistoryError(
+          error instanceof Error ? error.message : "Could not load topic history.",
+        );
+      } finally {
+        if (isMounted) setIsTopicHistoryLoading(false);
+      }
+    };
+    void loadTopicHistory();
+    return () => {
+      isMounted = false;
+    };
+  }, [authSession, selectedMeetingId, selectedStrategicTopicForHistory, workspaceMode]);
+
+  const handleSaveTopicHistory = async () => {
+    if (!authSession || !selectedMeetingId || !selectedStrategicTopicForHistory) return;
+    setIsTopicHistorySaving(true);
+    setTopicHistoryMessage("");
+    setTopicHistoryError("");
+    try {
+      await supabaseMeetingClient.saveStrategicTopicNote({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        strategicTopicItemId: selectedStrategicTopicForHistory.id,
+        contentText: topicHistoryDraft,
+      });
+      setTopicHistoryMessage("History saved.");
+    } catch (error) {
+      setTopicHistoryError(
+        error instanceof Error ? error.message : "Could not save topic history.",
+      );
+    } finally {
+      setIsTopicHistorySaving(false);
+    }
+  };
 
   if (!hasLoadedDashboardStorage) {
     return (
@@ -2189,6 +2259,73 @@ export default function MeetingWorkspace() {
           await handleSignOutAndExit();
         }}
       />
+
+      {selectedStrategicTopicForHistory ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
+                  Strategic Topic
+                </p>
+                <h3 className="text-lg font-semibold text-slate-900">
+                  History / Notes
+                </h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  {selectedStrategicTopicForHistory.text}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedStrategicTopicForHistory(null)}
+                className="rounded-full px-3 py-1 text-2xl leading-none text-slate-500 hover:bg-slate-100"
+                aria-label="Close history notes dialog"
+              >
+                ×
+              </button>
+            </div>
+            <textarea
+              value={topicHistoryDraft}
+              onChange={(event) => setTopicHistoryDraft(event.target.value)}
+              disabled={isTopicHistoryLoading || workspaceMode !== "cloud"}
+              placeholder={
+                workspaceMode === "cloud"
+                  ? "Capture strategic history notes for this topic."
+                  : "History / Notes requires a selected Cloud Meeting."
+              }
+              className="mt-4 h-56 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:bg-slate-100"
+            />
+            {topicHistoryError ? (
+              <p className="mt-2 text-sm font-medium text-red-700">{topicHistoryError}</p>
+            ) : null}
+            {topicHistoryMessage ? (
+              <p className="mt-2 text-sm font-medium text-emerald-700">{topicHistoryMessage}</p>
+            ) : null}
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedStrategicTopicForHistory(null)}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveTopicHistory()}
+                disabled={
+                  workspaceMode !== "cloud" ||
+                  !selectedMeetingId ||
+                  isTopicHistoryLoading ||
+                  isTopicHistorySaving
+                }
+                className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isTopicHistorySaving ? "Saving History…" : "Save History"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {selectedStandardObjectiveId !== null ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
