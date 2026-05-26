@@ -173,14 +173,32 @@ const normalizeStrategicTopic = (
   item: MeetingItem,
   fallbackMeeting: Pick<MeetingRecord, "id" | "date">,
   fallbackMeetingIndex = 0,
-): MeetingItem => ({
-  ...item,
-  capturedDate: item.capturedDate ?? fallbackMeeting.date,
-  capturedMeetingId: item.capturedMeetingId ?? fallbackMeeting.id,
-  capturedMeetingIndex: item.capturedMeetingIndex ?? fallbackMeetingIndex,
-  completed: item.completed ?? false,
-  completedDate: item.completedDate ?? "",
-});
+): MeetingItem => {
+  const normalizedCapturedDate = item.capturedDate ?? fallbackMeeting.date;
+  const normalizedCapturedMeetingId =
+    item.capturedMeetingId ?? fallbackMeeting.id;
+  const stableTopicSeed = `${item.text ?? ""}|${normalizedCapturedDate}|${normalizedCapturedMeetingId}`;
+  const stableFallbackId = Array.from(stableTopicSeed).reduce(
+    (hash, char) => {
+      const next = (hash * 31 + char.charCodeAt(0)) % 2147483647;
+      return next <= 0 ? next + 2147483646 : next;
+    },
+    17,
+  );
+
+  return {
+    ...item,
+    id:
+      typeof item.id === "number" && Number.isFinite(item.id)
+        ? item.id
+        : stableFallbackId,
+    capturedDate: normalizedCapturedDate,
+    capturedMeetingId: normalizedCapturedMeetingId,
+    capturedMeetingIndex: item.capturedMeetingIndex ?? fallbackMeetingIndex,
+    completed: item.completed ?? false,
+    completedDate: item.completedDate ?? "",
+  };
+};
 
 const dedupeMeetingItems = (
   items: MeetingItem[],
@@ -1675,6 +1693,13 @@ export default function MeetingWorkspace() {
         setStrategicTopicHistoryDraft("");
         return;
       }
+      if (!Number.isFinite(selectedStrategicTopicId)) {
+        setStrategicTopicHistoryStatus({
+          type: "error",
+          message: "Strategic topic key is invalid. Recreate this topic and try again.",
+        });
+        return;
+      }
       try {
         const note = await supabaseMeetingClient.getStrategicTopicNote({
           accessToken: authSession.accessToken,
@@ -1710,6 +1735,13 @@ export default function MeetingWorkspace() {
       selectedStrategicTopicId === null ||
       isSavingStrategicTopicHistory
     ) {
+      return;
+    }
+    if (!Number.isFinite(selectedStrategicTopicId)) {
+      const errorMessage =
+        "Strategic topic key is invalid. Recreate this topic and try again.";
+      setCloudMeetingMessage(errorMessage);
+      setStrategicTopicHistoryStatus({ type: "error", message: errorMessage });
       return;
     }
     setIsSavingStrategicTopicHistory(true);
