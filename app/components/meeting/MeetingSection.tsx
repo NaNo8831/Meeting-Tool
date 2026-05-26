@@ -40,6 +40,13 @@ function StrategicTopicControls({ item, section }: { item: MeetingItem; section:
       </label>
 
       <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 sm:items-end">
+        <button
+          type="button"
+          onClick={() => section.openTopicHistory?.(item.id)}
+          className="mb-2 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+        >
+          History / Notes
+        </button>
         Reviewed / completed date (optional)
         <input
           type="date"

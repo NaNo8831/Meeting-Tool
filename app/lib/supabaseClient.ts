@@ -57,6 +57,16 @@ export type SupabaseStrategicSessionNote = {
   updated_at: string;
 };
 
+export type SupabaseStrategicTopicNote = {
+  id: string;
+  meeting_id: string;
+  strategic_topic_item_id: number;
+  content_json: Record<string, unknown> | null;
+  content_text: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type SupabaseAuthUserResponse = {
   id?: string;
   email?: string;
@@ -742,6 +752,104 @@ export const supabaseMeetingClient = {
     }
 
     const notes = (await response.json()) as SupabaseStrategicSessionNote[];
+    return notes[0] ?? null;
+  },
+
+  async getStrategicTopicNote({
+    accessToken,
+    workspaceId,
+    strategicTopicItemId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    strategicTopicItemId: number;
+  }) {
+    const response = await fetch(
+      `${getRestUrl(
+        "strategic_topic_notes",
+      )}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}&strategic_topic_item_id=eq.${strategicTopicItemId}&select=*&order=updated_at.desc&limit=1`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Strategic topic note load"),
+      );
+    }
+
+    const notes = (await response.json()) as SupabaseStrategicTopicNote[];
+    return notes[0] ?? null;
+  },
+
+  async upsertStrategicTopicNote({
+    accessToken,
+    workspaceId,
+    strategicTopicItemId,
+    contentJson,
+    contentText,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    strategicTopicItemId: number;
+    contentJson: Record<string, unknown>;
+    contentText: string;
+  }) {
+    const existing = await this.getStrategicTopicNote({
+      accessToken,
+      workspaceId,
+      strategicTopicItemId,
+    });
+
+    if (existing) {
+      const response = await fetch(
+        `${getRestUrl("strategic_topic_notes")}?id=eq.${encodeURIComponent(existing.id)}`,
+        {
+          method: "PATCH",
+          headers: {
+            ...getSupabaseHeaders(accessToken),
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify({
+            content_json: contentJson,
+            content_text: contentText,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          await getRestErrorMessage(response, "Strategic topic note save"),
+        );
+      }
+      const notes = (await response.json()) as SupabaseStrategicTopicNote[];
+      return notes[0] ?? null;
+    }
+
+    const response = await fetch(getRestUrl("strategic_topic_notes"), {
+      method: "POST",
+      headers: {
+        ...getSupabaseHeaders(accessToken),
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({
+        meeting_id: workspaceId,
+        strategic_topic_item_id: strategicTopicItemId,
+        content_json: contentJson,
+        content_text: contentText,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Strategic topic note create"),
+      );
+    }
+    const notes = (await response.json()) as SupabaseStrategicTopicNote[];
     return notes[0] ?? null;
   },
 };

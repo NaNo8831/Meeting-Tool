@@ -139,7 +139,9 @@ export default function DashboardPage() {
         sourceMeeting,
       });
       setMeetings((currentMeetings) => [duplicated, ...currentMeetings]);
-      setMessage(`Created ${duplicated.name}.`);
+      setMessage(
+        `Created ${duplicated.name}. Duplicating copies the current meeting workspace, but Tactical and Strategic history records are not copied yet.`,
+      );
     } catch (error) {
       setMessage(
         error instanceof Error

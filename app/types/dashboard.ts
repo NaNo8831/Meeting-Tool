@@ -53,6 +53,7 @@ export interface MeetingSectionConfig {
   deleteItem: (itemId: number) => void;
   updateCompleted?: (itemId: number, completed: boolean) => void;
   updateCompletedDate?: (itemId: number, completedDate: string) => void;
+  openTopicHistory?: (itemId: number) => void;
   placeholder: string;
   editPlaceholder: string;
 }

@@ -47,7 +47,6 @@ import {
 } from "@/app/lib/workspaceBackup";
 import {
   supabaseMeetingClient,
-  type SupabaseStrategicSession,
   type SupabaseTacticalSession,
 } from "@/app/lib/supabaseClient";
 import type {
@@ -373,20 +372,13 @@ export default function MeetingWorkspace() {
   const [selectedTacticalSessionId, setSelectedTacticalSessionId] =
     useState("");
 
-  const [strategicSessions, setStrategicSessions] = useState<
-    SupabaseStrategicSession[]
-  >([]);
-  const [isLoadingStrategicSessions, setIsLoadingStrategicSessions] =
-    useState(false);
-  const [isCreatingStrategicSession, setIsCreatingStrategicSession] =
-    useState(false);
-  const [isSavingStrategicNotes, setIsSavingStrategicNotes] = useState(false);
-  const [selectedStrategicSessionId, setSelectedStrategicSessionId] =
-    useState("");
-  const [newStrategicSessionTitle, setNewStrategicSessionTitle] =
-    useState("");
-  const [strategicSessionDraft, setStrategicSessionDraft] =
+  const [selectedStrategicTopicId, setSelectedStrategicTopicId] = useState<
+    number | null
+  >(null);
+  const [strategicTopicHistoryDraft, setStrategicTopicHistoryDraft] =
     useState<RichTextValue>("");
+  const [isSavingStrategicTopicHistory, setIsSavingStrategicTopicHistory] =
+    useState(false);
   const organizationInfoWithDefaults = {
     ...defaultOrganizationInfo,
     ...organizationInfo,
@@ -981,6 +973,7 @@ export default function MeetingWorkspace() {
       deleteItem: deleteStrategicTopicItem,
       updateCompleted: updateStrategicTopicCompleted,
       updateCompletedDate: updateStrategicTopicCompletedDate,
+      openTopicHistory: (itemId) => setSelectedStrategicTopicId(itemId),
       placeholder: "New strategic topic",
       editPlaceholder: "Add strategic topic",
     },
@@ -1469,57 +1462,6 @@ export default function MeetingWorkspace() {
     isEndingMeeting,
     selectedMeetingId,
   ]);
-
-
-  const loadStrategicSessions = useCallback(async () => {
-    if (!authSession || !selectedMeetingId) {
-      setStrategicSessions([]);
-      return;
-    }
-
-    setIsLoadingStrategicSessions(true);
-    try {
-      const sessions = await supabaseMeetingClient.listStrategicSessions({
-        accessToken: authSession.accessToken,
-        workspaceId: selectedMeetingId,
-      });
-      setStrategicSessions(sessions);
-      setSelectedStrategicSessionId((current) => current || sessions[0]?.id || "");
-    } catch {
-      setStrategicSessions([]);
-    } finally {
-      setIsLoadingStrategicSessions(false);
-    }
-  }, [authSession, selectedMeetingId]);
-
-  const handleCreateStrategicSession = useCallback(async () => {
-    if (!authSession || !selectedMeetingId || isCreatingStrategicSession) return;
-
-    setIsCreatingStrategicSession(true);
-    try {
-      const title = newStrategicSessionTitle.trim() || `Strategic Session ${getTodayDate()}`;
-      const created = await supabaseMeetingClient.createStrategicSession({
-        accessToken: authSession.accessToken,
-        workspaceId: selectedMeetingId,
-        sessionDate: getTodayDate(),
-        title,
-      });
-      setStrategicSessions((current) => [created, ...current]);
-      setSelectedStrategicSessionId(created.id);
-      setStrategicSessionDraft("");
-      setNewStrategicSessionTitle("");
-      setCloudMeetingMessage("Strategic session created.");
-    } catch (error) {
-      setCloudMeetingMessage(
-        error instanceof Error
-          ? error.message
-          : "Strategic session could not be created.",
-      );
-    } finally {
-      setIsCreatingStrategicSession(false);
-    }
-  }, [authSession, isCreatingStrategicSession, newStrategicSessionTitle, selectedMeetingId]);
-
   const handleSaveCloudMeeting = useCallback(async () => {
     if (!authSession || !selectedMeetingId) return;
 
@@ -1585,11 +1527,10 @@ export default function MeetingWorkspace() {
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       void loadTacticalSessions();
-      void loadStrategicSessions();
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [loadStrategicSessions, loadTacticalSessions]);
+  }, [loadTacticalSessions]);
 
   useEffect(() => {
     if (workspaceMode !== "cloud") return;
@@ -1709,71 +1650,85 @@ export default function MeetingWorkspace() {
   const selectedTacticalSession =
     tacticalSessions.find((session) => session.id === selectedTacticalSessionId) ??
     null;
-
-  const selectedStrategicSession =
-    strategicSessions.find((session) => session.id === selectedStrategicSessionId) ??
-    null;
-
   useEffect(() => {
-    const loadNote = async () => {
-      if (!authSession || !selectedMeetingId || !selectedStrategicSessionId) {
-        setStrategicSessionDraft("");
+    const loadTopicHistory = async () => {
+      if (!authSession || !selectedMeetingId || selectedStrategicTopicId === null) {
+        setStrategicTopicHistoryDraft("");
         return;
       }
-
       try {
-        const note = await supabaseMeetingClient.getStrategicSessionNote({
+        const note = await supabaseMeetingClient.getStrategicTopicNote({
           accessToken: authSession.accessToken,
           workspaceId: selectedMeetingId,
-          strategicSessionId: selectedStrategicSessionId,
+          strategicTopicItemId: selectedStrategicTopicId,
         });
         if (note?.content_json) {
-          setStrategicSessionDraft(note.content_json as unknown as RichTextDocument);
+          setStrategicTopicHistoryDraft(
+            note.content_json as unknown as RichTextDocument,
+          );
         } else if (note?.content_text) {
-          setStrategicSessionDraft(note.content_text);
+          setStrategicTopicHistoryDraft(note.content_text);
         } else {
-          setStrategicSessionDraft("");
+          setStrategicTopicHistoryDraft("");
         }
       } catch {
-        setStrategicSessionDraft("");
+        setStrategicTopicHistoryDraft("");
       }
     };
+    void loadTopicHistory();
+  }, [authSession, selectedMeetingId, selectedStrategicTopicId]);
 
-    void loadNote();
-  }, [authSession, selectedMeetingId, selectedStrategicSessionId]);
-
-  const handleSaveStrategicNotes = useCallback(async () => {
-    if (!authSession || !selectedMeetingId || !selectedStrategicSessionId || isSavingStrategicNotes) return;
-
-    setIsSavingStrategicNotes(true);
+  const handleSaveStrategicTopicHistory = useCallback(async () => {
+    if (
+      !authSession ||
+      !selectedMeetingId ||
+      selectedStrategicTopicId === null ||
+      isSavingStrategicTopicHistory
+    ) {
+      return;
+    }
+    setIsSavingStrategicTopicHistory(true);
     try {
       const contentJson =
-        typeof strategicSessionDraft === "string"
-          ? { version: 1, blocks: [{ type: "paragraph", children: [{ text: strategicSessionDraft }] }] }
-          : strategicSessionDraft;
+        typeof strategicTopicHistoryDraft === "string"
+          ? {
+              version: 1,
+              blocks: [
+                {
+                  type: "paragraph",
+                  children: [{ text: strategicTopicHistoryDraft }],
+                },
+              ],
+            }
+          : strategicTopicHistoryDraft;
       const contentText =
-        typeof strategicSessionDraft === "string"
-          ? strategicSessionDraft
-          : JSON.stringify(strategicSessionDraft);
-
-      await supabaseMeetingClient.upsertStrategicSessionNote({
+        typeof strategicTopicHistoryDraft === "string"
+          ? strategicTopicHistoryDraft
+          : JSON.stringify(strategicTopicHistoryDraft);
+      await supabaseMeetingClient.upsertStrategicTopicNote({
         accessToken: authSession.accessToken,
         workspaceId: selectedMeetingId,
-        strategicSessionId: selectedStrategicSessionId,
+        strategicTopicItemId: selectedStrategicTopicId,
         contentJson: contentJson as Record<string, unknown>,
         contentText,
       });
-      setCloudMeetingMessage("Strategic session notes saved.");
+      setCloudMeetingMessage("Strategic topic history saved.");
     } catch (error) {
       setCloudMeetingMessage(
         error instanceof Error
           ? error.message
-          : "Strategic session notes could not be saved.",
+          : "Strategic topic history could not be saved.",
       );
     } finally {
-      setIsSavingStrategicNotes(false);
+      setIsSavingStrategicTopicHistory(false);
     }
-  }, [authSession, isSavingStrategicNotes, selectedMeetingId, selectedStrategicSessionId, strategicSessionDraft]);
+  }, [
+    authSession,
+    isSavingStrategicTopicHistory,
+    selectedMeetingId,
+    selectedStrategicTopicId,
+    strategicTopicHistoryDraft,
+  ]);
 
   if (!hasLoadedDashboardStorage) {
     return (
@@ -2082,81 +2037,6 @@ export default function MeetingWorkspace() {
         ) : null}
 
 
-
-        {workspaceMode === "cloud" && selectedMeetingId ? (
-          <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Strategic History</h2>
-            <p className="mt-1 text-sm text-slate-600">Strategic sessions are long-term planning records and remain separate from tactical cadence snapshots.</p>
-            <div className="mt-3 flex gap-2">
-              <input
-                type="text"
-                value={newStrategicSessionTitle}
-                onChange={(event) => setNewStrategicSessionTitle(event.target.value)}
-                placeholder="Strategic session title"
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              />
-              <button
-                type="button"
-                onClick={handleCreateStrategicSession}
-                disabled={isCreatingStrategicSession}
-                className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
-              >
-                {isCreatingStrategicSession ? "Creating…" : "Create Session"}
-              </button>
-            </div>
-            {isLoadingStrategicSessions ? (
-              <p className="mt-3 text-sm text-slate-500">Loading strategic sessions…</p>
-            ) : strategicSessions.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-500">No strategic history yet.</p>
-            ) : (
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                  {strategicSessions.map((session) => (
-                    <button
-                      key={session.id}
-                      type="button"
-                      onClick={() => setSelectedStrategicSessionId(session.id)}
-                      className={`w-full rounded-xl border p-3 text-left ${
-                        session.id === selectedStrategicSessionId
-                          ? "border-indigo-300 bg-indigo-50"
-                          : "border-slate-200 bg-white hover:bg-slate-50"
-                      }`}
-                    >
-                      <p className="font-semibold text-slate-900">{session.title || `Strategic Session ${session.session_date}`}</p>
-                      <p className="text-xs text-slate-500">Date: {session.session_date} · Created: {new Date(session.created_at).toLocaleString()}</p>
-                    </button>
-                  ))}
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  {selectedStrategicSession ? (
-                    <>
-                      <p className="mb-2 text-sm font-semibold text-slate-900">Session Notes</p>
-                      <RichTextEditor
-                        value={strategicSessionDraft}
-                        onChange={setStrategicSessionDraft}
-                        placeholder="Capture strategic planning notes..."
-                        className="bg-white"
-                        minHeightClassName="min-h-[220px]"
-                        editingMode="always"
-                        ariaLabel="Strategic session notes"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleSaveStrategicNotes}
-                        disabled={isSavingStrategicNotes}
-                        className="mt-3 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
-                      >
-                        {isSavingStrategicNotes ? "Saving…" : "Save Strategic Notes"}
-                      </button>
-                    </>
-                  ) : (
-                    <p className="text-sm text-slate-500">Select a strategic session to view or edit notes.</p>
-                  )}
-                </div>
-              </div>
-            )}
-          </section>
-        ) : null}
 
         <div className="mb-10 space-y-5">
           <section className="bg-white rounded-3xl p-6 text-center shadow md:p-8">
@@ -2513,6 +2393,50 @@ export default function MeetingWorkspace() {
             updateTask(selectedObjective.id, selectedTaskDetails.id, updates)
           }
         />
+      ) : null}
+      {selectedStrategicTopicId !== null ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/45 p-4">
+          <div className="w-full max-w-3xl rounded-2xl bg-white p-5 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-900">
+                Strategic Topic History / Notes
+              </h3>
+              <button
+                type="button"
+                onClick={() => setSelectedStrategicTopicId(null)}
+                className="rounded-full px-3 py-1 text-2xl leading-none text-slate-500 hover:bg-slate-100"
+                aria-label="Close strategic topic history"
+              >
+                ×
+              </button>
+            </div>
+            <RichTextEditor
+              value={strategicTopicHistoryDraft}
+              onChange={setStrategicTopicHistoryDraft}
+              placeholder="Add strategic notes/history for this topic..."
+              editingMode="always"
+              minHeightClassName="min-h-[220px]"
+              ariaLabel="Strategic topic history notes"
+            />
+            <div className="mt-3 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedStrategicTopicId(null)}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveStrategicTopicHistory}
+                disabled={isSavingStrategicTopicHistory}
+                className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+              >
+                {isSavingStrategicTopicHistory ? "Saving…" : "Save History"}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {shouldShowMeetingSetup ? (
