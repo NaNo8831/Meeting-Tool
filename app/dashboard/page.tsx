@@ -400,25 +400,25 @@ export default function DashboardPage() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
+                  {!meeting.archived_at ? (
+                    <div className="flex flex-col items-stretch gap-2 sm:items-end">
+                      <button type="button" onClick={() => void handleDuplicateMeeting(meeting)} className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100" disabled={isDuplicating === meeting.id}>
+                        {isDuplicating === meeting.id ? "Duplicating…" : "Duplicate"}
+                      </button>
+                      <button type="button" onClick={() => void handleArchiveMeeting(meeting)} className="rounded-xl border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50" disabled={isArchiving === meeting.id}>
+                        {isArchiving === meeting.id ? "Archiving…" : "Archive"}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500">Archived</p>
+                  )}
                   <Link
                     href={`/meeting/${meeting.id}`}
                     className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
                   >
                     Open
                   </Link>
-                  {!meeting.archived_at ? (
-                    <>
-                      <button type="button" onClick={() => void handleDuplicateMeeting(meeting)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" disabled={isDuplicating === meeting.id}>
-                        {isDuplicating === meeting.id ? "Duplicating…" : "Duplicate"}
-                      </button>
-                      <button type="button" onClick={() => void handleArchiveMeeting(meeting)} className="rounded-xl border border-amber-300 px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-50" disabled={isArchiving === meeting.id}>
-                        {isArchiving === meeting.id ? "Archiving…" : "Archive"}
-                      </button>
-                    </>
-                  ) : (
-                    <p className="text-xs text-slate-500">Archived</p>
-                  )}
                 </div>
               </article>
             ))
