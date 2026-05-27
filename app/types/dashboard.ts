@@ -25,6 +25,9 @@ export interface MeetingItem {
   capturedMeetingIndex?: number;
   completed?: boolean;
   completedDate?: string;
+  status?: "active" | "completed" | "archived";
+  completedAt?: string;
+  archivedAt?: string;
   removedMeetingId?: number;
   removedMeetingIndex?: number;
   removedDate?: string;
@@ -54,6 +57,13 @@ export interface MeetingSectionConfig {
   updateCompleted?: (itemId: number, completed: boolean) => void;
   updateCompletedDate?: (itemId: number, completedDate: string) => void;
   openHistoryNotes?: (item: MeetingItem) => void;
+  archiveItem?: (itemId: number) => void;
+  unarchiveItem?: (itemId: number) => void;
+  restoreToActive?: (itemId: number) => void;
+  showCompleted?: boolean;
+  setShowCompleted?: Dispatch<SetStateAction<boolean>>;
+  showArchived?: boolean;
+  setShowArchived?: Dispatch<SetStateAction<boolean>>;
   placeholder: string;
   editPlaceholder: string;
 }

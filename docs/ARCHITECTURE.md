@@ -41,3 +41,10 @@ New direction:
 - Do not remove `meeting_data` yet.
 - Keep rollouts reversible and feature-scoped.
 - Keep tactical history snapshots archival-first; do not couple them to realtime or full runtime persistence migration.
+
+
+## Strategic Topic lifecycle (current runtime behavior)
+- Lifecycle state is managed in existing Strategic Topic runtime items with `active`, `completed`, and `archived`.
+- Archive behavior is confirmation-gated and non-destructive; it does not hard delete topic rows/items.
+- Topic-attached Notes remain queryable via `strategic_topic_notes` because topic identity is preserved.
+- No realtime/collaborative editing was introduced in this lifecycle slice.

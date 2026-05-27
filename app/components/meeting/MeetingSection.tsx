@@ -46,6 +46,33 @@ function StrategicTopicControls({ item, section }: { item: MeetingItem; section:
         >
           Notes
         </button>
+        {item.status !== 'archived' ? (
+          <button
+            type="button"
+            onClick={() => section.archiveItem?.(item.id)}
+            className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+          >
+            Archive
+          </button>
+        ) : null}
+        {item.status === 'archived' ? (
+          <button
+            type="button"
+            onClick={() => section.unarchiveItem?.(item.id)}
+            className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+          >
+            Unarchive
+          </button>
+        ) : null}
+        {item.status === 'completed' ? (
+          <button
+            type="button"
+            onClick={() => section.restoreToActive?.(item.id)}
+            className="rounded-lg border border-slate-200 bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+          >
+            Mark active
+          </button>
+        ) : null}
       </div>
 
       <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 sm:items-end">
@@ -78,6 +105,28 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
         <p className="text-sm text-slate-500">{section.description}</p>
       </div>
       <div className="space-y-3">
+        {section.id === 'topic' ? (
+          <div className="mb-2 flex flex-wrap items-center gap-3 text-xs text-slate-600">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={section.showCompleted ?? false}
+                onChange={(event) => section.setShowCompleted?.(event.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600"
+              />
+              Show completed
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={section.showArchived ?? false}
+                onChange={(event) => section.setShowArchived?.(event.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600"
+              />
+              Show archived
+            </label>
+          </div>
+        ) : null}
         {section.items.map((item) => (
           <div key={item.id} className="rounded-2xl bg-white p-3 shadow-sm">
             <div className="flex gap-3">

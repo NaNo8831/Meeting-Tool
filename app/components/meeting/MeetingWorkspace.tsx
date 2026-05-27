@@ -174,14 +174,22 @@ const normalizeStrategicTopic = (
   item: MeetingItem,
   fallbackMeeting: Pick<MeetingRecord, "id" | "date">,
   fallbackMeetingIndex = 0,
-): MeetingItem => ({
-  ...item,
-  capturedDate: item.capturedDate ?? fallbackMeeting.date,
-  capturedMeetingId: item.capturedMeetingId ?? fallbackMeeting.id,
-  capturedMeetingIndex: item.capturedMeetingIndex ?? fallbackMeetingIndex,
-  completed: item.completed ?? false,
-  completedDate: item.completedDate ?? "",
-});
+): MeetingItem => {
+  const normalizedStatus =
+    item.status ?? (item.removedMeetingId ? "archived" : item.completed ? "completed" : "active");
+
+  return {
+    ...item,
+    capturedDate: item.capturedDate ?? fallbackMeeting.date,
+    capturedMeetingId: item.capturedMeetingId ?? fallbackMeeting.id,
+    capturedMeetingIndex: item.capturedMeetingIndex ?? fallbackMeetingIndex,
+    completed: normalizedStatus === "completed" ? true : (item.completed ?? false),
+    completedDate: item.completedDate ?? "",
+    status: normalizedStatus,
+    completedAt: item.completedAt ?? (item.completedDate || undefined),
+    archivedAt: item.archivedAt ?? (item.removedDate || undefined),
+  };
+};
 
 const dedupeMeetingItems = (
   items: MeetingItem[],
@@ -379,6 +387,8 @@ export default function MeetingWorkspace() {
   const [isLoadingHistoryNotes, setIsLoadingHistoryNotes] = useState(false);
   const [isSavingHistoryNotes, setIsSavingHistoryNotes] = useState(false);
   const [strategicTopicNotesById, setStrategicTopicNotesById] = useState<Record<number, SupabaseStrategicTopicNote | null>>({});
+  const [showCompletedStrategicTopics, setShowCompletedStrategicTopics] = useState(false);
+  const [showArchivedStrategicTopics, setShowArchivedStrategicTopics] = useState(false);
   const organizationInfoWithDefaults = {
     ...defaultOrganizationInfo,
     ...organizationInfo,
@@ -390,6 +400,9 @@ export default function MeetingWorkspace() {
     storedActiveMeetingIndex === -1 ? 0 : storedActiveMeetingIndex;
   const activeMeeting = meetings[activeMeetingIndex] ?? initialMeetings[0];
   const visibleStrategicTopicItems = strategicTopicItems.filter((item) => {
+    const status = item.status ?? "active";
+    if (status === "archived" && !showArchivedStrategicTopics) return false;
+    if (status === "completed" && !showCompletedStrategicTopics) return false;
     const capturedMeetingIndex =
       item.capturedMeetingIndex ??
       meetings.findIndex((meeting) => meeting.id === item.capturedMeetingId);
@@ -565,7 +578,8 @@ export default function MeetingWorkspace() {
         item.capturedMeetingId === undefined ||
         item.capturedMeetingIndex === undefined ||
         item.completed === undefined ||
-        item.completedDate === undefined,
+        item.completedDate === undefined ||
+        item.status === undefined,
     );
 
     if (!needsNormalization) return;
@@ -710,6 +724,9 @@ export default function MeetingWorkspace() {
               completedDate: completed
                 ? item.completedDate || activeMeeting.date
                 : item.completedDate,
+              status: completed ? "completed" : "active",
+              completedAt: completed ? item.completedAt ?? new Date().toISOString() : undefined,
+              archivedAt: completed ? undefined : item.archivedAt,
             }
           : item,
       ),
@@ -727,6 +744,69 @@ export default function MeetingWorkspace() {
               ...item,
               completedDate,
               completed: completedDate ? true : item.completed,
+              status: completedDate ? "completed" : item.status ?? "active",
+              completedAt: completedDate ? item.completedAt ?? new Date().toISOString() : item.completedAt,
+            }
+          : item,
+      ),
+    );
+  };
+
+  const archiveStrategicTopicItem = (itemId: number) => {
+    const shouldArchive = window.confirm(
+      "Archive this Strategic Topic? This will hide it from active view but keep notes/history attached.",
+    );
+    if (!shouldArchive) return;
+
+    setStrategicTopicItems(
+      strategicTopicItems.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              status: "archived",
+              archivedAt: new Date().toISOString(),
+              removedMeetingId: activeMeeting.id,
+              removedMeetingIndex: activeMeetingIndex,
+              removedDate: activeMeeting.date,
+            }
+          : item,
+      ),
+    );
+  };
+
+  const restoreStrategicTopicToActive = (itemId: number) => {
+    setStrategicTopicItems(
+      strategicTopicItems.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              status: "active",
+              completed: false,
+              completedDate: "",
+              completedAt: undefined,
+              archivedAt: undefined,
+              removedMeetingId: undefined,
+              removedMeetingIndex: undefined,
+              removedDate: undefined,
+            }
+          : item,
+      ),
+    );
+  };
+
+  const unarchiveStrategicTopicItem = (itemId: number) => {
+    setStrategicTopicItems(
+      strategicTopicItems.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              status: "completed",
+              completed: true,
+              completedDate: item.completedDate || activeMeeting.date,
+              archivedAt: undefined,
+              removedMeetingId: undefined,
+              removedMeetingIndex: undefined,
+              removedDate: undefined,
             }
           : item,
       ),
@@ -1036,6 +1116,13 @@ export default function MeetingWorkspace() {
       addItem: addStrategicTopicItem,
       updateItem: updateStrategicTopicItem,
       deleteItem: deleteStrategicTopicItem,
+      archiveItem: archiveStrategicTopicItem,
+      unarchiveItem: unarchiveStrategicTopicItem,
+      restoreToActive: restoreStrategicTopicToActive,
+      showCompleted: showCompletedStrategicTopics,
+      setShowCompleted: setShowCompletedStrategicTopics,
+      showArchived: showArchivedStrategicTopics,
+      setShowArchived: setShowArchivedStrategicTopics,
       updateCompleted: updateStrategicTopicCompleted,
       updateCompletedDate: updateStrategicTopicCompletedDate,
       openHistoryNotes: openStrategicTopicHistoryNotes,

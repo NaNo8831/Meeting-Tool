@@ -103,3 +103,12 @@ Recommended next step after this PR:
 - Slug URLs.
 - Multiple local workspaces.
 - Immediate deletion of `meeting_data`.
+
+## Strategic Topic Lifecycle Semantics (Runtime)
+- Strategic Topics are historical operational records, not ephemeral checklist rows.
+- `completed` means the topic was reviewed/completed and remains historically accessible.
+- `archived` means hidden from default active view, but still preserved and recoverable.
+- Archive is non-destructive (`archive` ≠ `delete`).
+- Completion is non-destructive and distinct from archive (`completed` ≠ `archived`).
+- Topic-attached Notes in `strategic_topic_notes` remain attached by `strategic_topic_item_id` across active/completed/archived states.
+- Current runtime source remains meeting workspace/runtime storage shape unless/until `public.strategic_topics` is explicitly wired for active reads.
