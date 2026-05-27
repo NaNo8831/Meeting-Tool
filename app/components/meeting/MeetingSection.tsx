@@ -29,15 +29,24 @@ function StrategicTopicControls({ item, section }: { item: MeetingItem; section:
 
   return (
     <div className="mt-3 flex flex-col gap-3 border-t border-slate-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
-      <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-        <input
-          type="checkbox"
-          checked={item.completed ?? false}
-          onChange={(event) => section.updateCompleted?.(item.id, event.target.checked)}
-          className="h-4 w-4 rounded border-slate-300 text-blue-600"
-        />
-        Reviewed / completed
-      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+          <input
+            type="checkbox"
+            checked={item.completed ?? false}
+            onChange={(event) => section.updateCompleted?.(item.id, event.target.checked)}
+            className="h-4 w-4 rounded border-slate-300 text-blue-600"
+          />
+          Reviewed / completed
+        </label>
+        <button
+          type="button"
+          onClick={() => section.openHistoryNotes?.(item)}
+          className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+        >
+          Notes
+        </button>
+      </div>
 
       <label className="flex flex-col gap-1 text-xs font-medium text-slate-500 sm:items-end">
         Reviewed / completed date (optional)

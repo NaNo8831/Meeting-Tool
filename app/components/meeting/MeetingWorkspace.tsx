@@ -47,6 +47,7 @@ import {
 } from "@/app/lib/workspaceBackup";
 import {
   supabaseMeetingClient,
+  type SupabaseStrategicTopicNote,
   type SupabaseTacticalSession,
 } from "@/app/lib/supabaseClient";
 import type {
@@ -372,6 +373,12 @@ export default function MeetingWorkspace() {
   const [isEndingMeeting, setIsEndingMeeting] = useState(false);
   const [selectedTacticalSessionId, setSelectedTacticalSessionId] =
     useState("");
+  const [historyNotesTopic, setHistoryNotesTopic] = useState<MeetingItem | null>(null);
+  const [historyNotesDraft, setHistoryNotesDraft] = useState("");
+  const [historyNotesStatus, setHistoryNotesStatus] = useState("");
+  const [isLoadingHistoryNotes, setIsLoadingHistoryNotes] = useState(false);
+  const [isSavingHistoryNotes, setIsSavingHistoryNotes] = useState(false);
+  const [strategicTopicNotesById, setStrategicTopicNotesById] = useState<Record<number, SupabaseStrategicTopicNote | null>>({});
   const organizationInfoWithDefaults = {
     ...defaultOrganizationInfo,
     ...organizationInfo,
@@ -727,6 +734,11 @@ export default function MeetingWorkspace() {
   };
 
   const deleteStrategicTopicItem = (itemId: number) => {
+    const shouldDelete = window.confirm(
+      "Delete this Strategic Topic? Notes/history attached to this topic may no longer be accessible.",
+    );
+    if (!shouldDelete) return;
+
     setStrategicTopicItems(
       strategicTopicItems.map((item) =>
         item.id === itemId
@@ -937,6 +949,67 @@ export default function MeetingWorkspace() {
     setDraggingStandardObjectiveId(null);
   };
 
+  const openStrategicTopicHistoryNotes = useCallback(
+    async (item: MeetingItem) => {
+      setHistoryNotesTopic(item);
+      setHistoryNotesStatus("");
+      if (!authSession || !selectedMeetingId) {
+        setHistoryNotesDraft("");
+        setHistoryNotesStatus(
+          "Strategic topic notes are available for cloud meetings only.",
+        );
+        return;
+      }
+      setIsLoadingHistoryNotes(true);
+      try {
+        const note = await supabaseMeetingClient.loadStrategicTopicNote({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+          strategicTopicItemId: item.id,
+        });
+        setStrategicTopicNotesById((current) => ({ ...current, [item.id]: note }));
+        setHistoryNotesDraft(note?.content_text ?? "");
+      } catch (error) {
+        setHistoryNotesDraft("");
+        setHistoryNotesStatus(
+          error instanceof Error
+            ? error.message
+            : "Strategic topic note could not be loaded.",
+        );
+      } finally {
+        setIsLoadingHistoryNotes(false);
+      }
+    },
+    [authSession, selectedMeetingId],
+  );
+
+  const handleSaveStrategicTopicHistoryNotes = useCallback(async () => {
+    if (!historyNotesTopic || !authSession || !selectedMeetingId) return;
+    setIsSavingHistoryNotes(true);
+    setHistoryNotesStatus("Saving history…");
+    try {
+      const saved = await supabaseMeetingClient.saveStrategicTopicNote({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        strategicTopicItemId: historyNotesTopic.id,
+        contentText: historyNotesDraft,
+      });
+      setStrategicTopicNotesById((current) => ({
+        ...current,
+        [historyNotesTopic.id]: saved,
+      }));
+      setHistoryNotesStatus("History saved.");
+    } catch (error) {
+      setHistoryNotesStatus(
+        error instanceof Error
+          ? error.message
+          : "Strategic topic note could not be saved.",
+      );
+    } finally {
+      setIsSavingHistoryNotes(false);
+    }
+  }, [authSession, historyNotesDraft, historyNotesTopic, selectedMeetingId]);
+
   const meetingSections: Record<MeetingSectionKey, MeetingSectionConfig> = {
     agenda: {
       id: "agenda",
@@ -965,6 +1038,7 @@ export default function MeetingWorkspace() {
       deleteItem: deleteStrategicTopicItem,
       updateCompleted: updateStrategicTopicCompleted,
       updateCompletedDate: updateStrategicTopicCompletedDate,
+      openHistoryNotes: openStrategicTopicHistoryNotes,
       placeholder: "New strategic topic",
       editPlaceholder: "Add strategic topic",
     },
@@ -2287,6 +2361,58 @@ export default function MeetingWorkspace() {
                   Save
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {historyNotesTopic ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-lg font-semibold text-slate-900">
+                Strategic Topic Notes
+              </h3>
+              <button
+                type="button"
+                onClick={() => setHistoryNotesTopic(null)}
+                className="rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-700 hover:bg-slate-100"
+              >
+                Close
+              </button>
+            </div>
+            <p className="mb-2 text-sm text-slate-600">{historyNotesTopic.text}</p>
+            <textarea
+              value={historyNotesDraft}
+              onChange={(event) => setHistoryNotesDraft(event.target.value)}
+              disabled={isLoadingHistoryNotes || !authSession || !selectedMeetingId}
+              className="min-h-48 w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-900"
+              placeholder="Add strategic notes/history for this topic."
+            />
+            {strategicTopicNotesById[historyNotesTopic.id]?.updated_at ? (
+              <p className="mt-2 text-xs text-slate-500">
+                Last saved: {new Date(strategicTopicNotesById[historyNotesTopic.id]!.updated_at).toLocaleString()}
+              </p>
+            ) : null}
+            {historyNotesStatus ? (
+              <p className="mt-2 text-sm text-slate-700">{historyNotesStatus}</p>
+            ) : null}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setHistoryNotesTopic(null)}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveStrategicTopicHistoryNotes()}
+                disabled={isSavingHistoryNotes || isLoadingHistoryNotes || !authSession || !selectedMeetingId}
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+              >
+                {isSavingHistoryNotes ? "Saving…" : "Save Notes"}
+              </button>
             </div>
           </div>
         </div>

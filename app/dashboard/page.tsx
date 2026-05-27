@@ -298,6 +298,9 @@ export default function DashboardPage() {
                 Log Out
               </button>
             </div>
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              Duplicating copies the current meeting workspace, but Tactical and Strategic history records are not copied yet.
+            </p>
           </div>
         </header>
 
