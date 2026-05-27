@@ -37,6 +37,16 @@ export type SupabaseTacticalSession = {
   ended_at: string | null;
 };
 
+export type SupabaseStrategicTopicNote = {
+  id: string;
+  meeting_id: string;
+  strategic_topic_item_id: number;
+  content_json: Record<string, unknown> | null;
+  content_text: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type SupabaseAuthUserResponse = {
   id?: string;
   email?: string;
@@ -555,5 +565,75 @@ export const supabaseMeetingClient = {
     }
 
     return session;
+  },
+
+  async loadStrategicTopicNote({
+    accessToken,
+    workspaceId,
+    strategicTopicItemId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    strategicTopicItemId: number;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("strategic_topic_notes")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}&strategic_topic_item_id=eq.${strategicTopicItemId}&select=*&limit=1`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Strategic topic note load"),
+      );
+    }
+
+    const notes = (await response.json()) as SupabaseStrategicTopicNote[];
+    return notes[0] ?? null;
+  },
+
+  async saveStrategicTopicNote({
+    accessToken,
+    workspaceId,
+    strategicTopicItemId,
+    contentText,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    strategicTopicItemId: number;
+    contentText: string;
+  }) {
+    const response = await fetch(getRestUrl("strategic_topic_notes"), {
+      method: "POST",
+      headers: {
+        ...getSupabaseHeaders(accessToken),
+        Prefer: "resolution=merge-duplicates,return=representation",
+      },
+      body: JSON.stringify({
+        meeting_id: workspaceId,
+        strategic_topic_item_id: strategicTopicItemId,
+        content_text: contentText,
+        content_json: null,
+        updated_at: new Date().toISOString(),
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Strategic topic note save"),
+      );
+    }
+
+    const notes = (await response.json()) as SupabaseStrategicTopicNote[];
+    const note = notes[0];
+    if (!note) {
+      throw new Error("Strategic topic note was not saved.");
+    }
+
+    return note;
   },
 };

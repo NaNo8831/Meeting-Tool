@@ -52,15 +52,14 @@ The long-term direction is section/item persistence with clear entity boundaries
 - `tactical_sessions`
 - `tactical_items`
 - `strategic_topics`
-- `strategic_sessions`
-- `strategic_session_notes` (or a rich-text records table)
+- `strategic_topic_notes`
 
 ### Relationship direction (high level)
 - `meetings` is the parent container.
 - `meeting_members` links users to meetings for access.
 - Section/item tables reference `meeting_id`.
-- Session-specific records reference both `meeting_id` and their parent session row.
-- Rich text is stored with explicit ownership (topic/session/item) rather than inside one monolithic JSON blob.
+- Strategic topic notes/history records reference `meeting_id` and `strategic_topic_item_id`.
+- Rich text or text notes are stored with explicit ownership rather than inside one monolithic JSON blob.
 
 ## Save Behavior Target (Structured)
 Planned save flow:

@@ -24,7 +24,7 @@ New direction:
 1. **Meeting container layer** (`meetings`)
 2. **Membership/authorization layer** (`meeting_members`)
 3. **Domain section/item layer** (`objectives`, `tasks`, `strategic_topics`, etc.)
-4. **Session/history/rich text layer** (`tactical_sessions`, `strategic_sessions`, notes records)
+4. **Session/history/rich text layer** (`tactical_sessions`, `strategic_topic_notes`, notes records)
 5. **Safety snapshot layer** (`meetings.meeting_data` backup/export format)
 
 ### Recommended PR sequence (structured persistence)
