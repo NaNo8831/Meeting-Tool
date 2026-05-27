@@ -235,6 +235,7 @@ export default function MeetingWorkspace() {
   const isLocalRoute = routeMeetingId === "local";
   const isCloudRoute = Boolean(routeMeetingId) && !isLocalRoute;
   const initialMeetings = useMemo(() => getInitialMeetings(), []);
+  const initialStrategicTopicItems = useMemo<MeetingItem[]>(() => [], []);
   const {
     session: authSession,
     isConfigured: isAuthConfigured,
@@ -325,7 +326,7 @@ export default function MeetingWorkspace() {
     hasLoadedStrategicTopicItems,
   ] = useLocalStorage<MeetingItem[]>(
     getStorageKey(strategicTopicsStorageKey),
-    [],
+    initialStrategicTopicItems,
   );
   const [
     standardOperatingObjectives,
