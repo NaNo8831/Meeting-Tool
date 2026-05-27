@@ -665,20 +665,19 @@ export default function MeetingWorkspace() {
   };
 
   const addStrategicTopicItem = () => {
-    if (!newTopicItem.trim()) return;
+    const topicText = newTopicItem.trim();
+    if (!topicText) return;
 
-    setStrategicTopicItems([
-      ...strategicTopicItems,
+    const nextTopic = normalizeStrategicTopic(
       {
         id: Date.now(),
-        text: newTopicItem.trim(),
-        capturedDate: activeMeeting.date,
-        capturedMeetingId: activeMeeting.id,
-        capturedMeetingIndex: activeMeetingIndex,
-        completed: false,
-        completedDate: "",
+        text: topicText,
       },
-    ]);
+      activeMeeting,
+      activeMeetingIndex,
+    );
+
+    setStrategicTopicItems((currentItems) => [...currentItems, nextTopic]);
     setNewTopicItem("");
   };
 
