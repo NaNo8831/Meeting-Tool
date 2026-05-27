@@ -326,10 +326,12 @@ export const supabaseMeetingClient = {
   async createWorkspace({
     accessToken,
     ownerId,
+    ownerEmail,
     name,
   }: {
     accessToken: string;
     ownerId: string;
+    ownerEmail?: string;
     name: string;
   }) {
     const response = await fetch(getRestUrl("meetings"), {
@@ -340,6 +342,7 @@ export const supabaseMeetingClient = {
       },
       body: JSON.stringify({
         owner_id: ownerId,
+        owner_email: ownerEmail ?? null,
         name,
         metadata_json: null,
         meeting_data: null,
@@ -364,11 +367,13 @@ export const supabaseMeetingClient = {
   async duplicateWorkspace({
     accessToken,
     ownerId,
+    ownerEmail,
     sourceMeeting,
     duplicateName,
   }: {
     accessToken: string;
     ownerId: string;
+    ownerEmail?: string;
     sourceMeeting: SupabaseMeeting;
     duplicateName: string;
   }) {
@@ -380,6 +385,7 @@ export const supabaseMeetingClient = {
       },
       body: JSON.stringify({
         owner_id: ownerId,
+        owner_email: ownerEmail ?? null,
         name: duplicateName,
         metadata_json: sourceMeeting.metadata_json,
         meeting_data: sourceMeeting.meeting_data,
@@ -438,7 +444,7 @@ export const supabaseMeetingClient = {
     workspaceId: string;
   }) {
     const response = await fetch(
-      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}`,
+      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}&archived_at=not.is.null`,
       {
         method: "DELETE",
         headers: {
@@ -453,7 +459,9 @@ export const supabaseMeetingClient = {
 
     const deletedMeetings = (await response.json()) as SupabaseMeeting[];
     if (deletedMeetings.length === 0) {
-      throw new Error("Cloud meeting could not be deleted. Confirm delete permissions for archived meetings.");
+      throw new Error(
+        "Cloud meeting could not be deleted. This usually means RLS or delete policy blocked the archived meeting delete.",
+      );
     }
   },
 

@@ -34,21 +34,48 @@ const formatRelativeTimestamp = (timestamp: string) => {
   }).format(new Date(milliseconds));
 };
 
-const buildNextDuplicateMeetingName = (sourceName: string, existingNames: string[]) => {
-  const trimmedSourceName = sourceName.trim();
-  const baseName = `${trimmedSourceName} Copy`;
-  const normalizedExistingNames = new Set(existingNames.map((name) => name.trim().toLocaleLowerCase()));
+const copyNamePattern = /^(.*?)(?: Copy(?: (\d+))?)?$/i;
 
-  if (!normalizedExistingNames.has(baseName.toLocaleLowerCase())) {
-    return baseName;
-  }
+const getDuplicateBaseName = (meetingName: string) => {
+  const trimmedName = meetingName.trim();
+  const match = trimmedName.match(copyNamePattern);
+  const baseName = match?.[1]?.trim();
 
-  let suffix = 2;
-  while (normalizedExistingNames.has(`${baseName} ${suffix}`.toLocaleLowerCase())) {
-    suffix += 1;
-  }
+  return baseName || trimmedName;
+};
 
-  return `${baseName} ${suffix}`;
+const buildNextDuplicateMeetingName = (
+  sourceName: string,
+  existingNames: string[],
+) => {
+  const baseTitle = getDuplicateBaseName(sourceName);
+  const normalizedBaseTitle = baseTitle.toLocaleLowerCase();
+  const duplicateIndices: number[] = [];
+
+  existingNames.forEach((existingName) => {
+    const trimmedName = existingName.trim();
+    const match = trimmedName.match(copyNamePattern);
+    const existingBaseTitle = match?.[1]?.trim().toLocaleLowerCase();
+    if (!existingBaseTitle || existingBaseTitle !== normalizedBaseTitle) return;
+
+    if (trimmedName.toLocaleLowerCase() === `${baseTitle} copy`.toLocaleLowerCase()) {
+      duplicateIndices.push(1);
+      return;
+    }
+
+    const suffixText = match?.[2];
+    if (!suffixText) return;
+
+    const parsedIndex = Number.parseInt(suffixText, 10);
+    if (!Number.isNaN(parsedIndex) && parsedIndex >= 2) {
+      duplicateIndices.push(parsedIndex);
+    }
+  });
+
+  const nextIndex = duplicateIndices.length
+    ? Math.max(...duplicateIndices) + 1
+    : 1;
+  return nextIndex === 1 ? `${baseTitle} Copy` : `${baseTitle} Copy ${nextIndex}`;
 };
 
 export default function DashboardPage() {
@@ -129,6 +156,7 @@ export default function DashboardPage() {
       const meeting = await supabaseMeetingClient.createWorkspace({
         accessToken: session.accessToken,
         ownerId: session.user.id,
+        ownerEmail: session.user.email,
         name: trimmedName,
       });
 
@@ -162,6 +190,7 @@ export default function DashboardPage() {
       const duplicated = await supabaseMeetingClient.duplicateWorkspace({
         accessToken: session.accessToken,
         ownerId: session.user.id,
+        ownerEmail: session.user.email,
         sourceMeeting,
         duplicateName,
       });

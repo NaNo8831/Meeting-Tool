@@ -362,13 +362,9 @@ export default function MeetingWorkspace() {
     const prefillTitle = searchParams.get("prefillTitle")?.trim();
     if (!prefillTitle) return;
     if (!hasLoadedDashboardTitle || !hasLoadedMeetingSetup) return;
-    if (hasCompletedMeetingSetup) return;
-    if (dashboardTitle !== defaultDashboardTitle) return;
 
     setDashboardTitle(prefillTitle);
   }, [
-    dashboardTitle,
-    hasCompletedMeetingSetup,
     hasLoadedDashboardTitle,
     hasLoadedMeetingSetup,
     searchParams,
