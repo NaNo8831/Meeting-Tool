@@ -24,6 +24,7 @@ export type SupabaseMeeting = {
   metadata_json: Record<string, unknown> | null;
   meeting_data: Record<string, unknown> | null;
   archived_at: string | null;
+  deleted_at?: string | null;
 };
 
 export type SupabaseTacticalSession = {
@@ -309,7 +310,7 @@ export const supabaseFeedbackClient = {
 export const supabaseMeetingClient = {
   async listWorkspaces(accessToken: string) {
     const response = await fetch(
-      `${getRestUrl("meetings")}?select=*&order=updated_at.desc`,
+      `${getRestUrl("meetings")}?select=*&deleted_at=is.null&order=updated_at.desc`,
       {
         method: "GET",
         headers: getSupabaseHeaders(accessToken),
@@ -436,6 +437,37 @@ export const supabaseMeetingClient = {
 
     return meeting;
   },
+  async restoreWorkspace({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}&deleted_at=is.null`,
+      {
+        method: "PATCH",
+        headers: {
+          ...getSupabaseHeaders(accessToken),
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify({ archived_at: null }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Workspace restore"));
+    }
+
+    const meetings = (await response.json()) as SupabaseMeeting[];
+    const meeting = meetings[0];
+    if (!meeting) {
+      throw new Error("Cloud meeting was not found or is not accessible.");
+    }
+
+    return meeting;
+  },
   async deleteWorkspace({
     accessToken,
     workspaceId,
@@ -446,11 +478,12 @@ export const supabaseMeetingClient = {
     const response = await fetch(
       `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}&archived_at=not.is.null`,
       {
-        method: "DELETE",
+        method: "PATCH",
         headers: {
           ...getSupabaseHeaders(accessToken),
           Prefer: "return=representation",
         },
+        body: JSON.stringify({ deleted_at: new Date().toISOString() }),
       },
     );
     if (!response.ok) {

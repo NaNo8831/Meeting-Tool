@@ -489,6 +489,43 @@ export default function MeetingWorkspace() {
   }, [authSession, isLocalRoute, router]);
 
   useEffect(() => {
+    let isMounted = true;
+    if (!authSession || !selectedMeetingId) return () => undefined;
+
+    const loadSelectedMeetingName = async () => {
+      try {
+        const cloudMeetings = await supabaseMeetingClient.listWorkspaces(
+          authSession.accessToken,
+        );
+        if (!isMounted) return;
+
+        const selectedMeeting = cloudMeetings.find(
+          (meeting) => meeting.id === selectedMeetingId,
+        );
+        if (!selectedMeeting) return;
+
+        setSelectedMeetingName(selectedMeeting.name);
+        if (dashboardTitle === defaultDashboardTitle) {
+          setDashboardTitle(selectedMeeting.name);
+        }
+      } catch {
+        // Keep existing title/name if meeting-name lookup fails.
+      }
+    };
+
+    void loadSelectedMeetingName();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    authSession,
+    dashboardTitle,
+    selectedMeetingId,
+    setDashboardTitle,
+  ]);
+
+  useEffect(() => {
     if (isAuthLoading) return;
     if (authSession) return;
     if (!isCloudRoute) return;

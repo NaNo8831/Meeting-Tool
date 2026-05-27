@@ -93,6 +93,7 @@ export default function DashboardPage() {
   const [duplicateTarget, setDuplicateTarget] = useState<SupabaseMeeting | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SupabaseMeeting | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isRestoring, setIsRestoring] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && !session) {
@@ -171,6 +172,29 @@ export default function DashboardPage() {
       );
     } finally {
       setIsCreatingMeeting(false);
+    }
+  };
+  const handleRestoreMeeting = async (meeting: SupabaseMeeting) => {
+    if (!session || isRestoring) return;
+    setIsRestoring(meeting.id);
+    setMessage("");
+    try {
+      const restoredMeeting = await supabaseMeetingClient.restoreWorkspace({
+        accessToken: session.accessToken,
+        workspaceId: meeting.id,
+      });
+      setMeetings((currentMeetings) =>
+        currentMeetings.map((currentMeeting) =>
+          currentMeeting.id === restoredMeeting.id ? restoredMeeting : currentMeeting,
+        ),
+      );
+      setMessage(`Restored ${meeting.name}.`);
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Could not restore meeting.",
+      );
+    } finally {
+      setIsRestoring(null);
     }
   };
 
@@ -414,9 +438,14 @@ export default function DashboardPage() {
                       </button>
                     </>
                   ) : (
-                    <button type="button" onClick={() => setDeleteTarget(meeting)} className="rounded-lg border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50" disabled={isDeleting === meeting.id}>
-                      Delete
-                    </button>
+                    <>
+                      <button type="button" onClick={() => void handleRestoreMeeting(meeting)} className="rounded-lg border border-emerald-300 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50" disabled={isRestoring === meeting.id}>
+                        {isRestoring === meeting.id ? "..." : "Restore"}
+                      </button>
+                      <button type="button" onClick={() => setDeleteTarget(meeting)} className="rounded-lg border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50" disabled={isDeleting === meeting.id}>
+                        Delete
+                      </button>
+                    </>
                   )}
                   </div>
                   <Link
