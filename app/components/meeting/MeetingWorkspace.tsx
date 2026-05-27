@@ -235,6 +235,7 @@ export default function MeetingWorkspace() {
   const isLocalRoute = routeMeetingId === "local";
   const isCloudRoute = Boolean(routeMeetingId) && !isLocalRoute;
   const initialMeetings = useMemo(() => getInitialMeetings(), []);
+  const initialStrategicTopicItems = useMemo<MeetingItem[]>(() => [], []);
   const {
     session: authSession,
     isConfigured: isAuthConfigured,
@@ -325,7 +326,7 @@ export default function MeetingWorkspace() {
     hasLoadedStrategicTopicItems,
   ] = useLocalStorage<MeetingItem[]>(
     getStorageKey(strategicTopicsStorageKey),
-    [],
+    initialStrategicTopicItems,
   );
   const [
     standardOperatingObjectives,
@@ -665,20 +666,19 @@ export default function MeetingWorkspace() {
   };
 
   const addStrategicTopicItem = () => {
-    if (!newTopicItem.trim()) return;
+    const topicText = newTopicItem.trim();
+    if (!topicText) return;
 
-    setStrategicTopicItems([
-      ...strategicTopicItems,
+    const nextTopic = normalizeStrategicTopic(
       {
         id: Date.now(),
-        text: newTopicItem.trim(),
-        capturedDate: activeMeeting.date,
-        capturedMeetingId: activeMeeting.id,
-        capturedMeetingIndex: activeMeetingIndex,
-        completed: false,
-        completedDate: "",
+        text: topicText,
       },
-    ]);
+      activeMeeting,
+      activeMeetingIndex,
+    );
+
+    setStrategicTopicItems((currentItems) => [...currentItems, nextTopic]);
     setNewTopicItem("");
   };
 
