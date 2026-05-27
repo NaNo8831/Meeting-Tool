@@ -32,6 +32,7 @@
 - Tactical history foundation added on cloud meetings: **End Meeting** now writes archival tactical session snapshots to `tactical_sessions` (with `snapshot_json`) and a lightweight Tactical History viewer is available in the meeting workspace; operational runtime state still remains on `meetings.meeting_data`.
 - Strategic Topic notes/history foundation added for cloud meetings: each Strategic Topic can open a lightweight **History / Notes** modal and manually save/load topic-scoped notes via `strategic_topic_notes` keyed by (`meeting_id`, `strategic_topic_item_id`).
 - Strategic Topic lifecycle behavior is now active in the runtime UI with non-destructive states (`active`, `completed`, `archived`), optional visibility toggles for completed/archived lists, and archive-as-history behavior that preserves topic-attached Notes.
+- Phase 2 UX Polish sprint is in progress on dashboard/auth refinement: duplicate warning moved into confirmation flow, archived-only delete confirmation added, meeting-card action density reduced, and auth wording/messaging tone is being simplified.
 - Next recommended sprint: First structured write pilot on a narrow surface (likely `meeting_settings` or `strategic_topics`) after validating the schema foundation.
 - Blockers: Full-workspace autosave approach was abandoned (PR #41); structured section/item persistence design and sequencing is now required before new cloud persistence implementation.
 

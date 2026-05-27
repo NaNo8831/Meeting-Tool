@@ -46,6 +46,9 @@ export default function DashboardPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [message, setMessage] = useState("");
   const [createMeetingError, setCreateMeetingError] = useState("");
+  const [duplicateTarget, setDuplicateTarget] = useState<SupabaseMeeting | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SupabaseMeeting | null>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && !session) {
@@ -184,6 +187,24 @@ export default function DashboardPage() {
       setIsArchiving(null);
     }
   };
+  const handleDeleteMeeting = async (meeting: SupabaseMeeting) => {
+    if (!session || isDeleting) return;
+    setIsDeleting(meeting.id);
+    setMessage("");
+    try {
+      await supabaseMeetingClient.deleteWorkspace({
+        accessToken: session.accessToken,
+        workspaceId: meeting.id,
+      });
+      setMeetings((current) => current.filter((item) => item.id !== meeting.id));
+      setMessage(`Deleted ${meeting.name}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not delete meeting.");
+    } finally {
+      setIsDeleting(null);
+      setDeleteTarget(null);
+    }
+  };
 
   const handleImportBackupPlaceholder = async (
     event: ChangeEvent<HTMLInputElement>,
@@ -298,9 +319,6 @@ export default function DashboardPage() {
                 Log Out
               </button>
             </div>
-            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-              Duplicating copies the current meeting workspace, but Tactical and Strategic history records are not copied yet.
-            </p>
           </div>
         </header>
 
@@ -331,30 +349,58 @@ export default function DashboardPage() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 sm:ml-auto">
+                  <div className="flex flex-col gap-1">
+                  {!meeting.archived_at ? (
+                    <>
+                      <button type="button" onClick={() => setDuplicateTarget(meeting)} className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100" disabled={isDuplicating === meeting.id}>
+                        Duplicate
+                      </button>
+                      <button type="button" onClick={() => void handleArchiveMeeting(meeting)} className="rounded-lg border border-amber-300 px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50" disabled={isArchiving === meeting.id}>
+                        {isArchiving === meeting.id ? "..." : "Archive"}
+                      </button>
+                    </>
+                  ) : (
+                    <button type="button" onClick={() => setDeleteTarget(meeting)} className="rounded-lg border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50" disabled={isDeleting === meeting.id}>
+                      Delete
+                    </button>
+                  )}
+                  </div>
                   <Link
                     href={`/meeting/${meeting.id}`}
                     className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
                   >
                     Open
                   </Link>
-                  {!meeting.archived_at ? (
-                    <>
-                      <button type="button" onClick={() => void handleDuplicateMeeting(meeting)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" disabled={isDuplicating === meeting.id}>
-                        {isDuplicating === meeting.id ? "Duplicating…" : "Duplicate"}
-                      </button>
-                      <button type="button" onClick={() => void handleArchiveMeeting(meeting)} className="rounded-xl border border-amber-300 px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-50" disabled={isArchiving === meeting.id}>
-                        {isArchiving === meeting.id ? "Archiving…" : "Archive"}
-                      </button>
-                    </>
-                  ) : (
-                    <p className="text-xs text-slate-500">Archived</p>
-                  )}
                 </div>
               </article>
             ))
           )}
         </section>
+        {duplicateTarget ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onMouseDown={() => setDuplicateTarget(null)}>
+            <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onMouseDown={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold">Duplicate meeting?</h3>
+              <p className="mt-2 text-sm text-slate-600">Duplicating copies the current meeting workspace, but Tactical and Strategic history records are not copied yet.</p>
+              <div className="mt-4 flex justify-end gap-2">
+                <button className="rounded-lg border px-3 py-2 text-sm" onClick={() => setDuplicateTarget(null)}>Cancel</button>
+                <button className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white" onClick={() => void handleDuplicateMeeting(duplicateTarget)}>Confirm</button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+        {deleteTarget ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onMouseDown={() => setDeleteTarget(null)}>
+            <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onMouseDown={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold">Delete archived meeting?</h3>
+              <p className="mt-2 text-sm text-slate-600">This permanently deletes “{deleteTarget.name}”.</p>
+              <div className="mt-4 flex justify-end gap-2">
+                <button className="rounded-lg border px-3 py-2 text-sm" onClick={() => setDeleteTarget(null)}>Cancel</button>
+                <button className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white" onClick={() => void handleDeleteMeeting(deleteTarget)}>Delete</button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {message ? (
           <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

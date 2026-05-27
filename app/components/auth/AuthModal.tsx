@@ -107,7 +107,7 @@ export function AuthModal({
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
-              Supabase Auth
+              Account Access
             </p>
             <h2 className="mt-1 text-2xl font-bold text-slate-900">
               {session ? "Account" : mode === "signIn" ? "Sign In" : "Sign Up"}
@@ -125,7 +125,7 @@ export function AuthModal({
 
         {!isConfigured ? (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            Supabase Auth is not configured for this environment. Add
+            Sign-in is not configured for this environment. Add
             <code className="mx-1 rounded bg-white/70 px-1">
               NEXT_PUBLIC_SUPABASE_URL
             </code>
@@ -144,8 +144,8 @@ export function AuthModal({
               </p>
             </div>
             <p className="text-sm text-slate-600">
-              Workspace data still stays in this browser&apos;s localStorage.
-              Auth does not sync, migrate, or share workspace data yet.
+              Workspace data stays in this browser for now. Signing in lets you
+              connect to cloud meetings, but doesn&apos;t auto-merge local data.
             </p>
             <button
               type="button"

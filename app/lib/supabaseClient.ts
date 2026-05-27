@@ -430,6 +430,27 @@ export const supabaseMeetingClient = {
 
     return meeting;
   },
+  async deleteWorkspace({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}`,
+      {
+        method: "DELETE",
+        headers: {
+          ...getSupabaseHeaders(accessToken),
+          Prefer: "return=minimal",
+        },
+      },
+    );
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Workspace delete"));
+    }
+  },
 
   async loadWorkspaceData({
     accessToken,
