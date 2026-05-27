@@ -44,7 +44,7 @@ function StrategicTopicControls({ item, section }: { item: MeetingItem; section:
           onClick={() => section.openHistoryNotes?.(item)}
           className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
         >
-          History / Notes
+          Notes
         </button>
       </div>
 

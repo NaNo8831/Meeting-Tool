@@ -607,19 +607,36 @@ export const supabaseMeetingClient = {
     strategicTopicItemId: number;
     contentText: string;
   }) {
-    const response = await fetch(getRestUrl("strategic_topic_notes"), {
-      method: "POST",
+    const existingNote = await this.loadStrategicTopicNote({
+      accessToken,
+      workspaceId,
+      strategicTopicItemId,
+    });
+    const updatedAtIso = new Date().toISOString();
+    const endpoint = existingNote
+      ? `${getRestUrl("strategic_topic_notes")}?id=eq.${encodeURIComponent(existingNote.id)}`
+      : getRestUrl("strategic_topic_notes");
+    const response = await fetch(endpoint, {
+      method: existingNote ? "PATCH" : "POST",
       headers: {
         ...getSupabaseHeaders(accessToken),
-        Prefer: "resolution=merge-duplicates,return=representation",
+        Prefer: "return=representation",
       },
-      body: JSON.stringify({
-        meeting_id: workspaceId,
-        strategic_topic_item_id: strategicTopicItemId,
-        content_text: contentText,
-        content_json: null,
-        updated_at: new Date().toISOString(),
-      }),
+      body: JSON.stringify(
+        existingNote
+          ? {
+              content_text: contentText,
+              content_json: null,
+              updated_at: updatedAtIso,
+            }
+          : {
+              meeting_id: workspaceId,
+              strategic_topic_item_id: strategicTopicItemId,
+              content_text: contentText,
+              content_json: null,
+              updated_at: updatedAtIso,
+            },
+      ),
     });
 
     if (!response.ok) {

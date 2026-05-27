@@ -734,6 +734,11 @@ export default function MeetingWorkspace() {
   };
 
   const deleteStrategicTopicItem = (itemId: number) => {
+    const shouldDelete = window.confirm(
+      "Delete this Strategic Topic? Notes/history attached to this topic may no longer be accessible.",
+    );
+    if (!shouldDelete) return;
+
     setStrategicTopicItems(
       strategicTopicItems.map((item) =>
         item.id === itemId
@@ -2366,7 +2371,7 @@ export default function MeetingWorkspace() {
           <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h3 className="text-lg font-semibold text-slate-900">
-                Strategic Topic History / Notes
+                Strategic Topic Notes
               </h3>
               <button
                 type="button"
@@ -2406,7 +2411,7 @@ export default function MeetingWorkspace() {
                 disabled={isSavingHistoryNotes || isLoadingHistoryNotes || !authSession || !selectedMeetingId}
                 className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
               >
-                {isSavingHistoryNotes ? "Saving…" : "Save History"}
+                {isSavingHistoryNotes ? "Saving…" : "Save Notes"}
               </button>
             </div>
           </div>
