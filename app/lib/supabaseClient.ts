@@ -309,19 +309,63 @@ export const supabaseFeedbackClient = {
 
 export const supabaseMeetingClient = {
   async listWorkspaces(accessToken: string) {
-    const response = await fetch(
-      `${getRestUrl("meetings")}?select=*&deleted_at=is.null&order=updated_at.desc`,
+    const requestWithDeletedFilter = async () =>
+      fetch(
+        `${getRestUrl("meetings")}?select=*&deleted_at=is.null&order=updated_at.desc`,
+        {
+          method: "GET",
+          headers: getSupabaseHeaders(accessToken),
+        },
+      );
+    const response = await requestWithDeletedFilter();
+    if (response.ok) {
+      return (await response.json()) as SupabaseMeeting[];
+    }
+
+    const primaryErrorMessage = await getRestErrorMessage(response, "Workspace list");
+    const isDeletedAtMissing = /deleted_at/i.test(primaryErrorMessage);
+    if (!isDeletedAtMissing) {
+      throw new Error(primaryErrorMessage);
+    }
+
+    const fallbackResponse = await fetch(
+      `${getRestUrl("meetings")}?select=*&order=updated_at.desc`,
       {
         method: "GET",
         headers: getSupabaseHeaders(accessToken),
       },
     );
-
-    if (!response.ok) {
-      throw new Error(await getRestErrorMessage(response, "Workspace list"));
+    if (!fallbackResponse.ok) {
+      throw new Error(await getRestErrorMessage(fallbackResponse, "Workspace list"));
     }
 
-    return (await response.json()) as SupabaseMeeting[];
+    const meetings = (await fallbackResponse.json()) as SupabaseMeeting[];
+    return meetings.filter((meeting) => !meeting.deleted_at);
+  },
+
+  async getWorkspaceById({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}&select=*&limit=1`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Workspace read"));
+    }
+    const meetings = (await response.json()) as SupabaseMeeting[];
+    const meeting = meetings[0];
+    if (!meeting) {
+      throw new Error("Cloud meeting was not found or is not accessible.");
+    }
+    return meeting;
   },
 
   async createWorkspace({

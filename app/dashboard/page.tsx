@@ -163,7 +163,7 @@ export default function DashboardPage() {
 
       setMeetings((currentMeetings) => [meeting, ...currentMeetings]);
       setNewMeetingName("");
-      router.push(`/meeting/${meeting.id}?prefillTitle=${encodeURIComponent(trimmedName)}`);
+      router.push(`/meeting/${meeting.id}`);
     } catch (error) {
       setMessage(
         error instanceof Error
