@@ -34,6 +34,23 @@ const formatRelativeTimestamp = (timestamp: string) => {
   }).format(new Date(milliseconds));
 };
 
+const buildNextDuplicateMeetingName = (sourceName: string, existingNames: string[]) => {
+  const trimmedSourceName = sourceName.trim();
+  const baseName = `${trimmedSourceName} Copy`;
+  const normalizedExistingNames = new Set(existingNames.map((name) => name.trim().toLocaleLowerCase()));
+
+  if (!normalizedExistingNames.has(baseName.toLocaleLowerCase())) {
+    return baseName;
+  }
+
+  let suffix = 2;
+  while (normalizedExistingNames.has(`${baseName} ${suffix}`.toLocaleLowerCase())) {
+    suffix += 1;
+  }
+
+  return `${baseName} ${suffix}`;
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const { session, isLoading, signOut } = useSupabaseAuth();
@@ -117,7 +134,7 @@ export default function DashboardPage() {
 
       setMeetings((currentMeetings) => [meeting, ...currentMeetings]);
       setNewMeetingName("");
-      router.push(`/meeting/${meeting.id}`);
+      router.push(`/meeting/${meeting.id}?prefillTitle=${encodeURIComponent(trimmedName)}`);
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -132,7 +149,13 @@ export default function DashboardPage() {
   const handleDuplicateMeeting = async (sourceMeeting: SupabaseMeeting) => {
     if (!session || isDuplicating) return;
 
+    const duplicateName = buildNextDuplicateMeetingName(
+      sourceMeeting.name,
+      meetings.map((meeting) => meeting.name),
+    );
+
     setIsDuplicating(sourceMeeting.id);
+    setDuplicateTarget(null);
     setMessage("");
 
     try {
@@ -140,6 +163,7 @@ export default function DashboardPage() {
         accessToken: session.accessToken,
         ownerId: session.user.id,
         sourceMeeting,
+        duplicateName,
       });
       setMeetings((currentMeetings) => [duplicated, ...currentMeetings]);
       setMessage(`Created ${duplicated.name}.`);

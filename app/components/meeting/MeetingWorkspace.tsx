@@ -9,7 +9,7 @@ import {
   type DragEvent,
 } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { AuthModal } from "@/app/components/auth/AuthModal";
 import { BackupRestoreModal } from "@/app/components/dashboard/BackupRestoreModal";
 import { MeetingSetupModal } from "@/app/components/dashboard/MeetingSetupModal";
@@ -239,6 +239,7 @@ const getLegacyStrategicTopics = (): MeetingItem[] => {
 
 export default function MeetingWorkspace() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const params = useParams<{ id?: string }>();
   const routeMeetingId = typeof params?.id === "string" ? params.id : "";
   const isLocalRoute = routeMeetingId === "local";
@@ -356,6 +357,23 @@ export default function MeetingWorkspace() {
   const [newTopicItem, setNewTopicItem] = useState("");
   const [newDecisionItem, setNewDecisionItem] = useState("");
   const [newCascadeItem, setNewCascadeItem] = useState("");
+
+  useEffect(() => {
+    const prefillTitle = searchParams.get("prefillTitle")?.trim();
+    if (!prefillTitle) return;
+    if (!hasLoadedDashboardTitle || !hasLoadedMeetingSetup) return;
+    if (hasCompletedMeetingSetup) return;
+    if (dashboardTitle !== defaultDashboardTitle) return;
+
+    setDashboardTitle(prefillTitle);
+  }, [
+    dashboardTitle,
+    hasCompletedMeetingSetup,
+    hasLoadedDashboardTitle,
+    hasLoadedMeetingSetup,
+    searchParams,
+    setDashboardTitle,
+  ]);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
   const [showMeetingSetup, setShowMeetingSetup] = useState(false);

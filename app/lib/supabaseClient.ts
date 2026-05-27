@@ -365,10 +365,12 @@ export const supabaseMeetingClient = {
     accessToken,
     ownerId,
     sourceMeeting,
+    duplicateName,
   }: {
     accessToken: string;
     ownerId: string;
     sourceMeeting: SupabaseMeeting;
+    duplicateName: string;
   }) {
     const response = await fetch(getRestUrl("meetings"), {
       method: "POST",
@@ -378,9 +380,7 @@ export const supabaseMeetingClient = {
       },
       body: JSON.stringify({
         owner_id: ownerId,
-        name: sourceMeeting.name.trim().endsWith("Copy")
-          ? `${sourceMeeting.name.trim()} 2`
-          : `${sourceMeeting.name.trim()} Copy`,
+        name: duplicateName,
         metadata_json: sourceMeeting.metadata_json,
         meeting_data: sourceMeeting.meeting_data,
       }),
@@ -443,12 +443,17 @@ export const supabaseMeetingClient = {
         method: "DELETE",
         headers: {
           ...getSupabaseHeaders(accessToken),
-          Prefer: "return=minimal",
+          Prefer: "return=representation",
         },
       },
     );
     if (!response.ok) {
       throw new Error(await getRestErrorMessage(response, "Workspace delete"));
+    }
+
+    const deletedMeetings = (await response.json()) as SupabaseMeeting[];
+    if (deletedMeetings.length === 0) {
+      throw new Error("Cloud meeting could not be deleted. Confirm delete permissions for archived meetings.");
     }
   },
 
