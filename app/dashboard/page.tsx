@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSupabaseAuth } from "@/app/hooks/useSupabaseAuth";
@@ -44,8 +44,10 @@ export default function DashboardPage() {
   const [isArchiving, setIsArchiving] = useState<string | null>(null);
   const [newMeetingName, setNewMeetingName] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [showDashboardMenu, setShowDashboardMenu] = useState(false);
   const [message, setMessage] = useState("");
   const [createMeetingError, setCreateMeetingError] = useState("");
+  const dashboardMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isLoading && !session) {
@@ -87,6 +89,22 @@ export default function DashboardPage() {
       isMounted = false;
     };
   }, [session]);
+
+  useEffect(() => {
+    if (!showDashboardMenu) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const menuElement = dashboardMenuRef.current;
+      if (!menuElement || !(event.target instanceof Node)) return;
+      if (menuElement.contains(event.target)) return;
+      setShowDashboardMenu(false);
+    };
+
+    window.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      window.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showDashboardMenu]);
 
   const teamName = session?.user.email
     ? `${session.user.email.split("@")[0]}'s Team`
@@ -223,6 +241,80 @@ export default function DashboardPage() {
           <p className="mt-1 text-base text-slate-600">{teamName}</p>
 
           <div className="mt-5 space-y-3">
+            <div className="flex justify-end" ref={dashboardMenuRef}>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowDashboardMenu((isOpen) => !isOpen)}
+                  className="flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:bg-blue-700"
+                  aria-expanded={showDashboardMenu}
+                  aria-haspopup="menu"
+                  aria-label="Open dashboard menu"
+                >
+                  <span className="text-lg leading-none" aria-hidden="true">
+                    ☰
+                  </span>
+                  Menu
+                </button>
+
+                {showDashboardMenu ? (
+                  <div
+                    className="absolute right-0 z-40 mt-3 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white py-2 shadow-xl"
+                    role="menu"
+                    aria-label="Dashboard menu"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMessage("Settings will be added in a future update.");
+                        setShowDashboardMenu(false);
+                      }}
+                      className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                      role="menuitem"
+                    >
+                      Settings
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMessage("Dark Mode control is coming soon.");
+                        setShowDashboardMenu(false);
+                      }}
+                      className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                      role="menuitem"
+                    >
+                      Dark Mode (Coming Soon)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void signOut()
+                          .then(() => {
+                            router.replace("/");
+                          })
+                          .catch(() => undefined)
+                      }
+                      className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                      role="menuitem"
+                    >
+                      Log Out
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMessage("Contact Us will be added in a future update.");
+                        setShowDashboardMenu(false);
+                      }}
+                      className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                      role="menuitem"
+                    >
+                      Contact Us (Coming Soon)
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
             <div className="flex min-w-0 gap-2">
               <input
                 type="text"
@@ -244,17 +336,7 @@ export default function DashboardPage() {
                 disabled={isCreatingMeeting}
                 className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isCreatingMeeting ? "Creating…" : "Start Blank"}
-              </button>
-              <button
-                type="button"
-                disabled={!activeMeetings.length || isCreatingMeeting}
-                onClick={() =>
-                  void handleDuplicateMeeting(activeMeetings[0] as SupabaseMeeting)
-                }
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Copy Existing Meeting
+                {isCreatingMeeting ? "Creating…" : "New Meeting"}
               </button>
               <label className="cursor-pointer rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
                 Import Backup
@@ -283,19 +365,6 @@ export default function DashboardPage() {
                 className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
               >
                 {showArchived ? "Hide archived" : `Show archived (${archivedMeetings.length})`}
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  void signOut()
-                    .then(() => {
-                      router.replace("/");
-                    })
-                    .catch(() => undefined)
-                }
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-              >
-                Log Out
               </button>
             </div>
             <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
