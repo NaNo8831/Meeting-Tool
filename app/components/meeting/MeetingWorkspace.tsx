@@ -401,7 +401,7 @@ export default function MeetingWorkspace() {
   const activeMeeting = meetings[activeMeetingIndex] ?? initialMeetings[0];
   const visibleStrategicTopicItems = strategicTopicItems.filter((item) => {
     const status = item.status ?? "active";
-    if (status === "archived" && !showArchivedStrategicTopics) return false;
+    if (status === "archived") return showArchivedStrategicTopics;
     if (status === "completed" && !showCompletedStrategicTopics) return false;
     const capturedMeetingIndex =
       item.capturedMeetingIndex ??
