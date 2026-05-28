@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type MouseEvent,
 } from "react";
 import type {
   RichTextBlock,
@@ -29,6 +30,7 @@ interface RichTextEditorProps {
   editingMode?: "manual" | "always";
   onEditingChange?: (isEditing: boolean) => void;
   disabled?: boolean;
+  activationMode?: 'click' | 'doubleClick';
 }
 
 interface RichTextRendererProps {
@@ -587,6 +589,7 @@ export function RichTextEditor({
   editingMode = "manual",
   onEditingChange,
   disabled = false,
+  activationMode = 'click',
 }: RichTextEditorProps) {
   const documentValue = useMemo(() => normalizeRichTextValue(value), [value]);
   const isAlwaysEditing = editingMode === "always";
@@ -665,6 +668,29 @@ export function RichTextEditor({
     onEditingChange?.(true);
   };
 
+  const handleViewerKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" && event.key !== "F2") return;
+
+    event.preventDefault();
+    startEditing();
+  };
+
+  const handleEditButtonClick = (event: MouseEvent<HTMLButtonElement>) => {
+    if (activationMode === "doubleClick") {
+      event.preventDefault();
+      return;
+    }
+
+    startEditing();
+  };
+
+  const handleEditButtonDoubleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    if (activationMode !== "doubleClick") return;
+
+    event.preventDefault();
+    startEditing();
+  };
+
   const saveEditing = () => {
     if (disabled) return;
     const nextDocument = readCurrentDraft();
@@ -741,20 +767,37 @@ export function RichTextEditor({
   if (!isEditing && !isAlwaysEditing) {
     return (
       <div
-        className={`rounded-2xl border border-slate-200 bg-white/80 ${className}`}
+        className={`group rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-200 ${activationMode === "doubleClick" ? "cursor-text" : ""} ${className}`}
+        onDoubleClick={activationMode === "doubleClick" ? startEditing : undefined}
+        onKeyDown={activationMode === "doubleClick" ? handleViewerKeyDown : undefined}
+        tabIndex={activationMode === "doubleClick" ? 0 : undefined}
+        role={activationMode === "doubleClick" ? "button" : undefined}
+        aria-label={activationMode === "doubleClick" ? `${ariaLabel}. Double-click to edit.` : undefined}
+        title={activationMode === "doubleClick" ? "Double-click to edit" : undefined}
       >
         <div className="flex items-start justify-between gap-3 p-3">
-          <RichTextRenderer
-            value={documentValue}
-            placeholder={placeholder}
-            className="flex-1 text-slate-700"
-          />
+          <div className="min-w-0 flex-1">
+            <RichTextRenderer
+              value={documentValue}
+              placeholder={placeholder}
+              className="text-slate-700"
+            />
+            {activationMode === "doubleClick" ? (
+              <p className="mt-2 text-xs font-medium text-slate-400 opacity-0 transition group-hover:opacity-100 group-focus:opacity-100">
+                Double-click to edit
+              </p>
+            ) : null}
+          </div>
           <button
             type="button"
-            onClick={startEditing}
+            onClick={handleEditButtonClick}
+            onDoubleClick={handleEditButtonDoubleClick}
             disabled={disabled}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            aria-label={`Edit ${ariaLabel}`}
+            className={`${activationMode === "doubleClick" ? "hidden" : "flex"} h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900`}
+            aria-label={activationMode === "doubleClick" ? `Double-click to edit ${ariaLabel}` : `Edit ${ariaLabel}`}
+            aria-hidden={activationMode === "doubleClick" ? true : undefined}
+            tabIndex={activationMode === "doubleClick" ? -1 : undefined}
+            title={activationMode === "doubleClick" ? "Double-click to edit" : undefined}
           >
             <svg
               aria-hidden="true"

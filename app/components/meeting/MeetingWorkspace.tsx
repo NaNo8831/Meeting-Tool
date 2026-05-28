@@ -7,6 +7,8 @@ import {
   useRef,
   useState,
   type DragEvent,
+  type KeyboardEvent,
+  type ReactNode,
 } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -62,6 +64,60 @@ import type { ObjectiveColor } from "@/app/types/objective";
 import type { RichTextDocument, RichTextValue } from "@/app/types/richText";
 
 const getTodayDate = () => new Date().toISOString().slice(0, 10);
+
+function PlaybookManagedSection({
+  children,
+  className = "",
+  label,
+}: {
+  children: ReactNode;
+  className?: string;
+  label: string;
+}) {
+  const [showReminder, setShowReminder] = useState(false);
+
+  const showPlaybookReminder = () => {
+    setShowReminder(true);
+  };
+
+  useEffect(() => {
+    if (!showReminder) return;
+
+    const reminderTimeout = window.setTimeout(() => {
+      setShowReminder(false);
+    }, 7000);
+
+    return () => window.clearTimeout(reminderTimeout);
+  }, [showReminder]);
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" && event.key !== "F2") return;
+
+    event.preventDefault();
+    showPlaybookReminder();
+  };
+
+  return (
+    <div
+      className={`group focus:outline-none focus:ring-2 focus:ring-blue-200 ${className}`}
+      onDoubleClick={showPlaybookReminder}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="button"
+      aria-label={`${label}. This section is managed from Edit Playbook.`}
+      title="This section is managed from Edit Playbook."
+    >
+      {children}
+      <p
+        className={`mt-3 text-sm font-medium text-blue-700 transition ${
+          showReminder ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+        }`}
+      >
+        This section is managed from Edit Playbook.
+      </p>
+    </div>
+  );
+}
 
 const isStrategicTopicRichTextNote = (
   value: unknown,
@@ -897,22 +953,7 @@ export default function MeetingWorkspace() {
   };
 
   const unarchiveStrategicTopicItem = (itemId: number) => {
-    setStrategicTopicItems(
-      strategicTopicItems.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              status: "completed",
-              completed: true,
-              completedDate: item.completedDate || activeMeeting.date,
-              archivedAt: undefined,
-              removedMeetingId: undefined,
-              removedMeetingIndex: undefined,
-              removedDate: undefined,
-            }
-          : item,
-      ),
-    );
+    restoreStrategicTopicToActive(itemId);
   };
 
   const deleteStrategicTopicItem = (itemId: number) => {
@@ -2312,44 +2353,59 @@ export default function MeetingWorkspace() {
         ) : null}
 
         <div className="mb-10 space-y-5">
-          <section className="bg-white rounded-3xl p-6 text-center shadow md:p-8">
+          <PlaybookManagedSection
+            className="bg-white rounded-3xl p-6 text-center shadow md:p-8"
+            label="Why Do We Exist?"
+          >
             <h2 className="mb-4 text-2xl font-bold text-black">
               Why Do We Exist?
             </h2>
             <div className="mx-auto max-w-4xl text-lg leading-relaxed">
               {renderMissionValue(organizationInfoWithDefaults.whyExist)}
             </div>
-          </section>
+          </PlaybookManagedSection>
 
           <div className="grid md:grid-cols-3 gap-5">
-            <div className="bg-white rounded-3xl p-5 shadow">
+            <PlaybookManagedSection
+              className="bg-white rounded-3xl p-5 shadow"
+              label="How Do We Behave?"
+            >
               <h2 className="font-bold text-lg mb-3 text-black">
                 How Do We Behave?
               </h2>
               {renderMissionValue(organizationInfoWithDefaults.howBehave)}
-            </div>
-            <div className="bg-white rounded-3xl p-5 shadow">
+            </PlaybookManagedSection>
+            <PlaybookManagedSection
+              className="bg-white rounded-3xl p-5 shadow"
+              label="What Do We Do?"
+            >
               <h2 className="font-bold text-lg mb-3 text-black">
                 What Do We Do?
               </h2>
               {renderMissionValue(organizationInfoWithDefaults.whatDo)}
-            </div>
-            <div className="bg-white rounded-3xl p-5 shadow">
+            </PlaybookManagedSection>
+            <PlaybookManagedSection
+              className="bg-white rounded-3xl p-5 shadow"
+              label="How Will We Succeed?"
+            >
               <h2 className="font-bold text-lg mb-3 text-black">
                 How Will We Succeed?
               </h2>
               {renderMissionValue(organizationInfoWithDefaults.howSucceed)}
-            </div>
+            </PlaybookManagedSection>
           </div>
 
-          <section className="mx-auto max-w-4xl rounded-3xl border border-blue-100 bg-blue-50/80 p-6 text-center shadow md:p-8">
+          <PlaybookManagedSection
+            className="mx-auto max-w-4xl rounded-3xl border border-blue-100 bg-blue-50/80 p-6 text-center shadow md:p-8"
+            label="Top Priority"
+          >
             <p className="mb-4 text-sm font-semibold uppercase tracking-wide text-blue-600">
               Top Priority
             </p>
             <p className="text-3xl font-bold leading-snug text-slate-900 whitespace-pre-line">
               {organizationInfoWithDefaults.rallyCry || "Top Priority"}
             </p>
-          </section>
+          </PlaybookManagedSection>
         </div>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">

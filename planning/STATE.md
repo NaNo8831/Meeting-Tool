@@ -8,7 +8,7 @@
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can save/load full workspace backup JSON in Supabase, and optionally receive explicit Local Workspace migration.
 - Backup: JSON export/import workspace backup.
 - Current focus: Structured Persistence Phase A/B schema foundation on `phase-2-cloud` direction, introducing non-breaking structured tables while preserving current manual save/load and backup behavior, plus dashboard create/duplicate/archive/restore meeting management and lightweight dashboard/menu UX cleanup.
-- Current branch note: Strategic Topic History Modal UX is based from the available `phase-2-cloud` branch context in this workspace.
+- Current branch note: Double-Click Editing UX is based from the available `phase-2-cloud` branch context in this workspace; this container has no configured git remote, so latest remote refresh could not be performed locally.
 
 ## Production State
 
@@ -34,6 +34,7 @@
 - Tactical history foundation added on cloud meetings: **End Meeting** now writes archival tactical session snapshots to `tactical_sessions` (with `snapshot_json`) and a lightweight Tactical History viewer is available in the meeting workspace; operational runtime state still remains on `meetings.meeting_data`.
 - Strategic Topic notes/history foundation added for cloud meetings: each Strategic Topic can open a lightweight **History / Notes** modal and manually save/load topic-scoped rich text notes via existing `strategic_topic_notes` fields keyed by (`meeting_id`, `strategic_topic_item_id`).
 - Strategic Topic lifecycle behavior is now active in the runtime UI with non-destructive states (`active`, `completed`, `archived`); completed and archived topics move out of the active list into a lightweight History modal while preserving topic-attached Notes.
+- Runtime editing UX now favors intentional entry: meeting items, objective titles/descriptions, and task detail title/description use double-click-to-edit, while playbook-controlled runtime summaries show an Edit Playbook reminder instead of direct editing.
 - Next recommended sprint: First structured write pilot on a narrow surface (likely `meeting_settings` or `strategic_topics`) after validating the schema foundation.
 - Blockers: Full-workspace autosave approach was abandoned (PR #41); structured section/item persistence design and sequencing is now required before new cloud persistence implementation.
 
