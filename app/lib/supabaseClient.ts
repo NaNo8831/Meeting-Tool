@@ -365,10 +365,12 @@ export const supabaseMeetingClient = {
     accessToken,
     ownerId,
     sourceMeeting,
+    duplicateName,
   }: {
     accessToken: string;
     ownerId: string;
     sourceMeeting: SupabaseMeeting;
+    duplicateName?: string;
   }) {
     const response = await fetch(getRestUrl("meetings"), {
       method: "POST",
@@ -378,9 +380,11 @@ export const supabaseMeetingClient = {
       },
       body: JSON.stringify({
         owner_id: ownerId,
-        name: sourceMeeting.name.trim().endsWith("Copy")
-          ? `${sourceMeeting.name.trim()} 2`
-          : `${sourceMeeting.name.trim()} Copy`,
+        name:
+          duplicateName ??
+          (sourceMeeting.name.trim().endsWith("Copy")
+            ? `${sourceMeeting.name.trim()} 2`
+            : `${sourceMeeting.name.trim()} Copy`),
         metadata_json: sourceMeeting.metadata_json,
         meeting_data: sourceMeeting.meeting_data,
       }),
