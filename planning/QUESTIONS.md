@@ -7,5 +7,5 @@
 | Should local-to-cloud migration state eventually move from browser-local signatures into cloud metadata? | Migration | Open |
 | What precise behavior should owner, editor, and viewer roles have? | Permissions | Open |
 | Is realtime collaboration required after basic cloud persistence? | Collaboration | Open |
-| How should archived/completed Strategic Topics be surfaced? | Product UX | Open |
+| How should archived/completed Strategic Topics be surfaced? | Product UX | Answered: use a Strategic Topic History modal with Completed and Archived tabs. |
 | What refinements, if any, should the merged Meeting Setup flow receive after team testing? | Product UX | Open |
