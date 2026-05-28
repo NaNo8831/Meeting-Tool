@@ -359,6 +359,34 @@ export const supabaseMeetingClient = {
     return meeting;
   },
 
+  async getWorkspace({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(
+        workspaceId,
+      )}&select=id,name,owner_id,archived_at&limit=1`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Workspace fetch"));
+    }
+
+    const meetings = (await response.json()) as Pick<
+      SupabaseMeeting,
+      "id" | "name" | "owner_id" | "archived_at"
+    >[];
+    return meetings[0] ?? null;
+  },
+
 
 
   async duplicateWorkspace({

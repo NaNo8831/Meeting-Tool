@@ -470,6 +470,44 @@ export default function MeetingWorkspace() {
   }, [isCloudRoute, isLocalRoute, routeMeetingId, selectedMeetingId]);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const hydrateSelectedMeetingName = async () => {
+      if (!authSession || !selectedMeetingId || selectedMeetingName) return;
+
+      try {
+        const meeting = await supabaseMeetingClient.getWorkspace({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+        });
+        if (!isMounted || !meeting?.name) return;
+        setSelectedMeetingName(meeting.name);
+      } catch {
+        // Keep current fallback behavior when workspace metadata cannot be read.
+      }
+    };
+
+    void hydrateSelectedMeetingName();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [authSession, selectedMeetingId, selectedMeetingName]);
+
+  useEffect(() => {
+    if (workspaceMode !== "cloud") return;
+    if (!selectedMeetingName.trim()) return;
+
+    const trimmedDashboardTitle = dashboardTitle.trim();
+    if (
+      !trimmedDashboardTitle ||
+      trimmedDashboardTitle === "Meeting Tool by LyArk"
+    ) {
+      setDashboardTitle(selectedMeetingName);
+    }
+  }, [dashboardTitle, selectedMeetingName, setDashboardTitle, workspaceMode]);
+
+  useEffect(() => {
     if (!isLocalRoute || !authSession) return;
     router.replace("/dashboard");
   }, [authSession, isLocalRoute, router]);
