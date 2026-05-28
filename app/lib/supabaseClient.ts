@@ -24,6 +24,7 @@ export type SupabaseMeeting = {
   metadata_json: Record<string, unknown> | null;
   meeting_data: Record<string, unknown> | null;
   archived_at: string | null;
+  deleted_at: string | null;
 };
 
 export type SupabaseTacticalSession = {
@@ -309,7 +310,7 @@ export const supabaseFeedbackClient = {
 export const supabaseMeetingClient = {
   async listWorkspaces(accessToken: string) {
     const response = await fetch(
-      `${getRestUrl("meetings")}?select=*&order=updated_at.desc`,
+      `${getRestUrl("meetings")}?select=*&deleted_at=is.null&order=updated_at.desc`,
       {
         method: "GET",
         headers: getSupabaseHeaders(accessToken),
@@ -369,7 +370,7 @@ export const supabaseMeetingClient = {
     const response = await fetch(
       `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(
         workspaceId,
-      )}&select=id,name,owner_id,archived_at&limit=1`,
+      )}&select=id,name,owner_id,archived_at,deleted_at&deleted_at=is.null&limit=1`,
       {
         method: "GET",
         headers: getSupabaseHeaders(accessToken),
@@ -382,7 +383,7 @@ export const supabaseMeetingClient = {
 
     const meetings = (await response.json()) as Pick<
       SupabaseMeeting,
-      "id" | "name" | "owner_id" | "archived_at"
+      "id" | "name" | "owner_id" | "archived_at" | "deleted_at"
     >[];
     return meetings[0] ?? null;
   },
@@ -458,6 +459,42 @@ export const supabaseMeetingClient = {
     const meeting = meetings[0];
     if (!meeting) {
       throw new Error("Cloud meeting was not found or is not accessible.");
+    }
+
+    return meeting;
+  },
+
+  async softDeleteArchivedWorkspace({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}&archived_at=not.is.null&deleted_at=is.null`,
+      {
+        method: "PATCH",
+        headers: {
+          ...getSupabaseHeaders(accessToken),
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify({ deleted_at: new Date().toISOString() }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Archived meeting delete"),
+      );
+    }
+
+    const meetings = (await response.json()) as SupabaseMeeting[];
+    const meeting = meetings[0];
+    if (!meeting) {
+      throw new Error(
+        "Only archived meetings can be deleted, or this meeting is no longer accessible.",
+      );
     }
 
     return meeting;
