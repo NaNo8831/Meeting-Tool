@@ -1955,19 +1955,25 @@ export default function MeetingWorkspace() {
   }
 
   if (isCloudRoute && !selectedMeetingId) {
+    const shouldShowCloudRouteUnavailable =
+      cloudSaveStatus === "error" && Boolean(cloudMeetingMessage);
+
     return (
       <main className="min-h-screen bg-slate-100 p-8">
         <div className="mx-auto flex min-h-[60vh] max-w-[1600px] items-center justify-center">
           <div className="max-w-md rounded-3xl border border-slate-200 bg-white px-6 py-5 text-center text-slate-700 shadow-sm">
             <p className="text-sm font-semibold text-blue-600">Cloud Meeting</p>
             <h1 className="mt-2 text-xl font-bold text-slate-900">
-              {isRouteCloudBootstrapping ? "Loading cloud meeting…" : "Cloud meeting unavailable"}
+              {shouldShowCloudRouteUnavailable
+                ? "Cloud meeting unavailable"
+                : "Loading cloud meeting…"}
             </h1>
             <p className="mt-3 text-sm leading-relaxed">
-              {cloudMeetingMessage ||
-                "Cloud meeting routes only load meetings that exist in Supabase and have not been deleted."}
+              {shouldShowCloudRouteUnavailable
+                ? cloudMeetingMessage
+                : "Checking cloud meeting access…"}
             </p>
-            {authSession ? (
+            {authSession && shouldShowCloudRouteUnavailable ? (
               <Link
                 href="/dashboard"
                 className="mt-5 inline-flex rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
@@ -2151,7 +2157,7 @@ export default function MeetingWorkspace() {
                 className="flex h-14 items-center gap-2 rounded-full bg-blue-600 px-5 font-semibold text-white shadow-lg hover:bg-blue-700"
                 aria-expanded={showSettingsMenu}
                 aria-haspopup="menu"
-                aria-label="Open dashboard menu"
+                aria-label="Open meeting menu"
               >
                 <span className="text-2xl leading-none" aria-hidden="true">
                   ☰
@@ -2163,16 +2169,18 @@ export default function MeetingWorkspace() {
                 <div
                   className="absolute right-0 z-40 mt-3 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white py-2 shadow-xl"
                   role="menu"
-                  aria-label="Dashboard menu"
+                  aria-label="Meeting menu"
                 >
-                  <Link
-                    href="/dashboard"
-                    onClick={() => setShowSettingsMenu(false)}
-                    className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
-                    role="menuitem"
-                  >
-                    Dashboard
-                  </Link>
+                  {!isLocalRoute ? (
+                    <Link
+                      href="/dashboard"
+                      onClick={() => setShowSettingsMenu(false)}
+                      className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                      role="menuitem"
+                    >
+                      Dashboard
+                    </Link>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => {

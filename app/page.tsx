@@ -32,19 +32,20 @@ export default function LandingPage() {
           onSignIn={signIn}
           onSignUp={signUp}
           onSignOut={signOut}
+          onContinueLocally={() => router.push("/meeting/local")}
         />
 
         <div className="rounded-3xl border border-white/20 bg-white/10 p-5 text-center text-white shadow-xl backdrop-blur-md">
           <h1 className="text-lg font-semibold">Meeting Tool by LyArk</h1>
           <p className="mt-2 text-sm text-slate-200">
-            Sign in for Cloud Meetings or continue in Local Workspace.
+            Sign in for Cloud Meetings or use the browser-only Local Workspace.
           </p>
           <button
             type="button"
             onClick={() => router.push("/meeting/local")}
             className="mt-4 w-full rounded-full border border-white/40 px-4 py-3 text-sm font-semibold hover:bg-white/10"
           >
-            Continue Locally
+            Continue locally — browser only
           </button>
         </div>
       </div>
