@@ -21,6 +21,7 @@
 - Keep the planning source of truth current, including the new deferred-scope registry in `planning/FUTURE_PHASES.md`.
 - Keep `main` stable for production and UX stabilization.
 - Treat the Meeting Setup flow as part of the current production baseline on `main` after PR #23.
+- First-Time Setup cleanup in progress on `phase-2-cloud` flow: use cloud meeting row title as setup title fallback, remove setup filler defaults/placeholders, and keep manual save behavior unchanged.
 - Keep structured persistence schema foundation aligned with owner-only RLS and no runtime read/write switch yet.
 - Document and sequence next migration slices without breaking current owner-only cloud save/load behavior.
 - Keep membership architecture, role direction (`owner`/`editor`/`viewer`), and ownership-handling rules documented as the permission foundation for future sharing work.
