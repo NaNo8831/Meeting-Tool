@@ -42,6 +42,7 @@ export default function DashboardPage() {
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState<string | null>(null);
   const [isArchiving, setIsArchiving] = useState<string | null>(null);
+  const [meetingPendingDuplicate, setMeetingPendingDuplicate] = useState<SupabaseMeeting | null>(null);
   const [newMeetingName, setNewMeetingName] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [showDashboardMenu, setShowDashboardMenu] = useState(false);
@@ -144,6 +145,23 @@ export default function DashboardPage() {
     }
   };
 
+  const getNextDuplicateMeetingName = (sourceName: string) => {
+    const trimmedSourceName = sourceName.trim();
+    const baseName = `${trimmedSourceName} Copy`;
+    const existingNames = new Set(meetings.map((meeting) => meeting.name.trim()));
+
+    if (!existingNames.has(baseName)) {
+      return baseName;
+    }
+
+    let copyNumber = 2;
+    while (existingNames.has(`${baseName} ${copyNumber}`)) {
+      copyNumber += 1;
+    }
+
+    return `${baseName} ${copyNumber}`;
+  };
+
   const handleDuplicateMeeting = async (sourceMeeting: SupabaseMeeting) => {
     if (!session || isDuplicating) return;
 
@@ -151,10 +169,12 @@ export default function DashboardPage() {
     setMessage("");
 
     try {
+      const duplicateName = getNextDuplicateMeetingName(sourceMeeting.name);
       const duplicated = await supabaseMeetingClient.duplicateWorkspace({
         accessToken: session.accessToken,
         ownerId: session.user.id,
         sourceMeeting,
+        duplicateName,
       });
       setMeetings((currentMeetings) => [duplicated, ...currentMeetings]);
       setMessage(`Created ${duplicated.name}.`);
@@ -166,6 +186,7 @@ export default function DashboardPage() {
       );
     } finally {
       setIsDuplicating(null);
+      setMeetingPendingDuplicate(null);
     }
   };
 
@@ -367,9 +388,6 @@ export default function DashboardPage() {
                 {showArchived ? "Hide archived" : `Show archived (${archivedMeetings.length})`}
               </button>
             </div>
-            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-              Duplicating copies the current meeting workspace, but Tactical and Strategic history records are not copied yet.
-            </p>
           </div>
         </header>
 
@@ -403,7 +421,7 @@ export default function DashboardPage() {
                 <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
                   {!meeting.archived_at ? (
                     <div className="flex flex-col items-stretch gap-2 sm:items-end">
-                      <button type="button" onClick={() => void handleDuplicateMeeting(meeting)} className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100" disabled={isDuplicating === meeting.id}>
+                      <button type="button" onClick={() => setMeetingPendingDuplicate(meeting)} className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100" disabled={Boolean(isDuplicating)}>
                         {isDuplicating === meeting.id ? "Duplicating…" : "Duplicate"}
                       </button>
                       <button type="button" onClick={() => void handleArchiveMeeting(meeting)} className="rounded-xl border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50" disabled={isArchiving === meeting.id}>
@@ -431,6 +449,35 @@ export default function DashboardPage() {
           </p>
         ) : null}
       </div>
+
+      {meetingPendingDuplicate ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <h2 className="text-lg font-semibold text-slate-900">Duplicate meeting?</h2>
+            <p className="mt-3 text-sm text-slate-700">
+              Duplicating copies the current meeting workspace, but Tactical and Strategic history records are not copied yet.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setMeetingPendingDuplicate(null)}
+                disabled={Boolean(isDuplicating)}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDuplicateMeeting(meetingPendingDuplicate)}
+                disabled={Boolean(isDuplicating)}
+                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isDuplicating ? "Duplicating…" : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
