@@ -7,12 +7,12 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can save/load full workspace backup JSON in Supabase, and optionally receive explicit Local Workspace migration.
 - Backup: JSON export/import workspace backup.
-- Current focus: Structured Persistence Phase A/B schema foundation on `phase-2-cloud` direction, introducing non-breaking structured tables while preserving current manual save/load and backup behavior, plus dashboard create/duplicate/archive meeting management.
-- Current branch note: Routing Foundation work is based from the updated `phase-2-cloud` branch context.
+- Current focus: Structured Persistence Phase A/B schema foundation on `phase-2-cloud` direction, introducing non-breaking structured tables while preserving current manual save/load and backup behavior, plus dashboard create/duplicate/archive meeting management and lightweight dashboard/menu UX cleanup.
+- Current branch note: Dashboard message placement and meeting menu cleanup is based from the latest available `phase-2-cloud` branch context.
 
 ## Production State
 
-- The app supports lightweight leadership meeting operations around Meeting Setup, Playbook Definitions, Top Priority, Defining Objectives, tasks, Standard Operating Objectives, Strategic Topics, meeting sections, and Cascading Communication.
+- The app supports lightweight leadership meeting operations around first-time setup, Edit Playbook, Top Priority, Defining Objectives, tasks, Standard Operating Objectives, Strategic Topics, meeting sections, and Cascading Communication.
 - Tasks follow the workflow `Planning → In Progress → Completed` and include details, descriptions, comments, activity history, and subtasks.
 - RichTextEditor provides lightweight formatting for applicable descriptions/content.
 
@@ -21,7 +21,7 @@
 - Keep the planning source of truth current, including the new deferred-scope registry in `planning/FUTURE_PHASES.md`.
 - Keep `main` stable for production and UX stabilization.
 - Treat the Meeting Setup flow as part of the current production baseline on `main` after PR #23.
-- First-Time Setup cleanup in progress on `phase-2-cloud` flow: use cloud meeting row title as setup title fallback, remove setup filler defaults/placeholders, and keep manual save behavior unchanged.
+- First-Time Setup cleanup is stable on the `phase-2-cloud` flow: use cloud meeting row title as setup title fallback, remove setup filler defaults/placeholders, and keep manual save behavior unchanged.
 - Keep structured persistence schema foundation aligned with owner-only RLS and no runtime read/write switch yet.
 - Document and sequence next migration slices without breaking current owner-only cloud save/load behavior.
 - Keep membership architecture, role direction (`owner`/`editor`/`viewer`), and ownership-handling rules documented as the permission foundation for future sharing work.
