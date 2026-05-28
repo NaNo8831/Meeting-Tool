@@ -48,9 +48,12 @@ export default function DashboardPage() {
   const [newMeetingName, setNewMeetingName] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [showDashboardMenu, setShowDashboardMenu] = useState(false);
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [message, setMessage] = useState("");
   const [createMeetingError, setCreateMeetingError] = useState("");
   const dashboardMenuRef = useRef<HTMLDivElement>(null);
+  const optionsMenuRef = useRef<HTMLDivElement>(null);
+  const backupInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isLoading && !session) {
@@ -108,6 +111,22 @@ export default function DashboardPage() {
       window.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showDashboardMenu]);
+
+  useEffect(() => {
+    if (!showOptionsMenu) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const menuElement = optionsMenuRef.current;
+      if (!menuElement || !(event.target instanceof Node)) return;
+      if (menuElement.contains(event.target)) return;
+      setShowOptionsMenu(false);
+    };
+
+    window.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      window.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showOptionsMenu]);
 
   const teamName = session?.user.email
     ? `${session.user.email.split("@")[0]}'s Team`
@@ -295,7 +314,10 @@ export default function DashboardPage() {
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => setShowDashboardMenu((isOpen) => !isOpen)}
+                  onClick={() => {
+                    setShowDashboardMenu((isOpen) => !isOpen);
+                    setShowOptionsMenu(false);
+                  }}
                   className="flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:bg-blue-700"
                   aria-expanded={showDashboardMenu}
                   aria-haspopup="menu"
@@ -365,7 +387,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="flex min-w-0 gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <input
                 type="text"
                 value={newMeetingName}
@@ -377,52 +399,91 @@ export default function DashboardPage() {
                 maxLength={80}
                 className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
               />
-            </div>
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void handleCreateBlankMeeting()}
-                disabled={isCreatingMeeting}
-                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isCreatingMeeting ? "Creating…" : "New Meeting"}
-              </button>
-              <label className="cursor-pointer rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
-                Import Backup
+              <div className="flex items-center justify-end gap-2">
+                <div className="relative" ref={optionsMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowOptionsMenu((isOpen) => !isOpen);
+                      setShowDashboardMenu(false);
+                    }}
+                    className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                    aria-expanded={showOptionsMenu}
+                    aria-haspopup="menu"
+                    aria-label="Open dashboard options"
+                  >
+                    Options
+                  </button>
+
+                  {showOptionsMenu ? (
+                    <div
+                      className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white py-2 shadow-xl sm:left-0 sm:right-auto"
+                      role="menu"
+                      aria-label="Dashboard options"
+                    >
+                      <Link
+                        href="/meeting/local"
+                        className="block w-full px-5 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                        role="menuitem"
+                      >
+                        Continue Locally
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowArchived((current) => !current);
+                          setShowOptionsMenu(false);
+                        }}
+                        className="block w-full px-5 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                        role="menuitem"
+                      >
+                        {showArchived
+                          ? "Hide archived"
+                          : `Show archived (${archivedMeetings.length})`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => backupInputRef.current?.click()}
+                        className="block w-full px-5 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                        role="menuitem"
+                      >
+                        Import Backup
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+
                 <input
+                  ref={backupInputRef}
                   type="file"
                   accept="application/json"
                   className="hidden"
-                  onChange={(event) => void handleImportBackupPlaceholder(event)}
+                  onChange={(event) => {
+                    setShowOptionsMenu(false);
+                    void handleImportBackupPlaceholder(event);
+                  }}
                 />
-              </label>
+
+                <button
+                  type="button"
+                  onClick={() => void handleCreateBlankMeeting()}
+                  disabled={isCreatingMeeting}
+                  className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isCreatingMeeting ? "Creating…" : "Create New Meeting"}
+                </button>
+              </div>
             </div>
             {createMeetingError ? (
               <p className="pl-1 text-xs text-amber-800">{createMeetingError}</p>
             ) : null}
-
-            <div className="flex flex-wrap gap-3 pt-1">
-              <Link
-                href="/meeting/local"
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-              >
-                Continue Locally
-              </Link>
-              <button
-                type="button"
-                onClick={() => setShowArchived((current) => !current)}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-              >
-                {showArchived ? "Hide archived" : `Show archived (${archivedMeetings.length})`}
-              </button>
-            </div>
           </div>
         </header>
 
         {message ? (
           <p
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm"
+            className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-950 shadow-sm"
             role="status"
           >
             {message}

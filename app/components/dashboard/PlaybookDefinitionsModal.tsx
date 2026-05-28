@@ -38,6 +38,7 @@ export function PlaybookDefinitionsModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="playbook-definitions-title"
+      onMouseDown={onClose}
     >
       <div
         className="bg-white rounded-3xl p-8 md:p-10 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
@@ -136,6 +137,7 @@ export function PlaybookDefinitionsModal({
         </div>
 
         <button
+          type="button"
           onClick={onClose}
           className="mt-8 px-8 py-3 bg-blue-600 text-white rounded-xl text-xl font-semibold hover:bg-blue-700"
         >
