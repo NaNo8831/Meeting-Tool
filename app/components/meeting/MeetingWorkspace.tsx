@@ -22,6 +22,8 @@ import { ColorSquareSelect } from "@/app/components/ui/ColorSquareSelect";
 import {
   RichTextEditor,
   RichTextRenderer,
+  getRichTextPlainText,
+  normalizeRichTextValue,
 } from "@/app/components/ui/RichTextEditor";
 import { useLocalStorage } from "@/app/hooks/useLocalStorage";
 import { useObjectives } from "@/app/hooks/useObjectives";
@@ -57,9 +59,29 @@ import type {
   StandardOperatingObjective,
 } from "@/app/types/dashboard";
 import type { ObjectiveColor } from "@/app/types/objective";
-import type { RichTextValue } from "@/app/types/richText";
+import type { RichTextDocument, RichTextValue } from "@/app/types/richText";
 
 const getTodayDate = () => new Date().toISOString().slice(0, 10);
+
+const isStrategicTopicRichTextNote = (
+  value: unknown,
+): value is RichTextDocument => {
+  if (typeof value !== "object" || value === null) return false;
+
+  const candidate = value as Partial<RichTextDocument>;
+  return candidate.version === 1 && Array.isArray(candidate.blocks);
+};
+
+const getStrategicTopicNoteDraft = (
+  note: SupabaseStrategicTopicNote | null,
+): RichTextValue => {
+  if (!note) return "";
+  if (isStrategicTopicRichTextNote(note.content_json)) {
+    return note.content_json;
+  }
+
+  return note.content_text ?? "";
+};
 
 const strategicTopicsStorageKey = "leadership-strategic-topic-items";
 const meetingSetupCompletedStorageKey = "leadership-meeting-setup-completed";
@@ -390,7 +412,7 @@ export default function MeetingWorkspace() {
   const [selectedTacticalSessionId, setSelectedTacticalSessionId] =
     useState("");
   const [historyNotesTopic, setHistoryNotesTopic] = useState<MeetingItem | null>(null);
-  const [historyNotesDraft, setHistoryNotesDraft] = useState("");
+  const [historyNotesDraft, setHistoryNotesDraft] = useState<RichTextValue>("");
   const [historyNotesStatus, setHistoryNotesStatus] = useState("");
   const [isLoadingHistoryNotes, setIsLoadingHistoryNotes] = useState(false);
   const [isSavingHistoryNotes, setIsSavingHistoryNotes] = useState(false);
@@ -1128,7 +1150,7 @@ export default function MeetingWorkspace() {
           strategicTopicItemId: item.id,
         });
         setStrategicTopicNotesById((current) => ({ ...current, [item.id]: note }));
-        setHistoryNotesDraft(note?.content_text ?? "");
+        setHistoryNotesDraft(getStrategicTopicNoteDraft(note));
       } catch (error) {
         setHistoryNotesDraft("");
         setHistoryNotesStatus(
@@ -1148,11 +1170,13 @@ export default function MeetingWorkspace() {
     setIsSavingHistoryNotes(true);
     setHistoryNotesStatus("Saving history…");
     try {
+      const contentDocument = normalizeRichTextValue(historyNotesDraft);
       const saved = await supabaseMeetingClient.saveStrategicTopicNote({
         accessToken: authSession.accessToken,
         workspaceId: selectedMeetingId,
         strategicTopicItemId: historyNotesTopic.id,
-        contentText: historyNotesDraft,
+        contentText: getRichTextPlainText(contentDocument),
+        contentJson: contentDocument as unknown as Record<string, unknown>,
       });
       setStrategicTopicNotesById((current) => ({
         ...current,
@@ -2652,12 +2676,17 @@ export default function MeetingWorkspace() {
               </button>
             </div>
             <p className="mb-2 text-sm text-slate-600">{historyNotesTopic.text}</p>
-            <textarea
+            <RichTextEditor
+              key={`${historyNotesTopic.id}:${isLoadingHistoryNotes ? "loading" : "ready"}`}
               value={historyNotesDraft}
-              onChange={(event) => setHistoryNotesDraft(event.target.value)}
+              onChange={setHistoryNotesDraft}
               disabled={isLoadingHistoryNotes || !authSession || !selectedMeetingId}
-              className="min-h-48 w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-900"
               placeholder="Add strategic notes/history for this topic."
+              className="bg-white"
+              editorClassName="text-sm leading-relaxed"
+              minHeightClassName="min-h-48"
+              ariaLabel="Strategic topic notes"
+              editingMode="always"
             />
             {strategicTopicNotesById[historyNotesTopic.id]?.updated_at ? (
               <p className="mt-2 text-xs text-slate-500">

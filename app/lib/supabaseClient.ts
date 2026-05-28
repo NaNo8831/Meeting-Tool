@@ -704,11 +704,13 @@ export const supabaseMeetingClient = {
     workspaceId,
     strategicTopicItemId,
     contentText,
+    contentJson = null,
   }: {
     accessToken: string;
     workspaceId: string;
     strategicTopicItemId: number;
     contentText: string;
+    contentJson?: Record<string, unknown> | null;
   }) {
     const existingNote = await this.loadStrategicTopicNote({
       accessToken,
@@ -729,14 +731,14 @@ export const supabaseMeetingClient = {
         existingNote
           ? {
               content_text: contentText,
-              content_json: null,
+              content_json: contentJson,
               updated_at: updatedAtIso,
             }
           : {
               meeting_id: workspaceId,
               strategic_topic_item_id: strategicTopicItemId,
               content_text: contentText,
-              content_json: null,
+              content_json: contentJson,
               updated_at: updatedAtIso,
             },
       ),

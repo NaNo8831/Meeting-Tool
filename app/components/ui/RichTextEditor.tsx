@@ -28,6 +28,7 @@ interface RichTextEditorProps {
   ariaLabel?: string;
   editingMode?: "manual" | "always";
   onEditingChange?: (isEditing: boolean) => void;
+  disabled?: boolean;
 }
 
 interface RichTextRendererProps {
@@ -280,7 +281,7 @@ const getBlocksPlainText = (blocks: RichTextBlock[]): string =>
     })
     .join("\n");
 
-const getPlainText = (documentValue: RichTextDocument) =>
+export const getRichTextPlainText = (documentValue: RichTextDocument) =>
   (documentValue.columnBlocks ?? [documentValue.blocks])
     .map((blocks) => getBlocksPlainText(blocks))
     .join("\n")
@@ -553,7 +554,7 @@ export function RichTextRenderer({
   className = "",
 }: RichTextRendererProps) {
   const documentValue = normalizeRichTextValue(value);
-  const hasContent = getPlainText(documentValue).length > 0;
+  const hasContent = getRichTextPlainText(documentValue).length > 0;
   const columnBlocks = documentValue.columnBlocks ?? [documentValue.blocks];
 
   if (!hasContent && placeholder) {
@@ -585,13 +586,14 @@ export function RichTextEditor({
   ariaLabel = "Rich text editor",
   editingMode = "manual",
   onEditingChange,
+  disabled = false,
 }: RichTextEditorProps) {
   const documentValue = useMemo(() => normalizeRichTextValue(value), [value]);
   const isAlwaysEditing = editingMode === "always";
   const [draftDocument, setDraftDocument] = useState(documentValue);
   const [isEditing, setIsEditing] = useState(isAlwaysEditing);
   const [hasDraftContent, setHasDraftContent] = useState(
-    getPlainText(documentValue).length > 0,
+    getRichTextPlainText(documentValue).length > 0,
   );
   const [formattingState, setFormattingState] = useState(emptyFormattingState);
   const editorRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -635,7 +637,7 @@ export function RichTextEditor({
 
   const updateDraftDocument = (nextDocument: RichTextDocument) => {
     setDraftDocument(nextDocument);
-    setHasDraftContent(getPlainText(nextDocument).length > 0);
+    setHasDraftContent(getRichTextPlainText(nextDocument).length > 0);
     if (isAlwaysEditing) {
       onChange(nextDocument);
     }
@@ -643,7 +645,7 @@ export function RichTextEditor({
 
   const publishCurrentDraft = () => {
     const nextDocument = readCurrentDraft();
-    setHasDraftContent(getPlainText(nextDocument).length > 0);
+    setHasDraftContent(getRichTextPlainText(nextDocument).length > 0);
     if (isAlwaysEditing) {
       onChange(nextDocument);
     }
@@ -654,15 +656,17 @@ export function RichTextEditor({
   };
 
   const startEditing = () => {
+    if (disabled) return;
     const normalized = documentValue;
     setDraftDocument(normalized);
-    setHasDraftContent(getPlainText(normalized).length > 0);
+    setHasDraftContent(getRichTextPlainText(normalized).length > 0);
     setFormattingState(emptyFormattingState);
     setIsEditing(true);
     onEditingChange?.(true);
   };
 
   const saveEditing = () => {
+    if (disabled) return;
     const nextDocument = readCurrentDraft();
     updateDraftDocument(nextDocument);
     setIsEditing(false);
@@ -673,7 +677,7 @@ export function RichTextEditor({
 
   const cancelEditing = () => {
     setDraftDocument(documentValue);
-    setHasDraftContent(getPlainText(documentValue).length > 0);
+    setHasDraftContent(getRichTextPlainText(documentValue).length > 0);
     setIsEditing(false);
     setFormattingState(emptyFormattingState);
     onEditingChange?.(false);
@@ -693,6 +697,7 @@ export function RichTextEditor({
       | "insertUnorderedList"
       | "insertOrderedList",
   ) => {
+    if (disabled) return;
     focusActiveEditor();
     document.execCommand("styleWithCSS", false, "false");
     document.execCommand(command);
@@ -710,6 +715,7 @@ export function RichTextEditor({
   };
 
   const updateColumns = (columns: RichTextColumns) => {
+    if (disabled) return;
     const currentDocument = readCurrentDraft(draftDocument.columns);
     const currentColumnBlocks = currentDocument.columnBlocks ?? [
       currentDocument.blocks,
@@ -746,6 +752,7 @@ export function RichTextEditor({
           <button
             type="button"
             onClick={startEditing}
+            disabled={disabled}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
             aria-label={`Edit ${ariaLabel}`}
           >
@@ -808,7 +815,7 @@ export function RichTextEditor({
                 ref={(node) => {
                   editorRefs.current[index] = node;
                 }}
-                contentEditable
+                contentEditable={!disabled}
                 suppressContentEditableWarning
                 role="textbox"
                 aria-label={
@@ -822,10 +829,10 @@ export function RichTextEditor({
                   activeEditorIndexRef.current = index;
                   updateFormattingState();
                 }}
-                onKeyDown={handleEditorKeyDown}
-                onKeyUp={updateFormattingState}
-                onMouseUp={updateFormattingState}
-                onInput={refreshDraftContentState}
+                onKeyDown={disabled ? undefined : handleEditorKeyDown}
+                onKeyUp={disabled ? undefined : updateFormattingState}
+                onMouseUp={disabled ? undefined : updateFormattingState}
+                onInput={disabled ? undefined : refreshDraftContentState}
                 className={`rich-text-editor rich-text-content rich-text-column-pane ${minHeightClassName} px-4 py-3 text-slate-900 outline-none ${editorClassName}`}
               />
             ))}
@@ -837,6 +844,7 @@ export function RichTextEditor({
             type="button"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => applyCommand("bold")}
+            disabled={disabled}
             className={toolbarButtonClass(formattingState.bold, "font-bold")}
             aria-label="Bold"
             aria-pressed={formattingState.bold}
@@ -847,6 +855,7 @@ export function RichTextEditor({
             type="button"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => applyCommand("italic")}
+            disabled={disabled}
             className={toolbarButtonClass(formattingState.italic, "italic")}
             aria-label="Italic"
             aria-pressed={formattingState.italic}
@@ -857,6 +866,7 @@ export function RichTextEditor({
             type="button"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => applyCommand("underline")}
+            disabled={disabled}
             className={toolbarButtonClass(formattingState.underline, "underline")}
             aria-label="Underline"
             aria-pressed={formattingState.underline}
@@ -868,6 +878,7 @@ export function RichTextEditor({
             type="button"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => applyCommand("insertUnorderedList")}
+            disabled={disabled}
             className={toolbarButtonClass(formattingState.bulletList)}
             aria-label="Bullet dots"
             aria-pressed={formattingState.bulletList}
@@ -878,6 +889,7 @@ export function RichTextEditor({
             type="button"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => applyCommand("insertOrderedList")}
+            disabled={disabled}
             className={toolbarButtonClass(formattingState.numberedList)}
             aria-label="Numbers"
             aria-pressed={formattingState.numberedList}
@@ -896,6 +908,7 @@ export function RichTextEditor({
                 type="button"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => updateColumns(columns as RichTextColumns)}
+                disabled={disabled}
                 className={toolbarButtonClass(draftDocument.columns === columns)}
                 aria-pressed={draftDocument.columns === columns}
               >
@@ -910,6 +923,7 @@ export function RichTextEditor({
             <button
               type="button"
               onClick={saveEditing}
+              disabled={disabled}
               className="rounded-lg bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700"
             >
               Save
