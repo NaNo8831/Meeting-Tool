@@ -77,6 +77,7 @@ export function ObjectiveCard({
             ariaLabel="Objective title"
             className="text-xl font-semibold text-slate-900"
             onEditingChange={setIsEditingTitle}
+            activationMode="doubleClick"
           />
         </div>
         <div
@@ -91,6 +92,7 @@ export function ObjectiveCard({
             minHeightClassName="min-h-[96px]"
             ariaLabel="Objective description"
             onEditingChange={setIsEditingDescription}
+            activationMode="doubleClick"
           />
         </div>
       </div>

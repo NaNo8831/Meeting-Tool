@@ -256,6 +256,7 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
                       placeholder={section.editPlaceholder}
                       ariaLabel={`${section.title} item`}
                       className="text-slate-800"
+                      activationMode="doubleClick"
                     />
                   </div>
                   {section.id === 'topic' ? (
