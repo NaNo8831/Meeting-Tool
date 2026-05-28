@@ -440,7 +440,7 @@ export const supabaseMeetingClient = {
     workspaceId: string;
   }) {
     const response = await fetch(
-      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}`,
+      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}&deleted_at=is.null`,
       {
         method: "PATCH",
         headers: {
@@ -544,7 +544,7 @@ export const supabaseMeetingClient = {
     const response = await fetch(
       `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(
         workspaceId,
-      )}&select=id,meeting_data&limit=1`,
+      )}&select=id,meeting_data&deleted_at=is.null&limit=1`,
       {
         method: "GET",
         headers: getSupabaseHeaders(accessToken),
@@ -577,7 +577,7 @@ export const supabaseMeetingClient = {
     data: Record<string, unknown>;
   }) {
     const response = await fetch(
-      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}`,
+      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}&deleted_at=is.null`,
       {
         method: "PATCH",
         headers: {

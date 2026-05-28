@@ -17,6 +17,7 @@ type AuthModalProps = {
     password: string,
   ) => Promise<SupabaseAuthSession | null>;
   onSignOut: () => Promise<void>;
+  onContinueLocally?: () => void;
 };
 
 export function AuthModal({
@@ -28,6 +29,7 @@ export function AuthModal({
   onSignIn,
   onSignUp,
   onSignOut,
+  onContinueLocally,
 }: AuthModalProps) {
   const [mode, setMode] = useState<AuthMode>("signIn");
   const [email, setEmail] = useState("");
@@ -210,6 +212,20 @@ export function AuthModal({
                 ? "Need an account? Sign Up"
                 : "Have an account? Sign In"}
             </button>
+            {onContinueLocally ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center">
+                <p className="text-xs leading-relaxed text-slate-600">
+                  Local mode is browser-only and does not sync to cloud.
+                </p>
+                <button
+                  type="button"
+                  onClick={onContinueLocally}
+                  className="mt-2 w-full rounded-full border border-blue-200 bg-white px-4 py-3 font-semibold text-blue-700 hover:bg-blue-50"
+                >
+                  Continue locally
+                </button>
+              </div>
+            ) : null}
           </form>
         )}
 
