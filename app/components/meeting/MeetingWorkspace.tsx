@@ -387,8 +387,6 @@ export default function MeetingWorkspace() {
   const [isLoadingHistoryNotes, setIsLoadingHistoryNotes] = useState(false);
   const [isSavingHistoryNotes, setIsSavingHistoryNotes] = useState(false);
   const [strategicTopicNotesById, setStrategicTopicNotesById] = useState<Record<number, SupabaseStrategicTopicNote | null>>({});
-  const [showCompletedStrategicTopics, setShowCompletedStrategicTopics] = useState(false);
-  const [showArchivedStrategicTopics, setShowArchivedStrategicTopics] = useState(false);
   const organizationInfoWithDefaults = {
     ...defaultOrganizationInfo,
     ...organizationInfo,
@@ -399,10 +397,7 @@ export default function MeetingWorkspace() {
   const activeMeetingIndex =
     storedActiveMeetingIndex === -1 ? 0 : storedActiveMeetingIndex;
   const activeMeeting = meetings[activeMeetingIndex] ?? initialMeetings[0];
-  const visibleStrategicTopicItems = strategicTopicItems.filter((item) => {
-    const status = item.status ?? "active";
-    if (status === "archived") return showArchivedStrategicTopics;
-    if (status === "completed" && !showCompletedStrategicTopics) return false;
+  const isStrategicTopicVisibleForActiveMeeting = (item: MeetingItem) => {
     const capturedMeetingIndex =
       item.capturedMeetingIndex ??
       meetings.findIndex((meeting) => meeting.id === item.capturedMeetingId);
@@ -417,7 +412,18 @@ export default function MeetingWorkspace() {
       return true;
 
     return activeMeetingIndex < removedMeetingIndex;
-  });
+  };
+  const visibleStrategicTopicItems = strategicTopicItems.filter(
+    (item) => (item.status ?? "active") === "active" && isStrategicTopicVisibleForActiveMeeting(item),
+  );
+  const completedStrategicTopicItems = strategicTopicItems.filter(
+    (item) =>
+      (item.status ?? "active") === "completed" &&
+      (item.removedMeetingIndex === undefined || item.removedMeetingIndex === -1),
+  );
+  const archivedStrategicTopicItems = strategicTopicItems.filter(
+    (item) => (item.status ?? "active") === "archived",
+  );
   const canNavigateToPreviousMeeting = activeMeetingIndex > 0;
   const canNavigateToNextMeeting = activeMeetingIndex < meetings.length - 1;
   const hasLoadedDashboardStorage =
@@ -765,25 +771,6 @@ export default function MeetingWorkspace() {
               status: completed ? "completed" : "active",
               completedAt: completed ? item.completedAt ?? new Date().toISOString() : undefined,
               archivedAt: completed ? undefined : item.archivedAt,
-            }
-          : item,
-      ),
-    );
-  };
-
-  const updateStrategicTopicCompletedDate = (
-    itemId: number,
-    completedDate: string,
-  ) => {
-    setStrategicTopicItems(
-      strategicTopicItems.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              completedDate,
-              completed: completedDate ? true : item.completed,
-              status: completedDate ? "completed" : item.status ?? "active",
-              completedAt: completedDate ? item.completedAt ?? new Date().toISOString() : item.completedAt,
             }
           : item,
       ),
@@ -1157,12 +1144,9 @@ export default function MeetingWorkspace() {
       archiveItem: archiveStrategicTopicItem,
       unarchiveItem: unarchiveStrategicTopicItem,
       restoreToActive: restoreStrategicTopicToActive,
-      showCompleted: showCompletedStrategicTopics,
-      setShowCompleted: setShowCompletedStrategicTopics,
-      showArchived: showArchivedStrategicTopics,
-      setShowArchived: setShowArchivedStrategicTopics,
+      completedHistoryItems: completedStrategicTopicItems,
+      archivedHistoryItems: archivedStrategicTopicItems,
       updateCompleted: updateStrategicTopicCompleted,
-      updateCompletedDate: updateStrategicTopicCompletedDate,
       openHistoryNotes: openStrategicTopicHistoryNotes,
       placeholder: "New strategic topic",
       editPlaceholder: "Add strategic topic",
@@ -2481,8 +2465,14 @@ export default function MeetingWorkspace() {
       ) : null}
 
       {historyNotesTopic ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4"
+          onClick={() => setHistoryNotesTopic(null)}
+        >
+          <div
+            className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="mb-3 flex items-center justify-between gap-3">
               <h3 className="text-lg font-semibold text-slate-900">
                 Strategic Topic Notes
