@@ -2687,9 +2687,6 @@ export default function MeetingWorkspace() {
               minHeightClassName="min-h-48"
               ariaLabel="Strategic topic notes"
               editingMode="always"
-              showUnderline={false}
-              showNumberedList={false}
-              showColumnControls={false}
             />
             {strategicTopicNotesById[historyNotesTopic.id]?.updated_at ? (
               <p className="mt-2 text-xs text-slate-500">

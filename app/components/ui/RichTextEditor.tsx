@@ -29,9 +29,6 @@ interface RichTextEditorProps {
   editingMode?: "manual" | "always";
   onEditingChange?: (isEditing: boolean) => void;
   disabled?: boolean;
-  showUnderline?: boolean;
-  showNumberedList?: boolean;
-  showColumnControls?: boolean;
 }
 
 interface RichTextRendererProps {
@@ -590,9 +587,6 @@ export function RichTextEditor({
   editingMode = "manual",
   onEditingChange,
   disabled = false,
-  showUnderline = true,
-  showNumberedList = true,
-  showColumnControls = true,
 }: RichTextEditorProps) {
   const documentValue = useMemo(() => normalizeRichTextValue(value), [value]);
   const isAlwaysEditing = editingMode === "always";
@@ -868,19 +862,17 @@ export function RichTextEditor({
           >
             I
           </button>
-          {showUnderline ? (
-            <button
-              type="button"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => applyCommand("underline")}
-              disabled={disabled}
-              className={toolbarButtonClass(formattingState.underline, "underline")}
-              aria-label="Underline"
-              aria-pressed={formattingState.underline}
-            >
-              U
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => applyCommand("underline")}
+            disabled={disabled}
+            className={toolbarButtonClass(formattingState.underline, "underline")}
+            aria-label="Underline"
+            aria-pressed={formattingState.underline}
+          >
+            U
+          </button>
           <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
           <button
             type="button"
@@ -893,43 +885,37 @@ export function RichTextEditor({
           >
             •••
           </button>
-          {showNumberedList ? (
-            <button
-              type="button"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => applyCommand("insertOrderedList")}
-              disabled={disabled}
-              className={toolbarButtonClass(formattingState.numberedList)}
-              aria-label="Numbers"
-              aria-pressed={formattingState.numberedList}
-            >
-              1.2.
-            </button>
-          ) : null}
-          {showColumnControls ? (
-            <>
-              <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
-              <div
-                className="flex items-center gap-1 text-xs font-medium text-slate-500"
-                aria-label="Columns"
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => applyCommand("insertOrderedList")}
+            disabled={disabled}
+            className={toolbarButtonClass(formattingState.numberedList)}
+            aria-label="Numbers"
+            aria-pressed={formattingState.numberedList}
+          >
+            1.2.
+          </button>
+          <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
+          <div
+            className="flex items-center gap-1 text-xs font-medium text-slate-500"
+            aria-label="Columns"
+          >
+            <span className="px-1">Columns</span>
+            {[1, 2, 3].map((columns) => (
+              <button
+                key={columns}
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => updateColumns(columns as RichTextColumns)}
+                disabled={disabled}
+                className={toolbarButtonClass(draftDocument.columns === columns)}
+                aria-pressed={draftDocument.columns === columns}
               >
-                <span className="px-1">Columns</span>
-                {[1, 2, 3].map((columns) => (
-                  <button
-                    key={columns}
-                    type="button"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => updateColumns(columns as RichTextColumns)}
-                    disabled={disabled}
-                    className={toolbarButtonClass(draftDocument.columns === columns)}
-                    aria-pressed={draftDocument.columns === columns}
-                  >
-                    {columns}
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : null}
+                {columns}
+              </button>
+            ))}
+          </div>
         </div>
 
         {!isAlwaysEditing ? (
