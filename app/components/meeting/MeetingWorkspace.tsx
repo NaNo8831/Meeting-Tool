@@ -2045,24 +2045,13 @@ export default function MeetingWorkspace() {
                   <button
                     type="button"
                     onClick={() => {
-                      setShowMeetingSetup(true);
-                      setShowSettingsMenu(false);
-                    }}
-                    className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
-                    role="menuitem"
-                  >
-                    Meeting Setup
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
                       setShowPlaybookDefinitions(true);
                       setShowSettingsMenu(false);
                     }}
                     className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
                     role="menuitem"
                   >
-                    Playbook Definitions
+                    Edit Playbook
                   </button>
                   <button
                     type="button"

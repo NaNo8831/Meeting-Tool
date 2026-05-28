@@ -44,9 +44,9 @@ export function PlaybookDefinitionsModal({
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="mb-8 space-y-3">
-          <h2 id="playbook-definitions-title" className="text-4xl md:text-5xl font-bold text-slate-950">Playbook Definitions</h2>
+          <h2 id="playbook-definitions-title" className="text-4xl md:text-5xl font-bold text-slate-950">Edit Playbook</h2>
           <p className="text-xl text-slate-600">
-            Name your team or meeting here, then define the shared playbook language for the dashboard.
+            Name your team or meeting here, then edit the shared playbook language for the dashboard.
           </p>
         </div>
 

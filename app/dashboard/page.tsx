@@ -420,6 +420,15 @@ export default function DashboardPage() {
           </div>
         </header>
 
+        {message ? (
+          <p
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm"
+            role="status"
+          >
+            {message}
+          </p>
+        ) : null}
+
         <section className="space-y-3">
           {isLoadingMeetings ? (
             <p className="text-sm text-slate-500">Loading meetings…</p>
@@ -481,12 +490,6 @@ export default function DashboardPage() {
             ))
           )}
         </section>
-
-        {message ? (
-          <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            {message}
-          </p>
-        ) : null}
       </div>
 
       {meetingPendingDuplicate ? (
