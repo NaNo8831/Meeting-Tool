@@ -160,8 +160,10 @@ export function EditableField({
         type="button"
         onClick={handleEditButtonClick}
         onDoubleClick={handleEditButtonDoubleClick}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 opacity-80 hover:bg-slate-50 hover:text-slate-900 group-hover:opacity-100"
+        className={`${activationMode === 'doubleClick' ? 'hidden' : 'flex'} h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 opacity-80 hover:bg-slate-50 hover:text-slate-900 group-hover:opacity-100`}
         aria-label={activationMode === 'doubleClick' ? `Double-click to edit ${ariaLabel}` : `Edit ${ariaLabel}`}
+        aria-hidden={activationMode === 'doubleClick' ? true : undefined}
+        tabIndex={activationMode === 'doubleClick' ? -1 : undefined}
         title={activationMode === 'doubleClick' ? 'Double-click to edit' : undefined}
       >
         <svg

@@ -80,6 +80,16 @@ function PlaybookManagedSection({
     setShowReminder(true);
   };
 
+  useEffect(() => {
+    if (!showReminder) return;
+
+    const reminderTimeout = window.setTimeout(() => {
+      setShowReminder(false);
+    }, 7000);
+
+    return () => window.clearTimeout(reminderTimeout);
+  }, [showReminder]);
+
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Enter" && event.key !== "F2") return;
 
@@ -943,22 +953,7 @@ export default function MeetingWorkspace() {
   };
 
   const unarchiveStrategicTopicItem = (itemId: number) => {
-    setStrategicTopicItems(
-      strategicTopicItems.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              status: "completed",
-              completed: true,
-              completedDate: item.completedDate || activeMeeting.date,
-              archivedAt: undefined,
-              removedMeetingId: undefined,
-              removedMeetingIndex: undefined,
-              removedDate: undefined,
-            }
-          : item,
-      ),
-    );
+    restoreStrategicTopicToActive(itemId);
   };
 
   const deleteStrategicTopicItem = (itemId: number) => {
