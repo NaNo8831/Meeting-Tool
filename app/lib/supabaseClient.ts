@@ -464,6 +464,40 @@ export const supabaseMeetingClient = {
     return meeting;
   },
 
+  async restoreArchivedWorkspace({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}&archived_at=not.is.null&deleted_at=is.null`,
+      {
+        method: "PATCH",
+        headers: {
+          ...getSupabaseHeaders(accessToken),
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify({ archived_at: null }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Workspace restore"));
+    }
+
+    const meetings = (await response.json()) as SupabaseMeeting[];
+    const meeting = meetings[0];
+    if (!meeting) {
+      throw new Error(
+        "Only archived meetings can be restored, or this meeting is no longer accessible.",
+      );
+    }
+
+    return meeting;
+  },
+
   async softDeleteArchivedWorkspace({
     accessToken,
     workspaceId,

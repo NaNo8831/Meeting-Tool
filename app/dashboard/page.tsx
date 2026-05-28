@@ -42,6 +42,7 @@ export default function DashboardPage() {
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState<string | null>(null);
   const [isArchiving, setIsArchiving] = useState<string | null>(null);
+  const [isRestoringArchived, setIsRestoringArchived] = useState<string | null>(null);
   const [isDeletingArchived, setIsDeletingArchived] = useState<string | null>(null);
   const [meetingPendingDuplicate, setMeetingPendingDuplicate] = useState<SupabaseMeeting | null>(null);
   const [meetingPendingDelete, setMeetingPendingDelete] = useState<SupabaseMeeting | null>(null);
@@ -242,6 +243,36 @@ export default function DashboardPage() {
       );
     } finally {
       setIsArchiving(null);
+    }
+  };
+
+  const handleRestoreArchivedMeeting = async (meeting: SupabaseMeeting) => {
+    if (!session || isRestoringArchived) return;
+    setIsRestoringArchived(meeting.id);
+    setMessage("");
+
+    try {
+      const restoredMeeting = await supabaseMeetingClient.restoreArchivedWorkspace({
+        accessToken: session.accessToken,
+        workspaceId: meeting.id,
+      });
+
+      setMeetings((currentMeetings) =>
+        currentMeetings.map((currentMeeting) =>
+          currentMeeting.id === restoredMeeting.id
+            ? restoredMeeting
+            : currentMeeting,
+        ),
+      );
+      setMessage(`${meeting.name} is active again.`);
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not restore this archived meeting.",
+      );
+    } finally {
+      setIsRestoringArchived(null);
     }
   };
 
@@ -522,7 +553,16 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     <div className="flex flex-col items-stretch gap-2 sm:items-end">
-                      <p className="text-xs text-slate-500">Archived</p>
+                      <button
+                        type="button"
+                        onClick={() => void handleRestoreArchivedMeeting(meeting)}
+                        className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={Boolean(isRestoringArchived)}
+                      >
+                        {isRestoringArchived === meeting.id
+                          ? "Restoring…"
+                          : "Restore"}
+                      </button>
                       <button
                         type="button"
                         onClick={() => setMeetingPendingDelete(meeting)}
