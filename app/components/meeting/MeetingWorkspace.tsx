@@ -19,7 +19,6 @@ import { MeetingSection } from "@/app/components/meeting/MeetingSection";
 import { ObjectiveCard } from "@/app/components/objectives/ObjectiveCard";
 import { TaskDetailsModal } from "@/app/components/objectives/TaskDetailsModal";
 import { ColorSquareSelect } from "@/app/components/ui/ColorSquareSelect";
-import { MeetingSelector } from "@/app/components/workspace/MeetingSelector";
 import {
   RichTextEditor,
   RichTextRenderer,
@@ -256,9 +255,18 @@ export default function MeetingWorkspace() {
   const [selectedMeetingId, setSelectedMeetingId] = useState("");
   const [selectedMeetingName, setSelectedMeetingName] =
     useState("");
+  const isCurrentCloudRouteWorkspace =
+    isCloudRoute && Boolean(selectedMeetingId) && selectedMeetingId === routeMeetingId;
   const [activeCloudWorkspaceId, setActiveCloudWorkspaceId] = useState("");
   const [cloudSaveStatus, setCloudSaveStatus] =
     useState<CloudSaveStatus>("local");
+  const cloudSaveStatusLabel: Record<CloudSaveStatus, string> = {
+    local: "Local only",
+    idle: "Cloud ready",
+    saving: "Working…",
+    saved: "Saved",
+    error: "Needs attention",
+  };
   const [cloudMeetingMessage, setCloudMeetingMessage] = useState("");
   const [selectedMeetingHasData, setSelectedMeetingHasData] =
     useState(false);
@@ -444,7 +452,8 @@ export default function MeetingWorkspace() {
 
   const shouldShowLocalToCloudMigrationPrompt = Boolean(
     authSession &&
-    selectedMeetingId &&
+    isCurrentCloudRouteWorkspace &&
+    selectedMeetingName &&
     localWorkspaceMigrationSignature &&
     localWorkspaceMigrationState.migratedSignature !==
       localWorkspaceMigrationSignature &&
@@ -453,27 +462,70 @@ export default function MeetingWorkspace() {
   );
 
   useEffect(() => {
+    let isMounted = true;
+
     if (isLocalRoute) {
       const timeoutId = window.setTimeout(() => {
+        if (!isMounted) return;
         setSelectedMeetingId("");
         setSelectedMeetingName("");
         setIsRouteCloudBootstrapping(false);
       }, 0);
-      return () => window.clearTimeout(timeoutId);
+      return () => {
+        isMounted = false;
+        window.clearTimeout(timeoutId);
+      };
     }
 
-    if (isCloudRoute && selectedMeetingId !== routeMeetingId) {
-      const timeoutId = window.setTimeout(() => {
-        setIsRouteCloudBootstrapping(true);
-        setSelectedMeetingId(routeMeetingId);
-        setActiveCloudWorkspaceId(routeMeetingId);
-        setCloudMeetingMessage("Loading cloud meeting from route…");
-      }, 0);
-      return () => window.clearTimeout(timeoutId);
+    if (!isCloudRoute || !authSession || selectedMeetingId === routeMeetingId) {
+      return () => {
+        isMounted = false;
+      };
     }
 
-    return undefined;
-  }, [isCloudRoute, isLocalRoute, routeMeetingId, selectedMeetingId]);
+    const hydrateCloudRouteMeeting = async () => {
+      setIsRouteCloudBootstrapping(true);
+      setSelectedMeetingId("");
+      setSelectedMeetingName("");
+      setCloudSaveStatus("saving");
+      setCloudMeetingMessage("Loading cloud meeting from route…");
+
+      try {
+        const meeting = await supabaseMeetingClient.getWorkspace({
+          accessToken: authSession.accessToken,
+          workspaceId: routeMeetingId,
+        });
+        if (!isMounted) return;
+
+        if (!meeting?.name) {
+          setCloudSaveStatus("error");
+          setCloudMeetingMessage(
+            "Cloud meeting was not found, is deleted, or is no longer accessible.",
+          );
+          setIsRouteCloudBootstrapping(false);
+          return;
+        }
+
+        setSelectedMeetingId(meeting.id);
+        setSelectedMeetingName(meeting.name);
+      } catch (error) {
+        if (!isMounted) return;
+        setCloudSaveStatus("error");
+        setCloudMeetingMessage(
+          error instanceof Error
+            ? error.message
+            : "Cloud meeting was not found, is deleted, or is no longer accessible.",
+        );
+        setIsRouteCloudBootstrapping(false);
+      }
+    };
+
+    void hydrateCloudRouteMeeting();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [authSession, isCloudRoute, isLocalRoute, routeMeetingId, selectedMeetingId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -486,7 +538,15 @@ export default function MeetingWorkspace() {
           accessToken: authSession.accessToken,
           workspaceId: selectedMeetingId,
         });
-        if (!isMounted || !meeting?.name) return;
+        if (!isMounted) return;
+        if (!meeting?.name) {
+          setCloudSaveStatus("error");
+          setCloudMeetingMessage(
+            "Cloud meeting was not found, is deleted, or is no longer accessible.",
+          );
+          setIsRouteCloudBootstrapping(false);
+          return;
+        }
         setSelectedMeetingName(meeting.name);
       } catch {
         // Keep current fallback behavior when workspace metadata cannot be read.
@@ -512,11 +572,6 @@ export default function MeetingWorkspace() {
       setDashboardTitle(selectedMeetingName);
     }
   }, [dashboardTitle, selectedMeetingName, setDashboardTitle, workspaceMode]);
-
-  useEffect(() => {
-    if (!isLocalRoute || !authSession) return;
-    router.replace("/dashboard");
-  }, [authSession, isLocalRoute, router]);
 
   useEffect(() => {
     if (isAuthLoading) return;
@@ -1406,7 +1461,12 @@ export default function MeetingWorkspace() {
   }, []);
 
   const handleMigrateLocalWorkspaceToCloud = useCallback(async () => {
-    if (!authSession || !selectedMeetingId || isMigratingLocalWorkspace)
+    if (
+      !authSession ||
+      !selectedMeetingId ||
+      !isCurrentCloudRouteWorkspace ||
+      isMigratingLocalWorkspace
+    )
       return;
 
     const localEntries = collectLocalWorkspaceStorage();
@@ -1473,6 +1533,7 @@ export default function MeetingWorkspace() {
   }, [
     applyWorkspaceBackupToState,
     authSession,
+    isCurrentCloudRouteWorkspace,
     isMigratingLocalWorkspace,
     recordLocalWorkspaceMigrationState,
     selectedMeetingHasData,
@@ -1482,7 +1543,15 @@ export default function MeetingWorkspace() {
   ]);
 
   const handleLoadCloudMeeting = useCallback(async () => {
-    if (!authSession || !selectedMeetingId) return;
+    if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
+      setCloudSaveStatus(isLocalRoute ? "local" : "error");
+      setCloudMeetingMessage(
+        isLocalRoute
+          ? "Local changes are stored only in this browser. To move them to cloud, export/import or create a cloud meeting."
+          : "Open a valid Cloud Meeting route before loading cloud data.",
+      );
+      return;
+    }
 
     setCloudSaveStatus("saving");
     setCloudMeetingMessage("Loading cloud meeting…");
@@ -1523,6 +1592,8 @@ export default function MeetingWorkspace() {
   }, [
     applyWorkspaceBackupToState,
     authSession,
+    isCurrentCloudRouteWorkspace,
+    isLocalRoute,
     selectedMeetingId,
     storeWorkspaceBackupInBrowser,
   ]);
@@ -1555,7 +1626,15 @@ export default function MeetingWorkspace() {
 
   const saveWorkspaceBackupToCloud = useCallback(
     async (workspaceEntries: Record<string, unknown>, statusMessage: string) => {
-      if (!authSession || !selectedMeetingId) return false;
+      if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
+        setCloudSaveStatus(isLocalRoute ? "local" : "error");
+        setCloudMeetingMessage(
+          isLocalRoute
+            ? "Local changes are stored only in this browser. To move them to cloud, export/import or create a cloud meeting."
+            : "Manual Save is available only from a valid Cloud Meeting route.",
+        );
+        return false;
+      }
 
       const backup = createWorkspaceBackup(workspaceEntries);
       await supabaseMeetingClient.saveWorkspaceData({
@@ -1572,11 +1651,22 @@ export default function MeetingWorkspace() {
       setCloudMeetingMessage(statusMessage);
       return true;
     },
-    [authSession, selectedMeetingId, storeWorkspaceBackupInBrowser],
+    [
+      authSession,
+      isCurrentCloudRouteWorkspace,
+      isLocalRoute,
+      selectedMeetingId,
+      storeWorkspaceBackupInBrowser,
+    ],
   );
 
   const loadTacticalSessions = useCallback(async () => {
-    if (!authSession || !selectedMeetingId) {
+    if (
+      !authSession ||
+      !selectedMeetingId ||
+      !isCurrentCloudRouteWorkspace ||
+      !selectedMeetingName
+    ) {
       setTacticalSessions([]);
       return;
     }
@@ -1596,10 +1686,21 @@ export default function MeetingWorkspace() {
     } finally {
       setIsLoadingTacticalSessions(false);
     }
-  }, [authSession, selectedMeetingId]);
+  }, [
+    authSession,
+    isCurrentCloudRouteWorkspace,
+    selectedMeetingId,
+    selectedMeetingName,
+  ]);
 
   const handleEndMeeting = useCallback(async () => {
-    if (!authSession || !selectedMeetingId || isEndingMeeting) return;
+    if (
+      !authSession ||
+      !selectedMeetingId ||
+      !isCurrentCloudRouteWorkspace ||
+      isEndingMeeting
+    )
+      return;
 
     const shouldEnd = window.confirm(
       "End this tactical meeting and create a historical snapshot? This will not reset the current operational workspace.",
@@ -1633,12 +1734,21 @@ export default function MeetingWorkspace() {
   }, [
     authSession,
     getCurrentWorkspaceStorage,
+    isCurrentCloudRouteWorkspace,
     isEndingMeeting,
     selectedMeetingId,
   ]);
 
   const handleSaveCloudMeeting = useCallback(async () => {
-    if (!authSession || !selectedMeetingId) return;
+    if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
+      setCloudSaveStatus(isLocalRoute ? "local" : "error");
+      setCloudMeetingMessage(
+        isLocalRoute
+          ? "Local changes are stored only in this browser. To move them to cloud, export/import or create a cloud meeting."
+          : "Manual Save is available only from a valid Cloud Meeting route.",
+      );
+      return;
+    }
 
     const workspaceName = selectedMeetingName || "this cloud meeting";
     const shouldOverwrite = window.confirm(
@@ -1675,6 +1785,8 @@ export default function MeetingWorkspace() {
   }, [
     authSession,
     getCurrentWorkspaceStorage,
+    isCurrentCloudRouteWorkspace,
+    isLocalRoute,
     saveWorkspaceBackupToCloud,
     selectedMeetingId,
     selectedMeetingName,
@@ -1685,7 +1797,11 @@ export default function MeetingWorkspace() {
       if (workspaceMode === "local") {
         lastCloudAutosaveSignatureRef.current = "";
         setCloudSaveStatus("local");
-        setCloudMeetingMessage("");
+        setCloudMeetingMessage(
+          authSession
+            ? "Local changes are stored only in this browser. To move them to cloud, export/import or create a cloud meeting."
+            : "",
+        );
         setActiveCloudWorkspaceId("");
         return;
       }
@@ -1697,7 +1813,7 @@ export default function MeetingWorkspace() {
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [selectedMeetingId, workspaceMode]);
+  }, [authSession, selectedMeetingId, workspaceMode]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -1838,12 +1954,27 @@ export default function MeetingWorkspace() {
     );
   }
 
-  if (isLocalRoute && authSession) {
+  if (isCloudRoute && !selectedMeetingId) {
     return (
       <main className="min-h-screen bg-slate-100 p-8">
         <div className="mx-auto flex min-h-[60vh] max-w-[1600px] items-center justify-center">
-          <div className="rounded-3xl border border-slate-200 bg-white px-6 py-5 text-center text-slate-600 shadow-sm">
-            Redirecting…
+          <div className="max-w-md rounded-3xl border border-slate-200 bg-white px-6 py-5 text-center text-slate-700 shadow-sm">
+            <p className="text-sm font-semibold text-blue-600">Cloud Meeting</p>
+            <h1 className="mt-2 text-xl font-bold text-slate-900">
+              {isRouteCloudBootstrapping ? "Loading cloud meeting…" : "Cloud meeting unavailable"}
+            </h1>
+            <p className="mt-3 text-sm leading-relaxed">
+              {cloudMeetingMessage ||
+                "Cloud meeting routes only load meetings that exist in Supabase and have not been deleted."}
+            </p>
+            {authSession ? (
+              <Link
+                href="/dashboard"
+                className="mt-5 inline-flex rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                Back to dashboard
+              </Link>
+            ) : null}
           </div>
         </div>
       </main>
@@ -1862,25 +1993,52 @@ export default function MeetingWorkspace() {
 
           <div className="flex flex-col gap-3 self-start sm:flex-row sm:items-start">
             {isLocalRoute ? (
-              <MeetingSelector
-                session={authSession}
-                selectedMeetingId={selectedMeetingId}
-                onSelectedCloudWorkspaceIdChange={setSelectedMeetingId}
-                onSelectedCloudWorkspaceNameChange={setSelectedMeetingName}
-                onCloudWorkspaceCreated={setCloudMeetingMessage}
-                saveStatus={cloudSaveStatus}
-                message={cloudMeetingMessage}
-                onLoadCloudMeeting={handleLoadCloudMeeting}
-                onSaveCloudMeeting={handleSaveCloudMeeting}
-              />
+              <section className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm sm:w-96">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Local Workspace
+                </p>
+                <div className="mt-1 flex items-center justify-between gap-3">
+                  <p className="font-semibold text-slate-900">
+                    This browser only
+                  </p>
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                    {cloudSaveStatusLabel[cloudSaveStatus]}
+                  </span>
+                </div>
+                <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+                  Local changes are stored only in this browser. To move them to cloud, export/import or create a cloud meeting.
+                </p>
+                {authSession ? (
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <Link
+                      href="/dashboard"
+                      className="rounded-xl bg-blue-600 px-3 py-2 text-center font-semibold text-white hover:bg-blue-700"
+                    >
+                      Dashboard
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setShowBackupRestore(true)}
+                      className="rounded-xl border border-slate-300 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      Export / Import
+                    </button>
+                  </div>
+                ) : null}
+              </section>
             ) : (
               <section className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm sm:w-96">
                 <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
                   Cloud Meeting
                 </p>
-                <p className="mt-1 font-semibold text-slate-900">
-                  {selectedMeetingName || "Selected from route"}
-                </p>
+                <div className="mt-1 flex items-center justify-between gap-3">
+                  <p className="font-semibold text-slate-900">
+                    {selectedMeetingName || "Selected from route"}
+                  </p>
+                  <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                    {cloudSaveStatusLabel[cloudSaveStatus]}
+                  </span>
+                </div>
                 <p className="mt-2 text-xs text-slate-500">{cloudMeetingMessage}</p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <button

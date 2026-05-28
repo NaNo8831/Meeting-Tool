@@ -2,6 +2,7 @@
 
 | Date | Decision | Rationale / Notes |
 | --- | --- | --- |
+| 2026-05-28 | Harden Local Workspace and Cloud Meeting boundaries before autosave. | `/meeting/local` remains browser-only even for signed-in users, Cloud Meeting save/load is limited to valid `/meeting/[id]` cloud routes, and Supabase meeting reads/writes exclude `deleted_at` rows so local state cannot recreate soft-deleted meetings. |
 | 2026-05-28 | Surface completed and archived Strategic Topics in a History modal instead of active-list visibility toggles. | Keeps the live Strategic Topics list focused on active discussion while preserving non-destructive archive/completion history and topic-attached Notes. |
 | 2026-05-23 | Introduce Phase A/B structured persistence schema as non-breaking Supabase foundation only; keep runtime reads/writes on `meetings.meeting_data` for now. | Adds normalized table and policy groundwork with owner-only RLS while preserving manual Save/Load and JSON export/import until a narrow structured-write pilot is validated. |
 | 2026-05-23 | Stop full-workspace JSONB autosave as long-term persistence; adopt structured section/item persistence migration plan while keeping `meetings.meeting_data` as backup safety net. | PR #41 regressions (Strategic Topics breakage, flashing edits, autosave failures, refresh rollback) showed full-page JSON autosave is unstable and a poor foundation for future membership/realtime; migration will be phased and non-breaking. |
