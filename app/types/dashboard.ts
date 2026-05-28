@@ -55,7 +55,6 @@ export interface MeetingSectionConfig {
   updateItem: (itemId: number, value: string) => void;
   deleteItem: (itemId: number) => void;
   updateCompleted?: (itemId: number, completed: boolean) => void;
-  updateCompletedDate?: (itemId: number, completedDate: string) => void;
   openHistoryNotes?: (item: MeetingItem) => void;
   archiveItem?: (itemId: number) => void;
   unarchiveItem?: (itemId: number) => void;

@@ -24,74 +24,64 @@ const formatDisplayDate = (date?: string) => {
   }).format(new Date(year, month - 1, day));
 };
 
-function StrategicTopicControls({
-  item,
-  section,
-  compact = false,
-}: {
-  item: MeetingItem;
-  section: MeetingSectionConfig;
-  compact?: boolean;
-}) {
+function StrategicTopicControls({ item, section }: { item: MeetingItem; section: MeetingSectionConfig }) {
   if (section.id !== 'topic') return null;
 
   return (
-    <div className={`mt-3 flex flex-col gap-3 border-t border-slate-200 pt-3 ${compact ? '' : 'sm:flex-row sm:items-center sm:justify-between'}`}>
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-          <input
-            type="checkbox"
-            checked={item.completed ?? false}
-            onChange={(event) => section.updateCompleted?.(item.id, event.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 text-blue-600"
-          />
-          Reviewed / completed
-        </label>
-        <button
-          type="button"
-          onClick={() => section.openHistoryNotes?.(item)}
-          className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-        >
-          Notes
-        </button>
-        {item.status !== 'archived' ? (
-          <button
-            type="button"
-            onClick={() => section.archiveItem?.(item.id)}
-            className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100"
-          >
-            Archive
-          </button>
-        ) : null}
-        {item.status === 'archived' ? (
-          <button
-            type="button"
-            onClick={() => section.unarchiveItem?.(item.id)}
-            className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
-          >
-            Unarchive
-          </button>
-        ) : null}
-        {item.status === 'completed' ? (
-          <button
-            type="button"
-            onClick={() => section.restoreToActive?.(item.id)}
-            className="rounded-lg border border-slate-200 bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200"
-          >
-            Mark active
-          </button>
+    <div className="mt-3 flex items-start justify-between gap-3 border-t border-slate-200 pt-3">
+      <div className="flex min-w-0 flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+            <input
+              type="checkbox"
+              checked={item.completed ?? false}
+              onChange={(event) => section.updateCompleted?.(item.id, event.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-blue-600"
+            />
+            Reviewed / completed
+          </label>
+          {item.status !== 'archived' ? (
+            <button
+              type="button"
+              onClick={() => section.archiveItem?.(item.id)}
+              className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+            >
+              Archive
+            </button>
+          ) : null}
+          {item.status === 'archived' ? (
+            <button
+              type="button"
+              onClick={() => section.unarchiveItem?.(item.id)}
+              className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+            >
+              Unarchive
+            </button>
+          ) : null}
+          {item.status === 'completed' ? (
+            <button
+              type="button"
+              onClick={() => section.restoreToActive?.(item.id)}
+              className="rounded-lg border border-slate-200 bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+            >
+              Mark active
+            </button>
+          ) : null}
+        </div>
+        {item.completed && item.completedDate ? (
+          <p className="text-xs font-medium text-slate-500">
+            Reviewed / completed: {formatDisplayDate(item.completedDate)}
+          </p>
         ) : null}
       </div>
 
-      <label className={`flex flex-col gap-1 text-xs font-medium text-slate-500 ${compact ? '' : 'sm:items-end'}`}>
-        Reviewed / completed date (optional)
-        <input
-          type="date"
-          value={item.completedDate ?? ''}
-          onChange={(event) => section.updateCompletedDate?.(item.id, event.target.value)}
-          className="rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-900"
-        />
-      </label>
+      <button
+        type="button"
+        onClick={() => section.openHistoryNotes?.(item)}
+        className="shrink-0 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+      >
+        Notes
+      </button>
     </div>
   );
 }
@@ -113,7 +103,7 @@ function StrategicTopicHistoryEntry({ item, section }: { item: MeetingItem; sect
               {formatDisplayDate(item.completedDate || item.removedDate || item.capturedDate)}
             </span>
           </div>
-          <StrategicTopicControls item={item} section={section} compact />
+          <StrategicTopicControls item={item} section={section} />
         </div>
         <button
           type="button"
@@ -269,8 +259,11 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
                     />
                   </div>
                   {section.id === 'topic' ? (
-                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                      {formatDisplayDate(item.capturedDate)}
+                    <span className="flex shrink-0 items-center gap-2 text-xs font-semibold">
+                      <span className="text-slate-500">Date added</span>
+                      <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">
+                        {formatDisplayDate(item.capturedDate)}
+                      </span>
                     </span>
                   ) : null}
                 </div>

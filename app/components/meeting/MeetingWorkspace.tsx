@@ -777,25 +777,6 @@ export default function MeetingWorkspace() {
     );
   };
 
-  const updateStrategicTopicCompletedDate = (
-    itemId: number,
-    completedDate: string,
-  ) => {
-    setStrategicTopicItems(
-      strategicTopicItems.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              completedDate,
-              completed: completedDate ? true : item.completed,
-              status: completedDate ? "completed" : item.status ?? "active",
-              completedAt: completedDate ? item.completedAt ?? new Date().toISOString() : item.completedAt,
-            }
-          : item,
-      ),
-    );
-  };
-
   const archiveStrategicTopicItem = (itemId: number) => {
     const shouldArchive = window.confirm(
       "Archive this Strategic Topic? This will hide it from active view but keep notes/history attached.",
@@ -1166,7 +1147,6 @@ export default function MeetingWorkspace() {
       completedHistoryItems: completedStrategicTopicItems,
       archivedHistoryItems: archivedStrategicTopicItems,
       updateCompleted: updateStrategicTopicCompleted,
-      updateCompletedDate: updateStrategicTopicCompletedDate,
       openHistoryNotes: openStrategicTopicHistoryNotes,
       placeholder: "New strategic topic",
       editPlaceholder: "Add strategic topic",
@@ -2485,8 +2465,14 @@ export default function MeetingWorkspace() {
       ) : null}
 
       {historyNotesTopic ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4"
+          onClick={() => setHistoryNotesTopic(null)}
+        >
+          <div
+            className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="mb-3 flex items-center justify-between gap-3">
               <h3 className="text-lg font-semibold text-slate-900">
                 Strategic Topic Notes
