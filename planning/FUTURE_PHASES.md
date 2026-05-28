@@ -13,6 +13,8 @@ This file preserves intentionally deferred ideas so the team can avoid unplanned
 - Improve microcopy consistency across setup, tasks, and cloud meeting actions.
 - Revisit drag/drop affordances and empty states after additional user testing.
 - Add non-invasive keyboard/accessibility polish where it improves live meeting speed.
+- Investigate dashboard/action button INP warnings, including archive/message interactions.
+- Investigate Manual Save INP warnings and address them in a later performance/autosave hardening pass.
 
 ## Organizations layer
 - Add an organization/account container above workspaces for multi-team ownership.

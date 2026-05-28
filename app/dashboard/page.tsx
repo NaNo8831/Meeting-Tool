@@ -422,13 +422,6 @@ export default function DashboardPage() {
                       role="menu"
                       aria-label="Dashboard options"
                     >
-                      <Link
-                        href="/meeting/local"
-                        className="block w-full px-5 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700"
-                        role="menuitem"
-                      >
-                        Continue Locally
-                      </Link>
                       <button
                         type="button"
                         onClick={() => {
