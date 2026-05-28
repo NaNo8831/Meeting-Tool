@@ -42,7 +42,9 @@ export default function DashboardPage() {
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState<string | null>(null);
   const [isArchiving, setIsArchiving] = useState<string | null>(null);
+  const [isDeletingArchived, setIsDeletingArchived] = useState<string | null>(null);
   const [meetingPendingDuplicate, setMeetingPendingDuplicate] = useState<SupabaseMeeting | null>(null);
+  const [meetingPendingDelete, setMeetingPendingDelete] = useState<SupabaseMeeting | null>(null);
   const [newMeetingName, setNewMeetingName] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [showDashboardMenu, setShowDashboardMenu] = useState(false);
@@ -247,6 +249,33 @@ export default function DashboardPage() {
     }
   };
 
+  const handleDeleteArchivedMeeting = async (meeting: SupabaseMeeting) => {
+    if (!session || isDeletingArchived) return;
+    setIsDeletingArchived(meeting.id);
+    setMessage("");
+
+    try {
+      await supabaseMeetingClient.softDeleteArchivedWorkspace({
+        accessToken: session.accessToken,
+        workspaceId: meeting.id,
+      });
+
+      setMeetings((currentMeetings) =>
+        currentMeetings.filter((currentMeeting) => currentMeeting.id !== meeting.id),
+      );
+      setMessage(`${meeting.name} is now hidden from the dashboard.`);
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not delete this archived meeting.",
+      );
+    } finally {
+      setIsDeletingArchived(null);
+      setMeetingPendingDelete(null);
+    }
+  };
+
   const activeMeetings = meetings.filter((meeting) => !meeting.archived_at);
   const archivedMeetings = meetings.filter((meeting) => Boolean(meeting.archived_at));
   const visibleMeetings = showArchived ? meetings : activeMeetings;
@@ -429,7 +458,17 @@ export default function DashboardPage() {
                       </button>
                     </div>
                   ) : (
-                    <p className="text-xs text-slate-500">Archived</p>
+                    <div className="flex flex-col items-stretch gap-2 sm:items-end">
+                      <p className="text-xs text-slate-500">Archived</p>
+                      <button
+                        type="button"
+                        onClick={() => setMeetingPendingDelete(meeting)}
+                        className="rounded-xl border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+                        disabled={Boolean(isDeletingArchived)}
+                      >
+                        {isDeletingArchived === meeting.id ? "Deleting…" : "Delete"}
+                      </button>
+                    </div>
                   )}
                   <Link
                     href={`/meeting/${meeting.id}`}
@@ -473,6 +512,35 @@ export default function DashboardPage() {
                 className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isDuplicating ? "Duplicating…" : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {meetingPendingDelete ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <h2 className="text-lg font-semibold text-slate-900">Delete meeting?</h2>
+            <p className="mt-3 text-sm text-slate-700">
+              This will hide the archived meeting from your dashboard. The record will remain safely stored for recovery.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setMeetingPendingDelete(null)}
+                disabled={Boolean(isDeletingArchived)}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDeleteArchivedMeeting(meetingPendingDelete)}
+                disabled={Boolean(isDeletingArchived)}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isDeletingArchived ? "Deleting…" : "Confirm Delete"}
               </button>
             </div>
           </div>

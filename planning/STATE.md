@@ -30,6 +30,7 @@
 
 - Completed sprint: Dashboard / Meeting Selector (authenticated dashboard cards, user-scoped meeting list, open-route entry, and local fallback completed on `phase-2-cloud`).
 - Current architecture status: App route separation is active with ` / ` landing/auth entry, `/dashboard` authenticated meeting selector cards and create/duplicate/archive controls, and `/meeting/[id]` route-driven cloud meeting load with manual cloud save preserved; autosave repair is deferred.
+- Archived Meeting soft-delete is now active on the dashboard for cloud meetings: archived cards can be soft-deleted via confirmation, `meetings.deleted_at` is populated, and dashboard list queries exclude soft-deleted rows by default.
 - Tactical history foundation added on cloud meetings: **End Meeting** now writes archival tactical session snapshots to `tactical_sessions` (with `snapshot_json`) and a lightweight Tactical History viewer is available in the meeting workspace; operational runtime state still remains on `meetings.meeting_data`.
 - Strategic Topic notes/history foundation added for cloud meetings: each Strategic Topic can open a lightweight **History / Notes** modal and manually save/load topic-scoped notes via `strategic_topic_notes` keyed by (`meeting_id`, `strategic_topic_item_id`).
 - Strategic Topic lifecycle behavior is now active in the runtime UI with non-destructive states (`active`, `completed`, `archived`), optional visibility toggles for completed/archived lists, and archive-as-history behavior that preserves topic-attached Notes.
