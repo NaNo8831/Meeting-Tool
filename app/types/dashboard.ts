@@ -63,6 +63,8 @@ export interface MeetingSectionConfig {
   archivedHistoryItems?: MeetingItem[];
   placeholder: string;
   editPlaceholder: string;
+  isReadOnly?: boolean;
+  readOnlyMessage?: string;
 }
 
 export interface TaskInput {
