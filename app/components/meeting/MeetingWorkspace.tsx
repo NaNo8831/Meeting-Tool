@@ -199,6 +199,169 @@ const getWorkspaceScopedStorageKey = (
     ? `${cloudWorkspaceStorageKeyPrefix}:${cloudWorkspaceId}:${baseKey}`
     : baseKey;
 
+
+type SnapshotMeetingRecord = {
+  id?: number;
+  date?: string;
+  agendaItems?: MeetingItem[];
+  topicItems?: MeetingItem[];
+  decisionItems?: MeetingItem[];
+  cascadeItems?: MeetingItem[];
+};
+
+type TacticalSnapshotSummary = {
+  activeMeetingDate: string;
+  rallyCry: string;
+  objectiveCount: number;
+  taskCount: number;
+  completedTaskCount: number;
+  inProgressTaskCount: number;
+  planningTaskCount: number;
+  objectives: Array<{ title: string; taskCount: number; completedTaskCount: number }>;
+  standardObjectiveCount: number;
+  standardObjectives: string[];
+  strategicTopicCount: number;
+  completedStrategicTopicCount: number;
+  archivedStrategicTopicCount: number;
+  agendaItems: string[];
+  topicItems: string[];
+  decisionItems: string[];
+  cascadeItems: string[];
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const getSnapshotEntry = <T,>(
+  snapshot: Record<string, unknown> | null,
+  baseKey: string,
+  fallback: T,
+): T => {
+  if (!snapshot) return fallback;
+
+  const directValue = snapshot[baseKey];
+  if (directValue !== undefined) return directValue as T;
+
+  const scopedEntry = Object.entries(snapshot).find(([key]) =>
+    key.endsWith(`:${baseKey}`),
+  );
+
+  return scopedEntry ? (scopedEntry[1] as T) : fallback;
+};
+
+const getMeetingItemText = (item: unknown) => {
+  if (!isRecord(item)) return "";
+  return typeof item.text === "string" ? item.text.trim() : "";
+};
+
+const getObjectiveTitle = (item: unknown) => {
+  if (!isRecord(item)) return "";
+  return typeof item.title === "string" ? item.title.trim() : "";
+};
+
+const getSnapshotMeetingItems = (
+  meeting: SnapshotMeetingRecord | undefined,
+  key: "agendaItems" | "topicItems" | "decisionItems" | "cascadeItems",
+) => (meeting?.[key] ?? []).map(getMeetingItemText).filter(Boolean);
+
+const buildTacticalSnapshotSummary = (
+  session: SupabaseTacticalSession | null,
+): TacticalSnapshotSummary => {
+  const snapshot = session?.snapshot_json ?? null;
+  const organizationInfoSnapshot = getSnapshotEntry<Record<string, unknown>>(
+    snapshot,
+    "leadership-organization-info",
+    {},
+  );
+  const objectivesSnapshot = getSnapshotEntry<unknown[]>(
+    snapshot,
+    "leadership-objectives",
+    [],
+  );
+  const meetingsSnapshot = getSnapshotEntry<SnapshotMeetingRecord[]>(
+    snapshot,
+    "leadership-meetings",
+    [],
+  );
+  const activeMeetingId = getSnapshotEntry<number | null>(
+    snapshot,
+    "leadership-active-meeting-id",
+    null,
+  );
+  const strategicTopicsSnapshot = getSnapshotEntry<MeetingItem[]>(
+    snapshot,
+    strategicTopicsStorageKey,
+    [],
+  );
+  const standardObjectivesSnapshot = getSnapshotEntry<unknown[]>(
+    snapshot,
+    "leadership-standard-operating-objectives",
+    [],
+  );
+  const activeMeeting =
+    meetingsSnapshot.find((meeting) => meeting.id === activeMeetingId) ??
+    meetingsSnapshot[meetingsSnapshot.length - 1];
+  const objectiveSummaries = objectivesSnapshot
+    .filter(isRecord)
+    .map((objective) => {
+      const tasks = Array.isArray(objective.tasks) ? objective.tasks : [];
+      const completedTasks = tasks.filter(
+        (task) => isRecord(task) && task.status === "completed",
+      );
+
+      return {
+        title: getObjectiveTitle(objective) || "Untitled objective",
+        taskCount: tasks.length,
+        completedTaskCount: completedTasks.length,
+      };
+    });
+  const allTasks = objectivesSnapshot
+    .filter(isRecord)
+    .flatMap((objective) =>
+      Array.isArray(objective.tasks) ? objective.tasks.filter(isRecord) : [],
+    );
+  const standardObjectives = standardObjectivesSnapshot
+    .map(getObjectiveTitle)
+    .filter(Boolean);
+  const activeStrategicTopics = strategicTopicsSnapshot.filter(
+    (item) => (item.status ?? "active") === "active",
+  );
+  const completedStrategicTopics = strategicTopicsSnapshot.filter(
+    (item) => item.status === "completed",
+  );
+  const archivedStrategicTopics = strategicTopicsSnapshot.filter(
+    (item) => item.status === "archived",
+  );
+
+  return {
+    activeMeetingDate:
+      activeMeeting?.date || session?.session_date || "Historical session",
+    rallyCry:
+      typeof organizationInfoSnapshot.rallyCry === "string" &&
+      organizationInfoSnapshot.rallyCry.trim()
+        ? organizationInfoSnapshot.rallyCry.trim()
+        : "Not captured",
+    objectiveCount: objectiveSummaries.length,
+    taskCount: allTasks.length,
+    completedTaskCount: allTasks.filter((task) => task.status === "completed")
+      .length,
+    inProgressTaskCount: allTasks.filter((task) => task.status === "in-progress")
+      .length,
+    planningTaskCount: allTasks.filter((task) => task.status === "planning")
+      .length,
+    objectives: objectiveSummaries,
+    standardObjectiveCount: standardObjectives.length,
+    standardObjectives,
+    strategicTopicCount: activeStrategicTopics.length,
+    completedStrategicTopicCount: completedStrategicTopics.length,
+    archivedStrategicTopicCount: archivedStrategicTopics.length,
+    agendaItems: getSnapshotMeetingItems(activeMeeting, "agendaItems"),
+    topicItems: getSnapshotMeetingItems(activeMeeting, "topicItems"),
+    decisionItems: getSnapshotMeetingItems(activeMeeting, "decisionItems"),
+    cascadeItems: getSnapshotMeetingItems(activeMeeting, "cascadeItems"),
+  };
+};
+
 type CloudSaveStatus = "local" | "idle" | "saving" | "saved" | "error";
 
 const readBackupEntry = <T,>(
@@ -313,6 +476,150 @@ const getLegacyStrategicTopics = (): MeetingItem[] => {
     return dedupeMeetingItems(legacyTopicItems, fallbackMeeting);
   }
 };
+
+
+function SummaryList({
+  emptyLabel,
+  items,
+}: {
+  emptyLabel: string;
+  items: string[];
+}) {
+  if (items.length === 0) {
+    return <p className="text-sm text-slate-500">{emptyLabel}</p>;
+  }
+
+  return (
+    <ul className="space-y-2 text-sm text-slate-700">
+      {items.slice(0, 6).map((item, index) => (
+        <li key={`${item}-${index}`} className="rounded-lg bg-white px-3 py-2">
+          {item}
+        </li>
+      ))}
+      {items.length > 6 ? (
+        <li className="px-3 text-xs font-semibold text-slate-500">
+          +{items.length - 6} more captured item{items.length - 6 === 1 ? "" : "s"}
+        </li>
+      ) : null}
+    </ul>
+  );
+}
+
+function TacticalHistorySummary({
+  summary,
+}: {
+  summary: TacticalSnapshotSummary;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Meeting date
+          </p>
+          <p className="mt-1 font-semibold text-slate-900">
+            {summary.activeMeetingDate}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Defining objectives
+          </p>
+          <p className="mt-1 font-semibold text-slate-900">
+            {summary.objectiveCount}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Tasks
+          </p>
+          <p className="mt-1 font-semibold text-slate-900">
+            {summary.taskCount} total
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            {summary.completedTaskCount} completed · {summary.inProgressTaskCount} in progress · {summary.planningTaskCount} planning
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Strategic topics
+          </p>
+          <p className="mt-1 font-semibold text-slate-900">
+            {summary.strategicTopicCount} active
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            {summary.completedStrategicTopicCount} completed · {summary.archivedStrategicTopicCount} archived
+          </p>
+        </div>
+      </div>
+
+      <section className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+        <h3 className="text-sm font-semibold text-blue-950">Top Priority</h3>
+        <p className="mt-1 text-sm text-blue-900">{summary.rallyCry}</p>
+      </section>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <h3 className="font-semibold text-slate-900">Objectives and tasks</h3>
+          {summary.objectives.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-500">No objectives were captured in this snapshot.</p>
+          ) : (
+            <ul className="mt-3 space-y-2 text-sm text-slate-700">
+              {summary.objectives.map((objective) => (
+                <li key={objective.title} className="rounded-lg bg-white px-3 py-2">
+                  <span className="font-semibold text-slate-900">{objective.title}</span>
+                  <span className="block text-xs text-slate-500">
+                    {objective.completedTaskCount} of {objective.taskCount} tasks completed
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <h3 className="font-semibold text-slate-900">Standard operating objectives</h3>
+          <p className="mt-1 text-xs text-slate-500">
+            {summary.standardObjectiveCount} captured in the historical snapshot
+          </p>
+          <div className="mt-3">
+            <SummaryList
+              emptyLabel="No standard operating objectives were captured."
+              items={summary.standardObjectives}
+            />
+          </div>
+        </section>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <h3 className="font-semibold text-slate-900">Agenda Items</h3>
+          <div className="mt-3">
+            <SummaryList emptyLabel="No agenda items were captured." items={summary.agendaItems} />
+          </div>
+        </section>
+        <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <h3 className="font-semibold text-slate-900">Strategic Topics</h3>
+          <div className="mt-3">
+            <SummaryList emptyLabel="No strategic topics were captured for this meeting." items={summary.topicItems} />
+          </div>
+        </section>
+        <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <h3 className="font-semibold text-slate-900">Decisions / Actions</h3>
+          <div className="mt-3">
+            <SummaryList emptyLabel="No decisions or actions were captured." items={summary.decisionItems} />
+          </div>
+        </section>
+        <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <h3 className="font-semibold text-slate-900">Cascading Communication</h3>
+          <div className="mt-3">
+            <SummaryList emptyLabel="No cascading communication was captured." items={summary.cascadeItems} />
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
 
 export default function MeetingWorkspace() {
   const router = useRouter();
@@ -447,6 +754,8 @@ export default function MeetingWorkspace() {
   const [showMeetingSetup, setShowMeetingSetup] = useState(false);
   const [showPlaybookDefinitions, setShowPlaybookDefinitions] = useState(false);
   const [showBackupRestore, setShowBackupRestore] = useState(false);
+  const [showTacticalHistory, setShowTacticalHistory] = useState(false);
+  const [showEndMeetingConfirm, setShowEndMeetingConfirm] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [backupFeedback, setBackupFeedback] =
     useState<WorkspaceBackupFeedback | null>(null);
@@ -1767,11 +2076,6 @@ export default function MeetingWorkspace() {
     )
       return;
 
-    const shouldEnd = window.confirm(
-      "End this tactical meeting and create a historical snapshot? This will not reset the current operational workspace.",
-    );
-    if (!shouldEnd) return;
-
     setIsEndingMeeting(true);
     try {
       const workspaceEntries = getCurrentWorkspaceStorage();
@@ -1784,6 +2088,8 @@ export default function MeetingWorkspace() {
       });
       setTacticalSessions((current) => [created, ...current]);
       setSelectedTacticalSessionId(created.id);
+      setShowEndMeetingConfirm(false);
+      setShowTacticalHistory(true);
       setCloudMeetingMessage(
         "Tactical session history snapshot saved. Current meeting workspace remains active.",
       );
@@ -2006,6 +2312,9 @@ export default function MeetingWorkspace() {
   const selectedTacticalSession =
     tacticalSessions.find((session) => session.id === selectedTacticalSessionId) ??
     null;
+  const selectedTacticalSessionSummary = buildTacticalSnapshotSummary(
+    selectedTacticalSession,
+  );
 
   if (!hasLoadedDashboardStorage) {
     return (
@@ -2129,7 +2438,7 @@ export default function MeetingWorkspace() {
                 </div>
                 <button
                   type="button"
-                  onClick={handleEndMeeting}
+                  onClick={() => setShowEndMeetingConfirm(true)}
                   disabled={isEndingMeeting}
                   className="mt-2 w-full rounded-xl border border-emerald-200 px-3 py-2 font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -2268,6 +2577,19 @@ export default function MeetingWorkspace() {
                   >
                     Edit Playbook
                   </button>
+                  {workspaceMode === "cloud" && selectedMeetingId ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowTacticalHistory(true);
+                        setShowSettingsMenu(false);
+                      }}
+                      className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                      role="menuitem"
+                    >
+                      Meeting History
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => {
@@ -2284,73 +2606,6 @@ export default function MeetingWorkspace() {
             </div>
           </div>
         </div>
-
-        {workspaceMode === "cloud" && selectedMeetingId ? (
-          <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">
-              Tactical History
-            </h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Archived tactical sessions are stored as historical snapshots.
-            </p>
-            {isLoadingTacticalSessions ? (
-              <p className="mt-3 text-sm text-slate-500">Loading sessions…</p>
-            ) : tacticalSessions.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-500">
-                No tactical history yet. Use End Meeting to capture the first
-                session snapshot.
-              </p>
-            ) : (
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                  {tacticalSessions.map((session) => (
-                    <button
-                      key={session.id}
-                      type="button"
-                      onClick={() => setSelectedTacticalSessionId(session.id)}
-                      className={`w-full rounded-xl border p-3 text-left ${
-                        session.id === selectedTacticalSessionId
-                          ? "border-blue-300 bg-blue-50"
-                          : "border-slate-200 bg-white hover:bg-slate-50"
-                      }`}
-                    >
-                      <p className="font-semibold text-slate-900">
-                        {session.title || `Tactical Session ${session.session_date}`}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Date: {session.session_date} · Created:{" "}
-                        {new Date(session.created_at).toLocaleString()} · Ended:{" "}
-                        {session.ended_at
-                          ? new Date(session.ended_at).toLocaleString()
-                          : "N/A"}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  {selectedTacticalSession ? (
-                    <>
-                      <p className="text-sm font-semibold text-slate-900">
-                        Session Snapshot
-                      </p>
-                      <pre className="mt-2 max-h-80 overflow-auto rounded-lg bg-white p-3 text-xs text-slate-700">
-                        {JSON.stringify(
-                          selectedTacticalSession.snapshot_json ?? {},
-                          null,
-                          2,
-                        )}
-                      </pre>
-                    </>
-                  ) : (
-                    <p className="text-sm text-slate-500">
-                      Select a tactical session to view its snapshot.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-          </section>
-        ) : null}
 
         <div className="mb-10 space-y-5">
           <PlaybookManagedSection
@@ -2586,6 +2841,149 @@ export default function MeetingWorkspace() {
         session={authSession}
         onCollectWorkspaceSnapshot={getCurrentWorkspaceStorage}
       />
+
+
+
+      {showEndMeetingConfirm ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">
+                  End Meeting
+                </p>
+                <h2 className="mt-1 text-2xl font-bold text-slate-900">
+                  Capture this meeting in history?
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEndMeetingConfirm(false)}
+                className="rounded-full px-3 py-1 text-2xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Close End Meeting confirmation"
+              >
+                ×
+              </button>
+            </div>
+            <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-600">
+              <p>
+                This creates a historical Tactical History snapshot for the current cloud meeting.
+              </p>
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-emerald-950">
+                <p className="font-semibold">What stays unchanged</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <li>Your current meeting workspace remains active.</li>
+                  <li>Dashboard, autosave, and manual save behavior are unchanged.</li>
+                  <li>No meeting data is reset or rewritten by this action.</li>
+                </ul>
+              </div>
+            </div>
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowEndMeetingConfirm(false)}
+                className="rounded-xl border border-slate-300 px-5 py-2 font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Keep Meeting Open
+              </button>
+              <button
+                type="button"
+                onClick={handleEndMeeting}
+                disabled={isEndingMeeting}
+                className="rounded-xl bg-emerald-600 px-5 py-2 font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isEndingMeeting ? "Saving History…" : "Capture Historical Snapshot"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showTacticalHistory ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="flex max-h-[90vh] w-full max-w-6xl flex-col rounded-3xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-6">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
+                  Meeting History
+                </p>
+                <h2 className="mt-1 text-2xl font-bold text-slate-900">
+                  Tactical History
+                </h2>
+                <p className="mt-2 text-sm text-slate-600">
+                  Review ended tactical sessions without exposing raw snapshot data.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTacticalHistory(false)}
+                className="rounded-full px-3 py-1 text-2xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Close Tactical History"
+              >
+                ×
+              </button>
+            </div>
+            <div className="grid min-h-0 flex-1 gap-0 overflow-hidden lg:grid-cols-[320px_1fr]">
+              <aside className="overflow-y-auto border-b border-slate-200 p-4 lg:border-b-0 lg:border-r">
+                {isLoadingTacticalSessions ? (
+                  <p className="text-sm text-slate-500">Loading sessions…</p>
+                ) : tacticalSessions.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+                    No tactical history yet. Use End Meeting to capture the first session snapshot.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {tacticalSessions.map((session) => (
+                      <button
+                        key={session.id}
+                        type="button"
+                        onClick={() => setSelectedTacticalSessionId(session.id)}
+                        className={`w-full rounded-xl border p-3 text-left ${
+                          session.id === selectedTacticalSessionId
+                            ? "border-blue-300 bg-blue-50"
+                            : "border-slate-200 bg-white hover:bg-slate-50"
+                        }`}
+                      >
+                        <p className="font-semibold text-slate-900">
+                          {session.title || `Tactical Session ${session.session_date}`}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Meeting date: {session.session_date}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Captured: {new Date(session.created_at).toLocaleString()}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </aside>
+              <section className="min-h-0 overflow-y-auto bg-slate-50 p-6">
+                {selectedTacticalSession ? (
+                  <>
+                    <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
+                      <h3 className="text-lg font-bold text-slate-900">
+                        {selectedTacticalSession.title ||
+                          `Tactical Session ${selectedTacticalSession.session_date}`}
+                      </h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Ended: {selectedTacticalSession.ended_at
+                          ? new Date(selectedTacticalSession.ended_at).toLocaleString()
+                          : "Not recorded"}
+                      </p>
+                    </div>
+                    <TacticalHistorySummary summary={selectedTacticalSessionSummary} />
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500">
+                    Select a tactical session to view its historical summary.
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <AuthModal
         isOpen={showAuthModal}
