@@ -3,9 +3,14 @@
 import { useState, type DragEvent } from 'react';
 import { EditableField } from '@/app/components/ui/EditableField';
 import { ColorSquareSelect } from '@/app/components/ui/ColorSquareSelect';
-import { RichTextEditor } from '@/app/components/ui/RichTextEditor';
+import {
+  RichTextEditor,
+  getRichTextPlainText,
+  normalizeRichTextValue
+} from '@/app/components/ui/RichTextEditor';
 import { TaskList } from '@/app/components/objectives/TaskList';
-import { objectiveColorClasses } from '@/app/lib/objectiveOptions';
+import { useBodyScrollLock } from '@/app/hooks/useBodyScrollLock';
+import { objectiveColorClasses, taskStatusOptions } from '@/app/lib/objectiveOptions';
 import type { Objective, TaskStatus } from '@/app/types/objective';
 import type { TaskInput } from '@/app/types/dashboard';
 import type { RichTextDocument } from '@/app/types/richText';
@@ -26,6 +31,12 @@ interface ObjectiveCardProps {
   onTaskStatusChange: (objectiveId: number, taskId: number, status: TaskStatus) => void;
 }
 
+const statusLabels: Record<TaskStatus, string> = {
+  planning: 'Planning',
+  'in-progress': 'In Progress',
+  completed: 'Completed'
+};
+
 export function ObjectiveCard({
   objective,
   taskInput,
@@ -41,9 +52,10 @@ export function ObjectiveCard({
   onOpenTask,
   onTaskStatusChange
 }: ObjectiveCardProps) {
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [isEditingDescription, setIsEditingDescription] = useState(false);
-  const isEditingObjective = isEditingTitle || isEditingDescription;
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const descriptionSummary = getRichTextPlainText(normalizeRichTextValue(objective.description));
+
+  useBodyScrollLock(isDetailOpen);
 
   const preventObjectiveDragFromEditRegion = (event: DragEvent<HTMLElement>) => {
     event.preventDefault();
@@ -51,80 +63,141 @@ export function ObjectiveCard({
   };
 
   return (
-    <div
-      draggable={!isEditingObjective}
-      onDragStart={(event) => {
-        if (isEditingObjective) {
-          event.preventDefault();
-          return;
-        }
-        onDragStart(objective.id);
-      }}
-      onDragOver={onDragOver}
-      onDrop={() => onDrop(objective.id)}
-      className={`relative rounded-2xl border-t-[12px] bg-white p-4 shadow-sm ring-1 ring-slate-100 transition hover:shadow-md ${objectiveColorClasses[objective.color]} ${isEditingObjective ? 'cursor-default' : 'cursor-grab'}`}
-    >
-      <div className="mb-4 space-y-3">
-        <div
-          className="pr-24"
-          onMouseDown={(event) => event.stopPropagation()}
-          onDragStart={preventObjectiveDragFromEditRegion}
-        >
-          <EditableField
-            value={objective.title}
-            onSave={(value) => onUpdateTitle(objective.id, value)}
-            placeholder="Objective title"
-            ariaLabel="Objective title"
-            className="text-xl font-semibold text-slate-900"
-            onEditingChange={setIsEditingTitle}
-            activationMode="doubleClick"
-          />
-        </div>
-        <div
-          onMouseDown={(event) => event.stopPropagation()}
-          onDragStart={preventObjectiveDragFromEditRegion}
-        >
-          <RichTextEditor
-            value={objective.description}
-            onChange={(value) => onUpdateDescription(objective.id, value)}
-            placeholder="Objective description"
-            className="text-slate-700"
-            minHeightClassName="min-h-[96px]"
-            ariaLabel="Objective description"
-            onEditingChange={setIsEditingDescription}
-            activationMode="doubleClick"
-          />
-        </div>
-      </div>
-
-      <div className="absolute right-4 top-4 flex items-center gap-2">
-        <ColorSquareSelect
-          value={objective.color}
-          onChange={(color) => onUpdateColor(objective.id, color)}
-          ariaLabel="Objective color"
-        />
+    <>
+      <div
+        draggable
+        onDragStart={() => onDragStart(objective.id)}
+        onDragOver={onDragOver}
+        onDrop={() => onDrop(objective.id)}
+        className={`rounded-2xl border-t-[8px] bg-white p-4 shadow-sm ring-1 ring-slate-100 transition hover:shadow-md ${objectiveColorClasses[objective.color]}`}
+      >
         <button
           type="button"
-          onClick={() => onDelete(objective.id)}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-700 hover:bg-red-200"
-          aria-label="Delete objective"
+          onClick={() => setIsDetailOpen(true)}
+          className="block w-full rounded-xl text-left focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-4"
+          aria-label={`Open workflow details for ${objective.title || 'untitled defining objective'}`}
         >
-          ×
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="truncate text-lg font-semibold text-slate-900">
+                {objective.title || 'Untitled defining objective'}
+              </h3>
+              <p className="mt-1 line-clamp-2 min-h-10 text-sm leading-5 text-slate-600">
+                {descriptionSummary || 'No objective description yet.'}
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+              {objective.tasks.length} {objective.tasks.length === 1 ? 'task' : 'tasks'}
+            </span>
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {taskStatusOptions.map((status) => (
+              <div key={status} className="rounded-lg bg-slate-50 px-2 py-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  {statusLabels[status]}
+                </p>
+                <p className="mt-1 text-lg font-bold leading-none text-slate-800">
+                  {objective.tasks.filter((task) => task.status === status).length}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 flex items-center justify-between gap-3 text-xs font-medium">
+            <span className="text-slate-400">Drag card to reorder</span>
+            <span className="text-blue-700">Open workflow details →</span>
+          </div>
         </button>
       </div>
 
-      <div className="mb-4 flex justify-end text-sm text-slate-500">
-        Drag the section to reorder
-      </div>
+      {isDetailOpen ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/50 p-4">
+          <div className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl md:p-7">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
+                  Defining Objective Workflow
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Review the objective summary, update task status, or open a task for its full details.
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <ColorSquareSelect
+                  value={objective.color}
+                  onChange={(color) => onUpdateColor(objective.id, color)}
+                  ariaLabel="Objective color"
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsDetailOpen(false)}
+                  className="rounded-full px-3 py-1 text-2xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                  aria-label="Close defining objective workflow details"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
 
-      <TaskList
-        objective={objective}
-        taskInput={taskInput}
-        onTaskInputChange={onTaskInputChange}
-        onAddTask={onAddTask}
-        onOpenTask={onOpenTask}
-        onTaskStatusChange={onTaskStatusChange}
-      />
-    </div>
+            <div className="mb-6 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div
+                onMouseDown={(event) => event.stopPropagation()}
+                onDragStart={preventObjectiveDragFromEditRegion}
+              >
+                <EditableField
+                  value={objective.title}
+                  onSave={(value) => onUpdateTitle(objective.id, value)}
+                  placeholder="Objective title"
+                  ariaLabel="Objective title"
+                  className="text-xl font-semibold text-slate-900"
+                  activationMode="doubleClick"
+                />
+              </div>
+              <div
+                onMouseDown={(event) => event.stopPropagation()}
+                onDragStart={preventObjectiveDragFromEditRegion}
+              >
+                <RichTextEditor
+                  value={objective.description}
+                  onChange={(value) => onUpdateDescription(objective.id, value)}
+                  placeholder="Objective description"
+                  className="text-slate-700"
+                  minHeightClassName="min-h-[96px]"
+                  ariaLabel="Objective description"
+                  activationMode="doubleClick"
+                />
+              </div>
+            </div>
+
+            <TaskList
+              objective={objective}
+              taskInput={taskInput}
+              onTaskInputChange={onTaskInputChange}
+              onAddTask={onAddTask}
+              onOpenTask={onOpenTask}
+              onTaskStatusChange={onTaskStatusChange}
+            />
+
+            <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                onClick={() => onDelete(objective.id)}
+                className="rounded-xl border border-red-200 bg-red-50 px-5 py-2 font-semibold text-red-700 hover:bg-red-100"
+              >
+                Delete Objective
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsDetailOpen(false)}
+                className="rounded-xl bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700"
+              >
+                Close Details
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
