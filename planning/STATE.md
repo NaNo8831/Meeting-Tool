@@ -9,6 +9,7 @@
 - Backup: JSON export/import workspace backup.
 - Current focus: Structured Persistence Phase A/B schema foundation on `phase-2-cloud` direction, introducing non-breaking structured tables while preserving current manual save/load and backup behavior, plus dashboard create/duplicate/archive/restore meeting management and lightweight dashboard/menu UX cleanup.
 - Current branch note: Double-Click Editing UX is based from the available `phase-2-cloud` branch context in this workspace; this container has no configured git remote, so latest remote refresh could not be performed locally.
+- Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses an icon-only Meeting Menu trigger.
 
 ## Production State
 

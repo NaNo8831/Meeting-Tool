@@ -27,6 +27,7 @@ import {
   getRichTextPlainText,
   normalizeRichTextValue,
 } from "@/app/components/ui/RichTextEditor";
+import { useBodyScrollLock } from "@/app/hooks/useBodyScrollLock";
 import { useLocalStorage } from "@/app/hooks/useLocalStorage";
 import { useObjectives } from "@/app/hooks/useObjectives";
 import { useSupabaseAuth } from "@/app/hooks/useSupabaseAuth";
@@ -806,6 +807,14 @@ export default function MeetingWorkspace() {
   const [isLoadingHistoryNotes, setIsLoadingHistoryNotes] = useState(false);
   const [isSavingHistoryNotes, setIsSavingHistoryNotes] = useState(false);
   const [strategicTopicNotesById, setStrategicTopicNotesById] = useState<Record<number, SupabaseStrategicTopicNote | null>>({});
+  useBodyScrollLock(
+    showSettingsMenu ||
+      showDeleteMeetingNotesConfirm ||
+      showEndMeetingConfirm ||
+      showTacticalHistory ||
+      selectedStandardObjectiveId !== null ||
+      historyNotesTopic !== null,
+  );
   const organizationInfoWithDefaults = {
     ...defaultOrganizationInfo,
     ...organizationInfo,
@@ -2612,39 +2621,11 @@ export default function MeetingWorkspace() {
               </section>
             ) : null}
 
-            {isAuthLoading ? (
-              <div className="flex h-14 items-center rounded-full border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-500 shadow-sm">
-                Checking account…
-              </div>
-            ) : authSession ? (
-              <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
-                <span className="max-w-56 truncate font-semibold text-slate-700">
-                  {authSession.user.email}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => void handleSignOutAndExit()}
-                  disabled={isSigningOut}
-                  className="self-start font-semibold text-blue-600 hover:text-blue-800"
-                >
-                  {isSigningOut ? "Signing out…" : "Sign Out"}
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowAuthModal(true)}
-                className="h-14 rounded-full border border-blue-200 bg-white px-5 font-semibold text-blue-700 shadow-sm hover:bg-blue-50"
-              >
-                Sign In
-              </button>
-            )}
-
             <div ref={settingsMenuRef} className="relative">
               <button
                 type="button"
                 onClick={() => setShowSettingsMenu((isOpen) => !isOpen)}
-                className="flex h-14 items-center gap-2 rounded-full bg-blue-600 px-5 font-semibold text-white shadow-lg hover:bg-blue-700"
+                className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 font-semibold text-white shadow-lg hover:bg-blue-700"
                 aria-expanded={showSettingsMenu}
                 aria-haspopup="menu"
                 aria-label="Open meeting menu"
@@ -2652,7 +2633,6 @@ export default function MeetingWorkspace() {
                 <span className="text-2xl leading-none" aria-hidden="true">
                   ☰
                 </span>
-                Menu
               </button>
 
               {showSettingsMenu ? (
@@ -2671,17 +2651,43 @@ export default function MeetingWorkspace() {
                       Dashboard
                     </Link>
                   ) : null}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAuthModal(true);
-                      setShowSettingsMenu(false);
-                    }}
-                    className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
-                    role="menuitem"
-                  >
-                    {authSession ? "Account" : "Sign In"}
-                  </button>
+                  {isAuthLoading ? (
+                    <p className="px-5 py-3 text-sm font-semibold text-slate-500">
+                      Checking account…
+                    </p>
+                  ) : authSession ? (
+                    <>
+                      <div className="border-b border-slate-100 px-5 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          User
+                        </p>
+                        <p className="mt-1 truncate text-sm font-semibold text-slate-800">
+                          {authSession.user.email}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleSignOutAndExit()}
+                        disabled={isSigningOut}
+                        className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-slate-400"
+                        role="menuitem"
+                      >
+                        {isSigningOut ? "Signing out…" : "Sign Out"}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAuthModal(true);
+                        setShowSettingsMenu(false);
+                      }}
+                      className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                      role="menuitem"
+                    >
+                      Sign In
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {

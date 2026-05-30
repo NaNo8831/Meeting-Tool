@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { useBodyScrollLock } from '@/app/hooks/useBodyScrollLock';
 
 interface EditableFieldProps {
   value: string;
@@ -29,6 +30,7 @@ export function EditableField({
 }: EditableFieldProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
+  useBodyScrollLock(isEditing);
 
   const startEditing = () => {
     setEditValue(value);

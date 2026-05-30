@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { EditableField } from '@/app/components/ui/EditableField';
+import { useBodyScrollLock } from '@/app/hooks/useBodyScrollLock';
 import type { MeetingItem, MeetingSectionConfig, MeetingSectionKey } from '@/app/types/dashboard';
 
 interface MeetingSectionProps {
@@ -190,6 +191,7 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const isReadOnly = section.isReadOnly === true;
   const [historyTab, setHistoryTab] = useState<'completed' | 'archived'>('completed');
+  useBodyScrollLock(isHistoryOpen);
   const lastItemIdRef = useRef<number | null>(null);
   const previousItemCountRef = useRef(section.items.length);
   const topicListRef = useRef<HTMLDivElement | null>(null);

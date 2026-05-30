@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useBodyScrollLock } from "@/app/hooks/useBodyScrollLock";
 import type { SupabaseAuthSession } from "@/app/lib/supabaseClient";
 
 type AuthMode = "signIn" | "signUp";
@@ -39,6 +40,7 @@ export function AuthModal({
     message: string;
   } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  useBodyScrollLock(isOpen);
 
   if (!isOpen) return null;
 
