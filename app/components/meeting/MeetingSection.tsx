@@ -29,9 +29,9 @@ function StrategicTopicControls({ item, section }: { item: MeetingItem; section:
   if (section.id !== 'topic') return null;
 
   return (
-    <div className="mt-3 flex items-start justify-between gap-3 border-t border-slate-200 pt-3">
-      <div className="flex min-w-0 flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
+    <div className="mt-2 flex items-start justify-between gap-2 border-t border-slate-200 pt-2">
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
             <input
               type="checkbox"
@@ -257,10 +257,10 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
           className={section.id === 'topic' ? 'max-h-[34rem] space-y-3 overflow-y-auto pr-1' : 'space-y-3'}
         >
         {section.items.map((item) => (
-          <div key={item.id} className="rounded-2xl bg-white p-3 shadow-sm">
-            <div className="flex gap-3">
+          <div key={item.id} className={`rounded-2xl bg-white shadow-sm ${section.id === 'topic' ? 'p-2.5' : 'p-3'}`}>
+            <div className={section.id === 'topic' ? 'flex gap-2' : 'flex gap-3'}>
               <div className="flex-1">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className={`flex flex-col sm:flex-row sm:items-start sm:justify-between ${section.id === 'topic' ? 'gap-1.5' : 'gap-2'}`}>
                   <div className="flex-1">
                     {isReadOnly ? (
                       <p className="whitespace-pre-wrap rounded-lg p-2 text-slate-800">
@@ -280,7 +280,7 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
                   {section.id === 'topic' ? (
                     <span className="flex shrink-0 items-center gap-2 text-xs font-semibold">
                       <span className="text-slate-500">Date added</span>
-                      <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">
+                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-700">
                         {formatDisplayDate(item.capturedDate)}
                       </span>
                     </span>
