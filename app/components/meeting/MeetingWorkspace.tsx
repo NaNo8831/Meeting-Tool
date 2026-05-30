@@ -2894,41 +2894,38 @@ export default function MeetingWorkspace() {
           ref={meetingNotesRef}
           className="mt-10 mb-6 scroll-mt-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
         >
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-slate-900">
-                Meeting Notes — {activeMeeting.date}
-                {isViewingTodayMeeting ? " · Current Meeting" : ""}
-              </h2>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:items-end">
-              {isMeetingNotesReadOnly ? (
-                <p className="text-sm font-semibold text-slate-600">
-                  {meetingNotesReadOnlyMessage}
-                </p>
-              ) : null}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => navigateMeeting("previous")}
-                  disabled={!canNavigateToPreviousMeeting}
-                  className="rounded-full border border-slate-300 bg-white px-4 py-2 text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                  aria-label="View previous meeting"
-                >
-                  ←
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigateMeeting("next")}
-                  disabled={!canNavigateToNextMeeting}
-                  className="rounded-full border border-slate-300 bg-white px-4 py-2 text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                  aria-label="View next meeting"
-                >
-                  →
-                </button>
-              </div>
-
+          <div>
+            <h2 className="text-3xl font-bold text-slate-900">
+              Meeting Notes — {activeMeeting.date}
+              {isViewingTodayMeeting ? " · Current Meeting" : ""}
+            </h2>
+            <p
+              className={`mt-2 min-h-5 text-sm font-semibold text-slate-600 ${
+                isMeetingNotesReadOnly ? "" : "invisible"
+              }`}
+              aria-hidden={!isMeetingNotesReadOnly}
+            >
+              Past meeting notes are read-only.
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigateMeeting("previous")}
+                disabled={!canNavigateToPreviousMeeting}
+                className="rounded-full border border-slate-300 bg-white px-4 py-2 text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="View previous meeting"
+              >
+                ←
+              </button>
+              <button
+                type="button"
+                onClick={() => navigateMeeting("next")}
+                disabled={!canNavigateToNextMeeting}
+                className="rounded-full border border-slate-300 bg-white px-4 py-2 text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="View next meeting"
+              >
+                →
+              </button>
             </div>
           </div>
         </div>
