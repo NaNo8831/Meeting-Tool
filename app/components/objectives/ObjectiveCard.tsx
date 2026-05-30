@@ -3,11 +3,7 @@
 import { useState, type DragEvent } from 'react';
 import { EditableField } from '@/app/components/ui/EditableField';
 import { ColorSquareSelect } from '@/app/components/ui/ColorSquareSelect';
-import {
-  RichTextEditor,
-  getRichTextPlainText,
-  normalizeRichTextValue
-} from '@/app/components/ui/RichTextEditor';
+import { RichTextEditor } from '@/app/components/ui/RichTextEditor';
 import { TaskList } from '@/app/components/objectives/TaskList';
 import { useBodyScrollLock } from '@/app/hooks/useBodyScrollLock';
 import { objectiveColorClasses } from '@/app/lib/objectiveOptions';
@@ -47,7 +43,9 @@ export function ObjectiveCard({
   onTaskStatusChange
 }: ObjectiveCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const descriptionSummary = getRichTextPlainText(normalizeRichTextValue(objective.description));
+  const planningTaskCount = objective.tasks.filter((task) => task.status === 'planning').length;
+  const inProgressTaskCount = objective.tasks.filter((task) => task.status === 'in-progress').length;
+  const completedTaskCount = objective.tasks.filter((task) => task.status === 'completed').length;
 
   useBodyScrollLock(isDetailOpen);
 
@@ -78,19 +76,17 @@ export function ObjectiveCard({
           className="block w-full rounded-xl pr-11 text-left focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-4"
           aria-label={`Open workflow details for ${objective.title || 'untitled defining objective'}`}
         >
-          <h3 className="truncate text-base font-semibold text-slate-900">
+          <h3 className="line-clamp-3 min-h-[3.5rem] text-lg font-semibold leading-snug text-slate-900">
             {objective.title || 'Untitled defining objective'}
           </h3>
-          <p className="mt-1 line-clamp-2 min-h-10 text-sm leading-5 text-slate-600">
-            {descriptionSummary || 'No objective description yet.'}
-          </p>
 
-          <div className="mt-3 flex items-center justify-between gap-2 text-xs font-medium">
-            <span className="rounded-full bg-blue-50 px-2.5 py-1 font-semibold text-blue-700">
-              {objective.tasks.length} {objective.tasks.length === 1 ? 'task' : 'tasks'}
-            </span>
-            <span className="text-blue-700">Open details →</span>
-          </div>
+          <p className="mt-3 text-xs font-medium text-slate-600">
+            <span className="font-semibold text-slate-700">Task:</span>{' '}
+            P {planningTaskCount}, IP {inProgressTaskCount}, C {completedTaskCount}
+          </p>
+          <p className="mt-2 text-right text-xs font-medium text-blue-700">
+            Open details →
+          </p>
         </button>
       </div>
 
