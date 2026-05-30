@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { RichTextEditor } from '@/app/components/ui/RichTextEditor';
+import { useBodyScrollLock } from '@/app/hooks/useBodyScrollLock';
 import { taskStatusOptions } from '@/app/lib/objectiveOptions';
 import type { Subtask, Task, TaskActivity, TaskComment, TaskStatus } from '@/app/types/objective';
 
@@ -26,6 +27,7 @@ const statusLabels: Record<TaskStatus, string> = {
 };
 
 export function TaskDetailsModal({ task, objectiveTitle, onClose, onDelete, onUpdate }: TaskDetailsModalProps) {
+  useBodyScrollLock(true);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [newCommentText, setNewCommentText] = useState('');
   const [draftTitle, setDraftTitle] = useState(task.title);

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useBodyScrollLock } from "@/app/hooks/useBodyScrollLock";
 import { useSupabaseAuth } from "@/app/hooks/useSupabaseAuth";
 import {
   isSupabaseConfigured,
@@ -55,6 +56,12 @@ export default function DashboardPage() {
   const dashboardMenuRef = useRef<HTMLDivElement>(null);
   const optionsMenuRef = useRef<HTMLDivElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
+  useBodyScrollLock(
+    showDashboardMenu ||
+      showOptionsMenu ||
+      meetingPendingDuplicate !== null ||
+      meetingPendingDelete !== null,
+  );
 
   useEffect(() => {
     if (!isLoading && !session) {

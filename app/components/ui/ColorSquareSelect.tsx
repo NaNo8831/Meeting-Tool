@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useBodyScrollLock } from '@/app/hooks/useBodyScrollLock';
 import { objectiveColorOptions } from '@/app/lib/objectiveOptions';
 import type { ObjectiveColor } from '@/app/types/objective';
 
@@ -14,6 +15,7 @@ export function ColorSquareSelect({ value, onChange, ariaLabel }: ColorSquareSel
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const selectedOption = objectiveColorOptions.find((option) => option.value === value) ?? objectiveColorOptions[0];
+  useBodyScrollLock(isOpen);
 
   useEffect(() => {
     if (!isOpen) return;

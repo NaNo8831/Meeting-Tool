@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useBodyScrollLock } from "@/app/hooks/useBodyScrollLock";
 import {
   isSupabaseConfigured,
   supabaseFeedbackClient,
@@ -60,6 +61,7 @@ export function FeedbackWidget({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedbackMessage, setFeedbackMessage] =
     useState<FeedbackMessage | null>(null);
+  useBodyScrollLock(isOpen);
 
   const resetForm = () => {
     setFeedbackType("Bug");

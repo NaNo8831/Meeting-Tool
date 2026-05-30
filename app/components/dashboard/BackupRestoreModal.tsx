@@ -1,5 +1,6 @@
 'use client';
 
+import { useBodyScrollLock } from '@/app/hooks/useBodyScrollLock';
 import type { WorkspaceBackupFeedback } from '@/app/lib/workspaceBackup';
 
 interface BackupRestoreModalProps {
@@ -17,6 +18,8 @@ export function BackupRestoreModal({
   onImportWorkspaceBackup,
   backupFeedback,
 }: BackupRestoreModalProps) {
+  useBodyScrollLock(isOpen);
+
   if (!isOpen) return null;
 
   return (

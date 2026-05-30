@@ -9,6 +9,7 @@ import {
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
+import { useBodyScrollLock } from "@/app/hooks/useBodyScrollLock";
 import type {
   RichTextBlock,
   RichTextColumns,
@@ -595,6 +596,7 @@ export function RichTextEditor({
   const isAlwaysEditing = editingMode === "always";
   const [draftDocument, setDraftDocument] = useState(documentValue);
   const [isEditing, setIsEditing] = useState(isAlwaysEditing);
+  useBodyScrollLock(isEditing && !isAlwaysEditing);
   const [hasDraftContent, setHasDraftContent] = useState(
     getRichTextPlainText(documentValue).length > 0,
   );

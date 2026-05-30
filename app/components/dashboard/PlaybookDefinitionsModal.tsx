@@ -1,6 +1,7 @@
 'use client';
 
 import { EditableField } from '@/app/components/ui/EditableField';
+import { useBodyScrollLock } from '@/app/hooks/useBodyScrollLock';
 import { RichTextEditor } from '@/app/components/ui/RichTextEditor';
 import type { OrganizationInfo } from '@/app/types/dashboard';
 import type { RichTextDocument } from '@/app/types/richText';
@@ -22,6 +23,8 @@ export function PlaybookDefinitionsModal({
   dashboardTitle,
   onDashboardTitleChange,
 }: PlaybookDefinitionsModalProps) {
+  useBodyScrollLock(isOpen);
+
   if (!isOpen) return null;
 
   const handleSave = (field: keyof OrganizationInfo, value: OrganizationInfo[keyof OrganizationInfo]) => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useBodyScrollLock } from "@/app/hooks/useBodyScrollLock";
 import { RichTextEditor } from "@/app/components/ui/RichTextEditor";
 import type { OrganizationInfo } from "@/app/types/dashboard";
 import type { RichTextDocument } from "@/app/types/richText";
@@ -26,6 +27,7 @@ export function MeetingSetupModal({
   onComplete,
   requireCompletion = false,
 }: MeetingSetupModalProps) {
+  useBodyScrollLock(isOpen);
   const [draftTitle, setDraftTitle] = useState(dashboardTitle);
   const [draftInfo, setDraftInfo] = useState(organizationInfo);
 
