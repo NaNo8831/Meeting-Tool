@@ -10,7 +10,7 @@ import {
 } from '@/app/components/ui/RichTextEditor';
 import { TaskList } from '@/app/components/objectives/TaskList';
 import { useBodyScrollLock } from '@/app/hooks/useBodyScrollLock';
-import { objectiveColorClasses, taskStatusOptions } from '@/app/lib/objectiveOptions';
+import { objectiveColorClasses } from '@/app/lib/objectiveOptions';
 import type { Objective, TaskStatus } from '@/app/types/objective';
 import type { TaskInput } from '@/app/types/dashboard';
 import type { RichTextDocument } from '@/app/types/richText';
@@ -30,12 +30,6 @@ interface ObjectiveCardProps {
   onOpenTask: (objectiveId: number, taskId: number) => void;
   onTaskStatusChange: (objectiveId: number, taskId: number, status: TaskStatus) => void;
 }
-
-const statusLabels: Record<TaskStatus, string> = {
-  planning: 'Planning',
-  'in-progress': 'In Progress',
-  completed: 'Completed'
-};
 
 export function ObjectiveCard({
   objective,
@@ -69,44 +63,33 @@ export function ObjectiveCard({
         onDragStart={() => onDragStart(objective.id)}
         onDragOver={onDragOver}
         onDrop={() => onDrop(objective.id)}
-        className={`rounded-2xl border-t-[8px] bg-white p-4 shadow-sm ring-1 ring-slate-100 transition hover:shadow-md ${objectiveColorClasses[objective.color]}`}
+        className={`relative rounded-2xl border-t-[8px] bg-white p-3 shadow-sm ring-1 ring-slate-100 transition hover:shadow-md ${objectiveColorClasses[objective.color]}`}
       >
+        <div className="absolute right-3 top-3 z-10">
+          <ColorSquareSelect
+            value={objective.color}
+            onChange={(color) => onUpdateColor(objective.id, color)}
+            ariaLabel="Objective card color"
+          />
+        </div>
         <button
           type="button"
           onClick={() => setIsDetailOpen(true)}
-          className="block w-full rounded-xl text-left focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-4"
+          className="block w-full rounded-xl pr-11 text-left focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-4"
           aria-label={`Open workflow details for ${objective.title || 'untitled defining objective'}`}
         >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h3 className="truncate text-lg font-semibold text-slate-900">
-                {objective.title || 'Untitled defining objective'}
-              </h3>
-              <p className="mt-1 line-clamp-2 min-h-10 text-sm leading-5 text-slate-600">
-                {descriptionSummary || 'No objective description yet.'}
-              </p>
-            </div>
-            <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+          <h3 className="truncate text-base font-semibold text-slate-900">
+            {objective.title || 'Untitled defining objective'}
+          </h3>
+          <p className="mt-1 line-clamp-2 min-h-10 text-sm leading-5 text-slate-600">
+            {descriptionSummary || 'No objective description yet.'}
+          </p>
+
+          <div className="mt-3 flex items-center justify-between gap-2 text-xs font-medium">
+            <span className="rounded-full bg-blue-50 px-2.5 py-1 font-semibold text-blue-700">
               {objective.tasks.length} {objective.tasks.length === 1 ? 'task' : 'tasks'}
             </span>
-          </div>
-
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            {taskStatusOptions.map((status) => (
-              <div key={status} className="rounded-lg bg-slate-50 px-2 py-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                  {statusLabels[status]}
-                </p>
-                <p className="mt-1 text-lg font-bold leading-none text-slate-800">
-                  {objective.tasks.filter((task) => task.status === status).length}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-4 flex items-center justify-between gap-3 text-xs font-medium">
-            <span className="text-slate-400">Drag card to reorder</span>
-            <span className="text-blue-700">Open workflow details →</span>
+            <span className="text-blue-700">Open details →</span>
           </div>
         </button>
       </div>
