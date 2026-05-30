@@ -772,6 +772,7 @@ export default function MeetingWorkspace() {
   const [newCascadeItem, setNewCascadeItem] = useState("");
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
+  const meetingNotesRef = useRef<HTMLDivElement>(null);
   const [showMeetingSetup, setShowMeetingSetup] = useState(false);
   const [showPlaybookDefinitions, setShowPlaybookDefinitions] = useState(false);
   const [showBackupRestore, setShowBackupRestore] = useState(false);
@@ -855,13 +856,25 @@ export default function MeetingWorkspace() {
       ),
     [tacticalSessions],
   );
+  const todayDate = getTodayDate();
+  const todayMeeting = meetings.find((meeting) => meeting.date === todayDate);
   const isActiveMeetingHistorical = historicalMeetingIds.has(activeMeeting.id);
-  const isCurrentMeetingNotesRecord = activeMeetingIndex === meetings.length - 1;
+  const isViewingTodayMeeting = activeMeeting.date === todayDate;
   const isMeetingNotesReadOnly =
-    isActiveMeetingHistorical || !isCurrentMeetingNotesRecord;
-  const meetingNotesReadOnlyMessage = isActiveMeetingHistorical
-    ? "Captured in Tactical History. Historical meeting notes are read-only."
-    : "Past meeting note records are read-only. Use the current meeting record to edit notes.";
+    isActiveMeetingHistorical || !isViewingTodayMeeting;
+  const meetingNotesReadOnlyMessage = isViewingTodayMeeting
+    ? "Ended meeting notes are read-only."
+    : "Past meeting notes are read-only.";
+  const isTodayMeetingHistorical = todayMeeting
+    ? historicalMeetingIds.has(todayMeeting.id)
+    : false;
+  const meetingActionLabel = !todayMeeting
+    ? "Start Meeting"
+    : isTodayMeetingHistorical
+      ? "View Meeting"
+      : "Edit Meeting";
+  const canEndMeeting =
+    isViewingTodayMeeting && !isMeetingNotesReadOnly;
   const hasLoadedDashboardStorage =
     hasLoadedObjectives &&
     hasLoadedMeetings &&
@@ -1330,13 +1343,32 @@ export default function MeetingWorkspace() {
     );
   };
 
-  const createNewMeeting = () => {
-    const newMeeting = createBlankMeeting();
-    setMeetings([...meetings, newMeeting]);
-    setActiveMeetingId(newMeeting.id);
+  const scrollToMeetingNotes = () => {
+    window.requestAnimationFrame(() => {
+      meetingNotesRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  };
+
+  const handleMeetingAction = () => {
+    const existingTodayMeeting = meetings.find(
+      (meeting) => meeting.date === todayDate,
+    );
+
+    if (existingTodayMeeting) {
+      setActiveMeetingId(existingTodayMeeting.id);
+    } else {
+      const newMeeting = createBlankMeeting();
+      setMeetings([...meetings, newMeeting]);
+      setActiveMeetingId(newMeeting.id);
+    }
+
     setNewAgendaItem("");
     setNewDecisionItem("");
     setNewCascadeItem("");
+    scrollToMeetingNotes();
   };
 
   const deleteCurrentMeetingNotes = () => {
@@ -2124,7 +2156,8 @@ export default function MeetingWorkspace() {
       !authSession ||
       !selectedMeetingId ||
       !isCurrentCloudRouteWorkspace ||
-      isEndingMeeting
+      isEndingMeeting ||
+      !canEndMeeting
     )
       return;
 
@@ -2156,6 +2189,7 @@ export default function MeetingWorkspace() {
     }
   }, [
     authSession,
+    canEndMeeting,
     getCurrentWorkspaceStorage,
     isCurrentCloudRouteWorkspace,
     isEndingMeeting,
@@ -2439,10 +2473,10 @@ export default function MeetingWorkspace() {
             <div className="mt-3 flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
-                onClick={createNewMeeting}
+                onClick={handleMeetingAction}
                 className="rounded-full bg-blue-600 px-5 py-2 font-semibold text-white shadow-sm hover:bg-blue-700"
               >
-                Start Meeting
+                {meetingActionLabel}
               </button>
               <button
                 type="button"
@@ -2451,7 +2485,8 @@ export default function MeetingWorkspace() {
                   isEndingMeeting ||
                   !authSession ||
                   !selectedMeetingId ||
-                  !isCurrentCloudRouteWorkspace
+                  !isCurrentCloudRouteWorkspace ||
+                  !canEndMeeting
                 }
                 className="rounded-full border border-emerald-200 bg-emerald-50 px-5 py-2 font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -2855,20 +2890,24 @@ export default function MeetingWorkspace() {
           </div>
         </section>
 
-        <div className="mt-10 mb-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div
+          ref={meetingNotesRef}
+          className="mt-10 mb-6 scroll-mt-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+        >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h2 className="text-3xl font-bold text-slate-900">
                 Meeting Notes — {activeMeeting.date}
+                {isViewingTodayMeeting ? " · Current Meeting" : ""}
               </h2>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:items-end">
               {isMeetingNotesReadOnly ? (
-                <p className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">
+                <p className="text-sm font-semibold text-slate-600">
                   {meetingNotesReadOnlyMessage}
                 </p>
               ) : null}
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
