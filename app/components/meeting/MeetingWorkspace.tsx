@@ -1617,6 +1617,7 @@ export default function MeetingWorkspace() {
         [historyNotesTopic.id]: saved,
       }));
       setHistoryNotesStatus("History saved.");
+      setHistoryNotesTopic(null);
     } catch (error) {
       setHistoryNotesStatus(
         error instanceof Error
@@ -3279,14 +3280,8 @@ export default function MeetingWorkspace() {
       ) : null}
 
       {historyNotesTopic ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4"
-          onClick={() => setHistoryNotesTopic(null)}
-        >
-          <div
-            className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h3 className="text-lg font-semibold text-slate-900">
                 Strategic Topic Notes
@@ -3321,13 +3316,6 @@ export default function MeetingWorkspace() {
               <p className="mt-2 text-sm text-slate-700">{historyNotesStatus}</p>
             ) : null}
             <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setHistoryNotesTopic(null)}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-              >
-                Cancel
-              </button>
               <button
                 type="button"
                 onClick={() => void handleSaveStrategicTopicHistoryNotes()}
