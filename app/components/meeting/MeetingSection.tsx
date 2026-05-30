@@ -188,6 +188,7 @@ function StrategicTopicHistoryModal({
 
 export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: MeetingSectionProps) {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const isReadOnly = section.isReadOnly === true;
   const [historyTab, setHistoryTab] = useState<'completed' | 'archived'>('completed');
   const lastItemIdRef = useRef<number | null>(null);
   const previousItemCountRef = useRef(section.items.length);
@@ -214,18 +215,27 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
 
   return (
     <div
-      draggable
-      onDragStart={() => onDragStart(section.id)}
-      onDragOver={onDragOver}
-      onDrop={() => onDrop(section.id)}
-      className="relative cursor-grab rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm"
+      draggable={!isReadOnly}
+      onDragStart={() => {
+        if (!isReadOnly) onDragStart(section.id);
+      }}
+      onDragOver={isReadOnly ? undefined : onDragOver}
+      onDrop={isReadOnly ? undefined : () => onDrop(section.id)}
+      className={`relative rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm ${isReadOnly ? '' : 'cursor-grab'}`}
     >
-      <div className="absolute right-5 top-5 text-lg text-slate-400" aria-hidden="true">
-        ≡
-      </div>
+      {!isReadOnly ? (
+        <div className="absolute right-5 top-5 text-lg text-slate-400" aria-hidden="true">
+          ≡
+        </div>
+      ) : null}
       <div className="mb-4">
         <h3 className="text-xl font-semibold text-slate-900">{section.title}</h3>
         <p className="text-sm text-slate-500">{section.description}</p>
+        {isReadOnly ? (
+          <p className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600">
+            {section.readOnlyMessage ?? 'Historical notes are read-only.'}
+          </p>
+        ) : null}
       </div>
       <div className="space-y-3">
         {section.id === 'topic' ? (
@@ -250,14 +260,20 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
               <div className="flex-1">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex-1">
-                    <EditableField
-                      value={item.text}
-                      onSave={(value) => section.updateItem(item.id, value)}
-                      placeholder={section.editPlaceholder}
-                      ariaLabel={`${section.title} item`}
-                      className="text-slate-800"
-                      activationMode="doubleClick"
-                    />
+                    {isReadOnly ? (
+                      <p className="whitespace-pre-wrap rounded-lg p-2 text-slate-800">
+                        {item.text || section.editPlaceholder}
+                      </p>
+                    ) : (
+                      <EditableField
+                        value={item.text}
+                        onSave={(value) => section.updateItem(item.id, value)}
+                        placeholder={section.editPlaceholder}
+                        ariaLabel={`${section.title} item`}
+                        className="text-slate-800"
+                        activationMode="doubleClick"
+                      />
+                    )}
                   </div>
                   {section.id === 'topic' ? (
                     <span className="flex shrink-0 items-center gap-2 text-xs font-semibold">
@@ -270,35 +286,39 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
                 </div>
                 <StrategicTopicControls item={item} section={section} />
               </div>
-              <button
-                type="button"
-                onClick={() => section.deleteItem(item.id)}
-                className="self-start text-red-500 hover:text-red-700"
-                aria-label={`Remove ${section.title}`}
-              >
-                ×
-              </button>
+              {!isReadOnly ? (
+                <button
+                  type="button"
+                  onClick={() => section.deleteItem(item.id)}
+                  className="self-start text-red-500 hover:text-red-700"
+                  aria-label={`Remove ${section.title}`}
+                >
+                  ×
+                </button>
+              ) : null}
             </div>
           </div>
         ))}
         </div>
-        <div className="flex gap-2">
-          <input
-            value={section.newItem}
-            onChange={(e) => section.setNewItem(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                section.addItem();
-              }
-            }}
-            className="flex-1 rounded border border-slate-300 px-3 py-2 text-slate-900"
-            placeholder={section.placeholder}
-          />
-          <button type="button" onClick={section.addItem} className="rounded-xl bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-            Add
-          </button>
-        </div>
+        {!isReadOnly ? (
+          <div className="flex gap-2">
+            <input
+              value={section.newItem}
+              onChange={(e) => section.setNewItem(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  section.addItem();
+                }
+              }}
+              className="flex-1 rounded border border-slate-300 px-3 py-2 text-slate-900"
+              placeholder={section.placeholder}
+            />
+            <button type="button" onClick={section.addItem} className="rounded-xl bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+              Add
+            </button>
+          </div>
+        ) : null}
       </div>
       {section.id === 'topic' && isHistoryOpen ? (
         <StrategicTopicHistoryModal

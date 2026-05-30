@@ -2,6 +2,7 @@
 
 | Date | Decision | Rationale / Notes |
 | --- | --- | --- |
+| 2026-05-30 | Keep one meeting notes record per date and lock ended or past meeting notes to read-only review. | The header Start/Edit/View Meeting action resolves to today’s record without duplicates; End Meeting preserves its tactical snapshot behavior while making captured notes read-only. |
 | 2026-05-28 | Harden Local Workspace and Cloud Meeting boundaries before autosave. | `/meeting/local` remains browser-only even for signed-in users, Cloud Meeting save/load is limited to valid `/meeting/[id]` cloud routes, and Supabase meeting reads/writes exclude `deleted_at` rows so local state cannot recreate soft-deleted meetings. |
 | 2026-05-28 | Surface completed and archived Strategic Topics in a History modal instead of active-list visibility toggles. | Keeps the live Strategic Topics list focused on active discussion while preserving non-destructive archive/completion history and topic-attached Notes. |
 | 2026-05-23 | Introduce Phase A/B structured persistence schema as non-breaking Supabase foundation only; keep runtime reads/writes on `meetings.meeting_data` for now. | Adds normalized table and policy groundwork with owner-only RLS while preserving manual Save/Load and JSON export/import until a narrow structured-write pilot is validated. |

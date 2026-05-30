@@ -249,6 +249,27 @@ const getSnapshotEntry = <T,>(
   return scopedEntry ? (scopedEntry[1] as T) : fallback;
 };
 
+const getTacticalSessionTimestamp = (session: SupabaseTacticalSession) =>
+  new Date(
+    session.created_at || session.ended_at || session.session_date,
+  ).getTime();
+
+const sortTacticalSessionsNewestFirst = (
+  sessions: SupabaseTacticalSession[],
+) =>
+  [...sessions].sort(
+    (firstSession, secondSession) =>
+      getTacticalSessionTimestamp(secondSession) -
+      getTacticalSessionTimestamp(firstSession),
+  );
+
+const getCapturedMeetingId = (session: SupabaseTacticalSession) =>
+  getSnapshotEntry<number | null>(
+    session.snapshot_json,
+    "leadership-active-meeting-id",
+    null,
+  );
+
 const getMeetingItemText = (item: unknown) => {
   if (!isRecord(item)) return "";
   return typeof item.text === "string" ? item.text.trim() : "";
@@ -751,11 +772,14 @@ export default function MeetingWorkspace() {
   const [newCascadeItem, setNewCascadeItem] = useState("");
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
+  const meetingNotesRef = useRef<HTMLDivElement>(null);
   const [showMeetingSetup, setShowMeetingSetup] = useState(false);
   const [showPlaybookDefinitions, setShowPlaybookDefinitions] = useState(false);
   const [showBackupRestore, setShowBackupRestore] = useState(false);
   const [showTacticalHistory, setShowTacticalHistory] = useState(false);
   const [showEndMeetingConfirm, setShowEndMeetingConfirm] = useState(false);
+  const [showDeleteMeetingNotesConfirm, setShowDeleteMeetingNotesConfirm] =
+    useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [backupFeedback, setBackupFeedback] =
     useState<WorkspaceBackupFeedback | null>(null);
@@ -821,6 +845,36 @@ export default function MeetingWorkspace() {
   );
   const canNavigateToPreviousMeeting = activeMeetingIndex > 0;
   const canNavigateToNextMeeting = activeMeetingIndex < meetings.length - 1;
+  const historicalMeetingIds = useMemo(
+    () =>
+      new Set(
+        tacticalSessions
+          .map(getCapturedMeetingId)
+          .filter((meetingId): meetingId is number =>
+            typeof meetingId === "number",
+          ),
+      ),
+    [tacticalSessions],
+  );
+  const todayDate = getTodayDate();
+  const todayMeeting = meetings.find((meeting) => meeting.date === todayDate);
+  const isActiveMeetingHistorical = historicalMeetingIds.has(activeMeeting.id);
+  const isViewingTodayMeeting = activeMeeting.date === todayDate;
+  const isMeetingNotesReadOnly =
+    isActiveMeetingHistorical || !isViewingTodayMeeting;
+  const meetingNotesReadOnlyMessage = isViewingTodayMeeting
+    ? "Ended meeting notes are read-only."
+    : "Past meeting notes are read-only.";
+  const isTodayMeetingHistorical = todayMeeting
+    ? historicalMeetingIds.has(todayMeeting.id)
+    : false;
+  const meetingActionLabel = !todayMeeting
+    ? "Start Meeting"
+    : isTodayMeetingHistorical
+      ? "View Meeting"
+      : "Edit Meeting";
+  const canEndMeeting =
+    isViewingTodayMeeting && !isMeetingNotesReadOnly;
   const hasLoadedDashboardStorage =
     hasLoadedObjectives &&
     hasLoadedMeetings &&
@@ -1139,7 +1193,7 @@ export default function MeetingWorkspace() {
     setValue: (value: string) => void,
     sectionKey: MeetingSpecificSectionKey,
   ) => {
-    if (!value.trim()) return;
+    if (isMeetingNotesReadOnly || !value.trim()) return;
     updateActiveMeeting({
       [sectionKey]: [
         ...activeMeeting[sectionKey],
@@ -1154,6 +1208,8 @@ export default function MeetingWorkspace() {
     itemId: number,
     value: string,
   ) => {
+    if (isMeetingNotesReadOnly) return;
+
     updateActiveMeeting({
       [sectionKey]: activeMeeting[sectionKey].map((item) =>
         item.id === itemId ? { ...item, text: value } : item,
@@ -1165,6 +1221,8 @@ export default function MeetingWorkspace() {
     sectionKey: MeetingSpecificSectionKey,
     itemId: number,
   ) => {
+    if (isMeetingNotesReadOnly) return;
+
     updateActiveMeeting({
       [sectionKey]: activeMeeting[sectionKey].filter(
         (item) => item.id !== itemId,
@@ -1285,22 +1343,38 @@ export default function MeetingWorkspace() {
     );
   };
 
-  const createNewMeeting = () => {
-    const newMeeting = createBlankMeeting();
-    setMeetings([...meetings, newMeeting]);
-    setActiveMeetingId(newMeeting.id);
+  const scrollToMeetingNotes = () => {
+    window.requestAnimationFrame(() => {
+      meetingNotesRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  };
+
+  const handleMeetingAction = () => {
+    const existingTodayMeeting = meetings.find(
+      (meeting) => meeting.date === todayDate,
+    );
+
+    if (existingTodayMeeting) {
+      setActiveMeetingId(existingTodayMeeting.id);
+    } else {
+      const newMeeting = createBlankMeeting();
+      setMeetings([...meetings, newMeeting]);
+      setActiveMeetingId(newMeeting.id);
+    }
+
     setNewAgendaItem("");
     setNewDecisionItem("");
     setNewCascadeItem("");
+    scrollToMeetingNotes();
   };
 
-  const deleteCurrentMeeting = () => {
-    const isOnlyMeeting = meetings.length <= 1;
-    const warningMessage = isOnlyMeeting
-      ? "This is the only meeting. Deleting it will reset it to a blank meeting. Continue?"
-      : "Delete this meeting? Agenda Items, Decisions / Actions, and Cascading Communication for this meeting will be removed. Strategic Topics remain available in meeting history where appropriate.";
+  const deleteCurrentMeetingNotes = () => {
+    if (isMeetingNotesReadOnly) return;
 
-    if (!window.confirm(warningMessage)) return;
+    const isOnlyMeeting = meetings.length <= 1;
 
     if (isOnlyMeeting) {
       const fallbackMeeting = createBlankMeeting();
@@ -1317,6 +1391,7 @@ export default function MeetingWorkspace() {
       setActiveMeetingId(fallbackActiveMeeting.id);
     }
 
+    setShowDeleteMeetingNotesConfirm(false);
     setNewAgendaItem("");
     setNewDecisionItem("");
     setNewCascadeItem("");
@@ -1559,6 +1634,8 @@ export default function MeetingWorkspace() {
       deleteItem: (itemId) => deleteMeetingItem("agendaItems", itemId),
       placeholder: "New agenda item",
       editPlaceholder: "Add agenda item",
+      isReadOnly: isMeetingNotesReadOnly,
+      readOnlyMessage: meetingNotesReadOnlyMessage,
     },
     topic: {
       id: "topic",
@@ -1594,6 +1671,8 @@ export default function MeetingWorkspace() {
       deleteItem: (itemId) => deleteMeetingItem("decisionItems", itemId),
       placeholder: "New decision or action",
       editPlaceholder: "Decision or action item",
+      isReadOnly: isMeetingNotesReadOnly,
+      readOnlyMessage: meetingNotesReadOnlyMessage,
     },
     cascade: {
       id: "cascade",
@@ -1609,6 +1688,8 @@ export default function MeetingWorkspace() {
       deleteItem: (itemId) => deleteMeetingItem("cascadeItems", itemId),
       placeholder: "New cascading communication",
       editPlaceholder: "Cascading communication",
+      isReadOnly: isMeetingNotesReadOnly,
+      readOnlyMessage: meetingNotesReadOnlyMessage,
     },
   };
 
@@ -2052,8 +2133,11 @@ export default function MeetingWorkspace() {
         workspaceId: selectedMeetingId,
       });
       setTacticalSessions(sessions);
+      const latestSessions = sortTacticalSessionsNewestFirst(sessions).slice(0, 5);
       setSelectedTacticalSessionId((current) =>
-        current || sessions[0]?.id || "",
+        latestSessions.some((session) => session.id === current)
+          ? current
+          : latestSessions[0]?.id || "",
       );
     } catch {
       setTacticalSessions([]);
@@ -2072,7 +2156,8 @@ export default function MeetingWorkspace() {
       !authSession ||
       !selectedMeetingId ||
       !isCurrentCloudRouteWorkspace ||
-      isEndingMeeting
+      isEndingMeeting ||
+      !canEndMeeting
     )
       return;
 
@@ -2104,6 +2189,7 @@ export default function MeetingWorkspace() {
     }
   }, [
     authSession,
+    canEndMeeting,
     getCurrentWorkspaceStorage,
     isCurrentCloudRouteWorkspace,
     isEndingMeeting,
@@ -2309,8 +2395,14 @@ export default function MeetingWorkspace() {
 
     return <p className="text-slate-700 whitespace-pre-line">{value}</p>;
   };
+  const latestTacticalSessions = sortTacticalSessionsNewestFirst(
+    tacticalSessions,
+  ).slice(0, 5);
   const selectedTacticalSession =
-    tacticalSessions.find((session) => session.id === selectedTacticalSessionId) ??
+    latestTacticalSessions.find(
+      (session) => session.id === selectedTacticalSessionId,
+    ) ??
+    latestTacticalSessions[0] ??
     null;
   const selectedTacticalSessionSummary = buildTacticalSnapshotSummary(
     selectedTacticalSession,
@@ -2364,14 +2456,46 @@ export default function MeetingWorkspace() {
   return (
     <main className="min-h-screen bg-slate-100 p-8">
       <div className="mx-auto max-w-[1600px]">
-        <div className="mb-10 flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+        <div className="mb-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-start">
           <div>
             <h1 className="text-5xl font-bold text-slate-900">
               {dashboardTitle}
             </h1>
           </div>
 
-          <div className="flex flex-col gap-3 self-start sm:flex-row sm:items-start">
+          <section
+            className="rounded-3xl border border-blue-100 bg-white/85 p-4 shadow-sm xl:justify-self-center"
+            aria-label="Meeting lifecycle actions"
+          >
+            <p className="text-center text-xs font-semibold uppercase tracking-wide text-blue-600">
+              Meeting actions
+            </p>
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={handleMeetingAction}
+                className="rounded-full bg-blue-600 px-5 py-2 font-semibold text-white shadow-sm hover:bg-blue-700"
+              >
+                {meetingActionLabel}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowEndMeetingConfirm(true)}
+                disabled={
+                  isEndingMeeting ||
+                  !authSession ||
+                  !selectedMeetingId ||
+                  !isCurrentCloudRouteWorkspace ||
+                  !canEndMeeting
+                }
+                className="rounded-full border border-emerald-200 bg-emerald-50 px-5 py-2 font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isEndingMeeting ? "Ending Meeting…" : "End Meeting"}
+              </button>
+            </div>
+          </section>
+
+          <div className="flex flex-col gap-3 self-start sm:flex-row sm:items-start xl:justify-self-end">
             {isLocalRoute ? (
               <section className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm sm:w-96">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -2436,14 +2560,6 @@ export default function MeetingWorkspace() {
                     Save
                   </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowEndMeetingConfirm(true)}
-                  disabled={isEndingMeeting}
-                  className="mt-2 w-full rounded-xl border border-emerald-200 px-3 py-2 font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isEndingMeeting ? "Ending Meeting…" : "End Meeting"}
-                </button>
               </section>
             )}
 
@@ -2590,6 +2706,26 @@ export default function MeetingWorkspace() {
                       Meeting History
                     </button>
                   ) : null}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isMeetingNotesReadOnly) return;
+                      setShowDeleteMeetingNotesConfirm(true);
+                      setShowSettingsMenu(false);
+                    }}
+                    disabled={isMeetingNotesReadOnly}
+                    className="block w-full px-5 py-3 text-left text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-white"
+                    role="menuitem"
+                    title={
+                      isMeetingNotesReadOnly
+                        ? meetingNotesReadOnlyMessage
+                        : undefined
+                    }
+                  >
+                    {isMeetingNotesReadOnly
+                      ? "Meeting Notes Read-Only"
+                      : "Delete Current Meeting Notes"}
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -2754,32 +2890,17 @@ export default function MeetingWorkspace() {
           </div>
         </section>
 
-        <div className="mt-10 mb-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
+        <div
+          ref={meetingNotesRef}
+          className="mt-10 mb-6 scroll-mt-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+        >
+          <div>
+            <div className="flex items-start justify-between gap-4">
               <h2 className="text-3xl font-bold text-slate-900">
-                Meeting Notes
+                Meeting Notes — {activeMeeting.date}
+                {isViewingTodayMeeting ? " · Current Meeting" : ""}
               </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Use the arrows to review archived meetings, or start a new blank
-                meeting to archive this one.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
-                Current meeting date
-                <input
-                  type="date"
-                  value={activeMeeting.date}
-                  onChange={(e) =>
-                    updateActiveMeeting({ date: e.target.value })
-                  }
-                  className="rounded-xl border border-slate-300 px-3 py-2 text-slate-900"
-                />
-              </label>
-
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 <button
                   type="button"
                   onClick={() => navigateMeeting("previous")}
@@ -2789,11 +2910,6 @@ export default function MeetingWorkspace() {
                 >
                   ←
                 </button>
-                <span className="min-w-24 text-center text-sm font-medium text-slate-600">
-                  {meetings.length === 0
-                    ? "0 of 0"
-                    : `${activeMeetingIndex + 1} of ${meetings.length}`}
-                </span>
                 <button
                   type="button"
                   onClick={() => navigateMeeting("next")}
@@ -2804,23 +2920,15 @@ export default function MeetingWorkspace() {
                   →
                 </button>
               </div>
-
-              <button
-                type="button"
-                onClick={createNewMeeting}
-                className="rounded-full bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-              >
-                + New Blank Meeting
-              </button>
-
-              <button
-                type="button"
-                onClick={deleteCurrentMeeting}
-                className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-red-700 hover:bg-red-100"
-              >
-                Delete Current Meeting
-              </button>
             </div>
+            <p
+              className={`mt-3 min-h-5 text-sm font-semibold text-slate-600 ${
+                isMeetingNotesReadOnly ? "" : "invisible"
+              }`}
+              aria-hidden={!isMeetingNotesReadOnly}
+            >
+              Past meeting notes are read-only.
+            </p>
           </div>
         </div>
 
@@ -2843,6 +2951,59 @@ export default function MeetingWorkspace() {
       />
 
 
+      {showDeleteMeetingNotesConfirm ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-red-700">
+                  Delete Meeting Notes
+                </p>
+                <h2 className="mt-1 text-2xl font-bold text-slate-900">
+                  Delete Meeting Notes?
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDeleteMeetingNotesConfirm(false)}
+                className="rounded-full px-3 py-1 text-2xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Close Delete Meeting Notes confirmation"
+              >
+                ×
+              </button>
+            </div>
+            <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-600">
+              <p>
+                This will remove the notes for the selected meeting record dated {activeMeeting.date}.
+              </p>
+              <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-red-950">
+                <p className="font-semibold">What this will not delete</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <li>It will not delete the meeting workspace.</li>
+                  <li>It will not delete cloud meeting data outside this notes record.</li>
+                  <li>It will not delete tactical or strategic history snapshots.</li>
+                </ul>
+              </div>
+            </div>
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowDeleteMeetingNotesConfirm(false)}
+                className="rounded-xl border border-slate-300 px-5 py-2 font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Keep Notes
+              </button>
+              <button
+                type="button"
+                onClick={deleteCurrentMeetingNotes}
+                className="rounded-xl bg-red-600 px-5 py-2 font-semibold text-white hover:bg-red-700"
+              >
+                Delete Meeting Notes
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {showEndMeetingConfirm ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
@@ -2933,13 +3094,16 @@ export default function MeetingWorkspace() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {tacticalSessions.map((session) => (
+                    <p className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Showing latest 5 meetings
+                    </p>
+                    {latestTacticalSessions.map((session) => (
                       <button
                         key={session.id}
                         type="button"
                         onClick={() => setSelectedTacticalSessionId(session.id)}
                         className={`w-full rounded-xl border p-3 text-left ${
-                          session.id === selectedTacticalSessionId
+                          session.id === selectedTacticalSession?.id
                             ? "border-blue-300 bg-blue-50"
                             : "border-slate-200 bg-white hover:bg-slate-50"
                         }`}
