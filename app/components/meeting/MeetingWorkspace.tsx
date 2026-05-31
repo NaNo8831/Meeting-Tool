@@ -66,10 +66,13 @@ import type { RichTextDocument, RichTextValue } from "@/app/types/richText";
 
 const getTodayDate = () => new Date().toISOString().slice(0, 10);
 
+const objectiveCardRowClassName =
+  "mx-auto flex max-w-[96rem] flex-wrap justify-center gap-3";
+
 const getObjectiveCardWidthClassName = (itemCount: number) =>
   itemCount >= 6
-    ? "basis-[13rem] grow max-w-[15.75rem]"
-    : "basis-[15.75rem] max-w-[15.75rem]";
+    ? "basis-[13.125rem] grow max-w-[15.375rem]"
+    : "basis-[18.6rem] max-w-[18.6rem]";
 
 function PlaybookManagedSection({
   children,
@@ -2826,7 +2829,7 @@ export default function MeetingWorkspace() {
             </button>
           </div>
 
-          <div className="mx-auto flex max-w-[81.75rem] flex-wrap justify-center gap-3">
+          <div className={objectiveCardRowClassName}>
             {objectives.map((objective) => (
               <ObjectiveCard
                 key={objective.id}
@@ -2864,7 +2867,7 @@ export default function MeetingWorkspace() {
             </button>
           </div>
 
-          <div className="mx-auto flex max-w-[81.75rem] flex-wrap justify-center gap-3">
+          <div className={objectiveCardRowClassName}>
             {standardOperatingObjectives.map((item) => (
               <div
                 key={item.id}
