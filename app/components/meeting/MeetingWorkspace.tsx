@@ -2821,7 +2821,7 @@ export default function MeetingWorkspace() {
             </button>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid max-w-[81.75rem] gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr))]">
             {objectives.map((objective) => (
               <ObjectiveCard
                 key={objective.id}
