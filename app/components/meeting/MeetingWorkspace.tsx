@@ -66,6 +66,11 @@ import type { RichTextDocument, RichTextValue } from "@/app/types/richText";
 
 const getTodayDate = () => new Date().toISOString().slice(0, 10);
 
+const getObjectiveCardWidthClassName = (itemCount: number) =>
+  itemCount >= 6
+    ? "basis-[13rem] grow max-w-[15.75rem]"
+    : "basis-[15.75rem] max-w-[15.75rem]";
+
 function PlaybookManagedSection({
   children,
   className = "",
@@ -2821,11 +2826,12 @@ export default function MeetingWorkspace() {
             </button>
           </div>
 
-          <div className="grid max-w-[81.75rem] gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr))]">
+          <div className="mx-auto flex max-w-[81.75rem] flex-wrap justify-center gap-3">
             {objectives.map((objective) => (
               <ObjectiveCard
                 key={objective.id}
                 objective={objective}
+                className={getObjectiveCardWidthClassName(objectives.length)}
                 taskInput={taskInputs[objective.id]}
                 onDragStart={handleObjectiveDragStart}
                 onDragOver={handleDragOver}
@@ -2858,7 +2864,7 @@ export default function MeetingWorkspace() {
             </button>
           </div>
 
-          <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))]">
+          <div className="mx-auto flex max-w-[81.75rem] flex-wrap justify-center gap-3">
             {standardOperatingObjectives.map((item) => (
               <div
                 key={item.id}
@@ -2869,7 +2875,7 @@ export default function MeetingWorkspace() {
                 onDragOver={handleStandardObjectiveDragOver}
                 onDrop={(event) => handleStandardObjectiveDrop(event, item.id)}
                 onDragEnd={handleStandardObjectiveDragEnd}
-                className={`flex min-w-0 cursor-grab items-center gap-3 rounded-2xl border border-l-8 border-blue-100 bg-blue-50/70 p-3 text-slate-900 shadow-sm transition hover:border-blue-200 hover:bg-blue-100/80 active:cursor-grabbing ${objectiveColorClasses[getStandardObjectiveColor(item)]} ${draggingStandardObjectiveId === item.id ? "opacity-60 ring-2 ring-blue-200" : ""}`}
+                className={`flex min-w-0 cursor-grab items-center gap-3 rounded-2xl border border-l-8 border-blue-100 bg-blue-50/70 p-3 text-slate-900 shadow-sm transition hover:border-blue-200 hover:bg-blue-100/80 active:cursor-grabbing ${getObjectiveCardWidthClassName(standardOperatingObjectives.length)} ${objectiveColorClasses[getStandardObjectiveColor(item)]} ${draggingStandardObjectiveId === item.id ? "opacity-60 ring-2 ring-blue-200" : ""}`}
                 aria-label={`Drag ${item.title || "standard operating objective"} to reorder standard operating objectives`}
               >
                 <span

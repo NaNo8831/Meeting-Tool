@@ -13,6 +13,7 @@ import type { RichTextDocument } from '@/app/types/richText';
 
 interface ObjectiveCardProps {
   objective: Objective;
+  className?: string;
   taskInput: TaskInput | undefined;
   onDragStart: (id: number) => void;
   onDragOver: (event: DragEvent<HTMLDivElement>) => void;
@@ -29,6 +30,7 @@ interface ObjectiveCardProps {
 
 export function ObjectiveCard({
   objective,
+  className = '',
   taskInput,
   onDragStart,
   onDragOver,
@@ -61,7 +63,7 @@ export function ObjectiveCard({
         onDragStart={() => onDragStart(objective.id)}
         onDragOver={onDragOver}
         onDrop={() => onDrop(objective.id)}
-        className={`relative rounded-2xl border-t-[8px] bg-white p-3 shadow-sm ring-1 ring-slate-100 transition hover:shadow-md ${objectiveColorClasses[objective.color]}`}
+        className={`relative rounded-2xl border-t-[8px] bg-white p-3 shadow-sm ring-1 ring-slate-100 transition hover:shadow-md ${objectiveColorClasses[objective.color]} ${className}`}
       >
         <div className="absolute right-3 top-3 z-10">
           <ColorSquareSelect
