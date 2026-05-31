@@ -51,6 +51,7 @@ import {
 } from "@/app/lib/workspaceBackup";
 import {
   supabaseMeetingClient,
+  type SupabaseMeetingSettingsUpsert,
   type SupabaseStrategicTopicNote,
   type SupabaseTacticalSession,
 } from "@/app/lib/supabaseClient";
@@ -398,6 +399,7 @@ const buildTacticalSnapshotSummary = (
 };
 
 type CloudSaveStatus = "local" | "idle" | "saving" | "saved" | "error";
+const meetingSettingsAutosaveDebounceMs = 1200;
 
 const readBackupEntry = <T,>(
   backup: WorkspaceBackupFile,
@@ -691,10 +693,10 @@ export default function MeetingWorkspace() {
     useState<CloudSaveStatus>("local");
   const cloudSaveStatusLabel: Record<CloudSaveStatus, string> = {
     local: "Local only",
-    idle: "Cloud ready",
-    saving: "Working…",
-    saved: "Saved",
-    error: "Needs attention",
+    idle: "Unsaved changes",
+    saving: "Saving…",
+    saved: "Saved to cloud",
+    error: "Save failed",
   };
   const [cloudMeetingMessage, setCloudMeetingMessage] = useState("");
   const [selectedMeetingHasData, setSelectedMeetingHasData] =
@@ -816,6 +818,10 @@ export default function MeetingWorkspace() {
   const [draggingStandardObjectiveId, setDraggingStandardObjectiveId] =
     useState<number | null>(null);
   const lastCloudAutosaveSignatureRef = useRef("");
+  const lastMeetingSettingsAutosaveSignatureRef = useRef("");
+  const meetingSettingsAutosaveWorkspaceIdRef = useRef("");
+  const pendingMeetingSettingsAutosaveSignatureRef = useRef("");
+  const isMeetingSettingsAutosaveInFlightRef = useRef(false);
   const lastAutoLoadedCloudMeetingIdRef = useRef("");
   const [isRouteCloudBootstrapping, setIsRouteCloudBootstrapping] =
     useState(false);
@@ -2075,6 +2081,7 @@ export default function MeetingWorkspace() {
       });
 
       if (!cloudData) {
+        setActiveCloudWorkspaceId(selectedMeetingId);
         setCloudSaveStatus("idle");
         setCloudMeetingMessage(
           "This cloud meeting has no saved data yet. Use Save current workspace to cloud when ready.",
@@ -2311,6 +2318,9 @@ export default function MeetingWorkspace() {
     const timeoutId = window.setTimeout(() => {
       if (workspaceMode === "local") {
         lastCloudAutosaveSignatureRef.current = "";
+        lastMeetingSettingsAutosaveSignatureRef.current = "";
+        meetingSettingsAutosaveWorkspaceIdRef.current = "";
+        pendingMeetingSettingsAutosaveSignatureRef.current = "";
         setCloudSaveStatus("local");
         setCloudMeetingMessage(
           authSession
@@ -2338,20 +2348,139 @@ export default function MeetingWorkspace() {
     return () => window.clearTimeout(timeoutId);
   }, [loadTacticalSessions]);
 
+  const meetingSettingsAutosavePayload = useMemo<SupabaseMeetingSettingsUpsert>(
+    () => ({
+      dashboard_title: dashboardTitle,
+      organization_info: { ...organizationInfo },
+      meeting_section_order: meetingSectionOrder,
+      setup_completed: hasCompletedMeetingSetup,
+    }),
+    [
+      dashboardTitle,
+      hasCompletedMeetingSetup,
+      meetingSectionOrder,
+      organizationInfo,
+    ],
+  );
+  const meetingSettingsAutosaveSignature = useMemo(
+    () => JSON.stringify(meetingSettingsAutosavePayload),
+    [meetingSettingsAutosavePayload],
+  );
+
   useEffect(() => {
     if (workspaceMode !== "cloud") return;
-    if (!selectedMeetingId) return;
+    if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace)
+      return;
     if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
       return;
-    if (isRouteCloudBootstrapping) return;
+    if (isRouteCloudBootstrapping || !hasLoadedDashboardStorage) return;
 
-    const timeoutId = window.setTimeout(() => {
-    }, 0);
+    if (meetingSettingsAutosaveWorkspaceIdRef.current !== selectedMeetingId) {
+      meetingSettingsAutosaveWorkspaceIdRef.current = selectedMeetingId;
+      lastMeetingSettingsAutosaveSignatureRef.current =
+        meetingSettingsAutosaveSignature;
+      pendingMeetingSettingsAutosaveSignatureRef.current = "";
+      return;
+    }
 
-    return () => window.clearTimeout(timeoutId);
+    if (
+      meetingSettingsAutosaveSignature ===
+      lastMeetingSettingsAutosaveSignatureRef.current
+    ) {
+      if (pendingMeetingSettingsAutosaveSignatureRef.current) {
+        pendingMeetingSettingsAutosaveSignatureRef.current = "";
+        setCloudSaveStatus("saved");
+        setCloudMeetingMessage("Meeting settings match the saved cloud version.");
+      }
+      return;
+    }
+
+    pendingMeetingSettingsAutosaveSignatureRef.current =
+      meetingSettingsAutosaveSignature;
+    setCloudSaveStatus("idle");
+    setCloudMeetingMessage("Unsaved meeting settings changes are waiting to sync.");
+
+    let isCancelled = false;
+    let timeoutId: number;
+    const flushPendingSettings = async () => {
+      if (isCancelled) return;
+      if (isMeetingSettingsAutosaveInFlightRef.current) {
+        timeoutId = window.setTimeout(
+          flushPendingSettings,
+          meetingSettingsAutosaveDebounceMs,
+        );
+        return;
+      }
+
+      const pendingSignature =
+        pendingMeetingSettingsAutosaveSignatureRef.current;
+      if (
+        !pendingSignature ||
+        pendingSignature === lastMeetingSettingsAutosaveSignatureRef.current
+      )
+        return;
+
+      isMeetingSettingsAutosaveInFlightRef.current = true;
+      pendingMeetingSettingsAutosaveSignatureRef.current = "";
+      setCloudSaveStatus("saving");
+      setCloudMeetingMessage("Saving meeting settings to cloud…");
+
+      try {
+        await supabaseMeetingClient.saveMeetingSettings({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+          settings: JSON.parse(pendingSignature) as SupabaseMeetingSettingsUpsert,
+        });
+        lastMeetingSettingsAutosaveSignatureRef.current = pendingSignature;
+
+        if (
+          !isCancelled &&
+          !pendingMeetingSettingsAutosaveSignatureRef.current
+        ) {
+          setCloudSaveStatus("saved");
+          setCloudMeetingMessage(
+            "Meeting settings saved to cloud. Manual Save remains available for the full workspace backup.",
+          );
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setCloudSaveStatus("error");
+          setCloudMeetingMessage(
+            error instanceof Error
+              ? error.message
+              : "Meeting settings could not be saved to cloud.",
+          );
+        }
+      } finally {
+        isMeetingSettingsAutosaveInFlightRef.current = false;
+        if (
+          !isCancelled &&
+          pendingMeetingSettingsAutosaveSignatureRef.current
+        ) {
+          timeoutId = window.setTimeout(
+            flushPendingSettings,
+            meetingSettingsAutosaveDebounceMs,
+          );
+        }
+      }
+    };
+
+    timeoutId = window.setTimeout(
+      flushPendingSettings,
+      meetingSettingsAutosaveDebounceMs,
+    );
+
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timeoutId);
+    };
   }, [
     activeCloudWorkspaceId,
+    authSession,
+    hasLoadedDashboardStorage,
+    isCurrentCloudRouteWorkspace,
     isRouteCloudBootstrapping,
+    meetingSettingsAutosaveSignature,
     selectedMeetingId,
     workspaceMode,
   ]);

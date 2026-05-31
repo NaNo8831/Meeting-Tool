@@ -1,9 +1,10 @@
 # Architecture
 
-## Current Stable Architecture (No Behavior Change in This PR)
+## Current Stable Architecture
 - Next.js + TypeScript + Tailwind app deployed on Vercel.
 - Local Workspace remains browser `localStorage` based.
-- Cloud Meeting persistence currently uses manual save/load to `meetings.meeting_data` JSONB.
+- Cloud Meeting full-workspace persistence uses manual save/load to `meetings.meeting_data` JSONB.
+- Valid `/meeting/[id]` cloud routes also run one narrow structured-write pilot: debounced `meeting_settings` autosave after the selected cloud meeting finishes loading. `/meeting/local` never writes this pilot to cloud.
 - Backup/Restore JSON export/import remains operational and must stay intact.
 - Feedback remains separate from meeting persistence.
 - Auth sign out returns to `/`.
@@ -30,7 +31,7 @@ New direction:
 ### Recommended PR sequence (structured persistence)
 1. **Planning + schema design PRs (docs only).**
 2. **Table introduction PR(s) (non-breaking, no app read switch).**
-3. **Scoped write-path PRs by feature area** (e.g., tasks first, then strategic topics).
+3. **Scoped write-path PRs by feature area** (`meeting_settings` is the first narrow pilot; later surfaces remain separate).
 4. **Scoped read-path hydration PRs by feature area** with regression validation.
 5. **Backup-mode transition PR** where `meeting_data` becomes snapshot/export safety only.
 6. **Permissions + member expansion PRs** after structured model is stable.
@@ -41,6 +42,8 @@ New direction:
 - Do not remove `meeting_data` yet.
 - Keep rollouts reversible and feature-scoped.
 - Keep tactical history snapshots archival-first; do not couple them to realtime or full runtime persistence migration.
+- Do not reintroduce full-workspace JSONB autosave. The `meeting_settings` pilot writes only dashboard/playbook-level settings and leaves runtime reads on the existing workspace path.
+- Keep structured clients keyed by `meeting_id` and let database RLS enforce access so later `meeting_members` owner/editor/viewer expansion does not require owner-only assumptions in feature code.
 
 
 ## Strategic Topic lifecycle (current runtime behavior)

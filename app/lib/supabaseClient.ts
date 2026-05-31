@@ -27,6 +27,25 @@ export type SupabaseMeeting = {
   deleted_at: string | null;
 };
 
+export type SupabaseMeetingSettings = {
+  id: string;
+  meeting_id: string;
+  dashboard_title: string | null;
+  organization_info: Record<string, unknown> | null;
+  meeting_section_order: string[] | null;
+  setup_completed: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupabaseMeetingSettingsUpsert = Pick<
+  SupabaseMeetingSettings,
+  | "dashboard_title"
+  | "organization_info"
+  | "meeting_section_order"
+  | "setup_completed"
+>;
+
 export type SupabaseTacticalSession = {
   id: string;
   meeting_id: string;
@@ -599,6 +618,45 @@ export const supabaseMeetingClient = {
     }
 
     return meeting;
+  },
+
+  async saveMeetingSettings({
+    accessToken,
+    workspaceId,
+    settings,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    settings: SupabaseMeetingSettingsUpsert;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("meeting_settings")}?on_conflict=meeting_id`,
+      {
+        method: "POST",
+        headers: {
+          ...getSupabaseHeaders(accessToken),
+          Prefer: "resolution=merge-duplicates,return=representation",
+        },
+        body: JSON.stringify({
+          meeting_id: workspaceId,
+          ...settings,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Meeting settings autosave"),
+      );
+    }
+
+    const savedSettings = (await response.json()) as SupabaseMeetingSettings[];
+    const saved = savedSettings[0];
+    if (!saved) {
+      throw new Error("Meeting settings were not saved.");
+    }
+
+    return saved;
   },
 
   async listTacticalSessions({

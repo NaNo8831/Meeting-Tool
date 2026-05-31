@@ -3,7 +3,8 @@
 ## Current Stable State (Phase 2 Cloud Baseline)
 - `/dashboard` works for authenticated meeting selection.
 - `/meeting/[id]` loads the selected cloud meeting when explicitly requested.
-- Manual **Save to Cloud** works.
+- Manual **Save to Cloud** works and remains the full-workspace backup safety net.
+- `meeting_settings` is the only structured autosave pilot: valid loaded `/meeting/[id]` cloud routes debounce changed dashboard/playbook-level settings and upsert the one row for that meeting. Local mode never sends this write.
 - Refresh reloads the last manual cloud save.
 - JSON export/import works.
 - Feedback submission works.
@@ -68,7 +69,7 @@ Planned save flow:
 3. App updates local save status for that section/item.
 4. Manual full backup/export remains available as a safety net throughout migration.
 
-## Migration Strategy (No Runtime Changes in This PR)
+## Migration Strategy
 - **Phase A:** Keep JSONB backup as source of truth while structured schema and mapping are finalized.
 - **Phase B:** Add structured tables; new edits begin dual-write or structured-write per scoped surface.
 - **Phase C:** Hydrate app reads from structured tables (surface-by-surface rollout).
@@ -88,13 +89,16 @@ Supabase migration `20260523000000_add_structured_persistence_foundation.sql` in
 - `strategic_sessions`
 - `strategic_session_notes`
 
-This is schema-only groundwork:
-- Runtime app reads/writes are **not** switched to these tables yet.
-- `meetings.meeting_data` remains the active source of truth for current app behavior.
-- Manual Save/Load and JSON export/import remain unchanged.
+The foundation remains non-breaking, with one validated write-path pilot:
+- `meeting_settings` receives debounced structured upserts for `dashboard_title`, `organization_info`, `meeting_section_order`, and `setup_completed` only after a signed-in cloud route has finished bootstrapping.
+- Unchanged settings payloads are skipped. Failures surface a calm **Save failed** state, and Manual Save remains available.
+- Runtime app reads are **not** switched to `meeting_settings` yet; refresh still hydrates from the existing workspace backup path.
+- `meetings.meeting_data` remains the active backup/export/import shape and Manual Save/Load safety net.
+- Full-workspace JSONB autosave remains explicitly out of scope.
 
-Recommended next step after this PR:
-- Validate one small structured write surface first (likely `meeting_settings` or `strategic_topics`) before any broader runtime migration.
+Why this pilot is intentionally narrow:
+- A one-row settings upsert proves the structured write boundary without mixing objectives, tasks, agenda items, Strategic Topics, or notes into the same rollout.
+- The client writes by `meeting_id` and relies on RLS rather than hardcoding owner-only behavior, preparing for later `meeting_members` owner/editor/viewer policy expansion without implementing shared access in this slice.
 
 ## Explicit Out of Scope (This Plan)
 - Realtime behavior.

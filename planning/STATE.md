@@ -5,10 +5,10 @@
 - Product: Meeting Tool by LyArk in the `Meeting-Tool` repo.
 - Status: live/deployed operational beta.
 - Deployment: Vercel.
-- Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can save/load full workspace backup JSON in Supabase, and optionally receive explicit Local Workspace migration.
+- Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now autosave only the narrow `meeting_settings` structured pilot after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: Structured Persistence Phase A/B schema foundation on `phase-2-cloud` direction, introducing non-breaking structured tables while preserving current manual save/load and backup behavior, plus dashboard create/duplicate/archive/restore meeting management and lightweight dashboard/menu UX cleanup.
-- Current branch note: Double-Click Editing UX is based from the available `phase-2-cloud` branch context in this workspace; this container has no configured git remote, so latest remote refresh could not be performed locally.
+- Current focus: stabilize cloud save feedback and validate one intentionally narrow Phase B structured-write pilot: debounced `meeting_settings` autosave on valid cloud meeting routes while preserving current manual full-workspace save/load and backup behavior.
+- Current branch note: Cloud Save Status Hardening + Structured Autosave Pilot is based from the available Phase 2 cloud branch context in this workspace; this container has no configured git remote, so latest remote refresh could not be performed locally.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses an icon-only Meeting Menu trigger.
 
 ## Production State
@@ -23,14 +23,15 @@
 - Keep `main` stable for production and UX stabilization.
 - Treat the Meeting Setup flow as part of the current production baseline on `main` after PR #23.
 - First-Time Setup cleanup is stable on the `phase-2-cloud` flow: use cloud meeting row title as setup title fallback, remove setup filler defaults/placeholders, and keep manual save behavior unchanged.
-- Keep structured persistence schema foundation aligned with owner-only RLS and no runtime read/write switch yet.
-- Document and sequence next migration slices without breaking current owner-only cloud save/load behavior.
+- Keep the `meeting_settings` structured autosave pilot intentionally narrow: dashboard/playbook-level settings write after cloud-route bootstrap, unchanged payloads are skipped, and current runtime reads remain on the existing browser/workspace backup path.
+- Keep full-workspace JSONB autosave out of scope. Manual Save to `meetings.meeting_data` remains the backup safety net while structured surfaces are validated one at a time.
+- Document and sequence later migration slices without breaking current cloud save/load behavior or hardcoding owner-only client assumptions that would fight Phase 3 member roles.
 - Keep membership architecture, role direction (`owner`/`editor`/`viewer`), and ownership-handling rules documented as the permission foundation for future sharing work.
 
 ## Sprint Status
 
 - Completed sprint: Dashboard / Meeting Selector (authenticated dashboard cards, user-scoped meeting list, open-route entry, and local fallback completed on `phase-2-cloud`).
-- Current architecture status: App route separation is active with ` / ` landing/auth entry, `/dashboard` authenticated cloud meeting cards and create/duplicate/archive controls, `/meeting/local` browser-only local mode, and `/meeting/[id]` route-driven cloud meeting load with manual cloud save preserved; autosave repair is deferred.
+- Current architecture status: App route separation is active with ` / ` landing/auth entry, `/dashboard` authenticated cloud meeting cards and create/duplicate/archive controls, `/meeting/local` browser-only local mode, and `/meeting/[id]` route-driven cloud meeting load with manual cloud save preserved. Cloud status now reports **Unsaved changes**, **Saving…**, **Saved to cloud**, or **Save failed**, and only the `meeting_settings` structured pilot autosaves after cloud bootstrap with a debounce.
 - Archived Meeting soft-delete is now active on the dashboard for cloud meetings: archived cards can be restored by clearing `archived_at` or soft-deleted via confirmation, `meetings.deleted_at` is populated only for archived delete, and dashboard plus Cloud Meeting load/save queries exclude soft-deleted rows by default.
 - Tactical history foundation added on cloud meetings: **End Meeting** now writes archival tactical session snapshots to `tactical_sessions` (with `snapshot_json`); Tactical History is accessed from Meeting History in the workspace menu, shows readable historical summaries, and defaults to the latest five sessions while preserving all historical records.
 - Testing Mode meeting date override is available only when a preview/development deployment explicitly sets `NEXT_PUBLIC_ENABLE_TESTING_TOOLS=true`: testers can enable the workspace toggle, choose a past, present, or future date, create or reopen the single meeting record for that selected date, and end test-created meetings to accelerate Meeting History and Tactical History validation. Test-created notes and tactical snapshots display a **Test Date** badge. Live production must keep the flag disabled or unset; when it is not exactly `true`, controls do not render and the standard today-only lifecycle remains unchanged.
