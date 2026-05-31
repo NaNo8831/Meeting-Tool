@@ -65,6 +65,8 @@ import type { ObjectiveColor } from "@/app/types/objective";
 import type { RichTextDocument, RichTextValue } from "@/app/types/richText";
 
 const getTodayDate = () => new Date().toISOString().slice(0, 10);
+const testingToolsEnabled =
+  process.env.NEXT_PUBLIC_ENABLE_TESTING_TOOLS === "true";
 
 const objectiveCardRowClassName =
   "mx-auto flex max-w-[96rem] flex-wrap justify-center gap-3";
@@ -216,10 +218,12 @@ type SnapshotMeetingRecord = {
   topicItems?: MeetingItem[];
   decisionItems?: MeetingItem[];
   cascadeItems?: MeetingItem[];
+  isTestMeeting?: boolean;
 };
 
 type TacticalSnapshotSummary = {
   activeMeetingDate: string;
+  isTestMeeting: boolean;
   rallyCry: string;
   objectiveCount: number;
   taskCount: number;
@@ -366,6 +370,7 @@ const buildTacticalSnapshotSummary = (
   return {
     activeMeetingDate:
       activeMeeting?.date || session?.session_date || "Historical session",
+    isTestMeeting: activeMeeting?.isTestMeeting ?? false,
     rallyCry:
       typeof organizationInfoSnapshot.rallyCry === "string" &&
       organizationInfoSnapshot.rallyCry.trim()
@@ -403,9 +408,13 @@ const readBackupEntry = <T,>(
   return value === undefined ? fallback : (value as T);
 };
 
-const createBlankMeeting = (): MeetingRecord => ({
+const createBlankMeeting = (
+  date = getTodayDate(),
+  isTestMeeting = false,
+): MeetingRecord => ({
   id: Date.now(),
-  date: getTodayDate(),
+  date,
+  ...(isTestMeeting ? { isTestMeeting: true } : {}),
   agendaItems: [],
   topicItems: [],
   decisionItems: [],
@@ -547,9 +556,14 @@ function TacticalHistorySummary({
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             Meeting date
           </p>
-          <p className="mt-1 font-semibold text-slate-900">
-            {summary.activeMeetingDate}
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2 font-semibold text-slate-900">
+            <span>{summary.activeMeetingDate}</span>
+            {summary.isTestMeeting ? (
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                Test Date
+              </span>
+            ) : null}
+          </div>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -790,6 +804,8 @@ export default function MeetingWorkspace() {
   const [showBackupRestore, setShowBackupRestore] = useState(false);
   const [showTacticalHistory, setShowTacticalHistory] = useState(false);
   const [showEndMeetingConfirm, setShowEndMeetingConfirm] = useState(false);
+  const [isTestingModeActive, setIsTestingModeActive] = useState(false);
+  const [testingMeetingDate, setTestingMeetingDate] = useState(getTodayDate);
   const [showDeleteMeetingNotesConfirm, setShowDeleteMeetingNotesConfirm] =
     useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -877,24 +893,35 @@ export default function MeetingWorkspace() {
     [tacticalSessions],
   );
   const todayDate = getTodayDate();
-  const todayMeeting = meetings.find((meeting) => meeting.date === todayDate);
+  const isTestingDateOverrideActive = testingToolsEnabled && isTestingModeActive;
+  const meetingActionDate = isTestingDateOverrideActive
+    ? testingMeetingDate
+    : todayDate;
+  const hasMeetingActionDate = Boolean(meetingActionDate);
+  const actionDateMeeting = meetings.find(
+    (meeting) => meeting.date === meetingActionDate,
+  );
   const isActiveMeetingHistorical = historicalMeetingIds.has(activeMeeting.id);
   const isViewingTodayMeeting = activeMeeting.date === todayDate;
+  const isViewingEditableTestMeeting =
+    isTestingDateOverrideActive && activeMeeting.isTestMeeting === true;
   const isMeetingNotesReadOnly =
-    isActiveMeetingHistorical || !isViewingTodayMeeting;
-  const meetingNotesReadOnlyMessage = isViewingTodayMeeting
+    isActiveMeetingHistorical ||
+    (!isViewingTodayMeeting && !isViewingEditableTestMeeting);
+  const meetingNotesReadOnlyMessage = isActiveMeetingHistorical
     ? "Ended meeting notes are read-only."
     : "Past meeting notes are read-only.";
-  const isTodayMeetingHistorical = todayMeeting
-    ? historicalMeetingIds.has(todayMeeting.id)
+  const isActionDateMeetingHistorical = actionDateMeeting
+    ? historicalMeetingIds.has(actionDateMeeting.id)
     : false;
-  const meetingActionLabel = !todayMeeting
+  const meetingActionLabel = !actionDateMeeting
     ? "Start Meeting"
-    : isTodayMeetingHistorical
+    : isActionDateMeetingHistorical
       ? "View Meeting"
       : "Edit Meeting";
   const canEndMeeting =
-    isViewingTodayMeeting && !isMeetingNotesReadOnly;
+    (isViewingTodayMeeting || isViewingEditableTestMeeting) &&
+    !isMeetingNotesReadOnly;
   const hasLoadedDashboardStorage =
     hasLoadedObjectives &&
     hasLoadedMeetings &&
@@ -1373,14 +1400,19 @@ export default function MeetingWorkspace() {
   };
 
   const handleMeetingAction = () => {
-    const existingTodayMeeting = meetings.find(
-      (meeting) => meeting.date === todayDate,
+    if (!hasMeetingActionDate) return;
+
+    const existingMeeting = meetings.find(
+      (meeting) => meeting.date === meetingActionDate,
     );
 
-    if (existingTodayMeeting) {
-      setActiveMeetingId(existingTodayMeeting.id);
+    if (existingMeeting) {
+      setActiveMeetingId(existingMeeting.id);
     } else {
-      const newMeeting = createBlankMeeting();
+      const newMeeting = createBlankMeeting(
+        meetingActionDate,
+        isTestingDateOverrideActive,
+      );
       setMeetings([...meetings, newMeeting]);
       setActiveMeetingId(newMeeting.id);
     }
@@ -2192,8 +2224,8 @@ export default function MeetingWorkspace() {
       const created = await supabaseMeetingClient.endTacticalSession({
         accessToken: authSession.accessToken,
         workspaceId: selectedMeetingId,
-        sessionDate: getTodayDate(),
-        title: `Tactical Session ${getTodayDate()}`,
+        sessionDate: activeMeeting.date,
+        title: `Tactical Session ${activeMeeting.date}`,
         snapshotJson: workspaceEntries,
       });
       setTacticalSessions((current) => [created, ...current]);
@@ -2213,6 +2245,7 @@ export default function MeetingWorkspace() {
       setIsEndingMeeting(false);
     }
   }, [
+    activeMeeting.date,
     authSession,
     canEndMeeting,
     getCurrentWorkspaceStorage,
@@ -2499,7 +2532,8 @@ export default function MeetingWorkspace() {
               <button
                 type="button"
                 onClick={handleMeetingAction}
-                className="rounded-full bg-blue-600 px-5 py-2 font-semibold text-white shadow-sm hover:bg-blue-700"
+                disabled={!hasMeetingActionDate}
+                className="rounded-full bg-blue-600 px-5 py-2 font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {meetingActionLabel}
               </button>
@@ -2518,6 +2552,31 @@ export default function MeetingWorkspace() {
                 {isEndingMeeting ? "Ending Meeting…" : "End Meeting"}
               </button>
             </div>
+            {testingToolsEnabled ? (
+              <div className="mt-4 border-t border-amber-100 pt-3">
+                <label className="flex items-center justify-center gap-2 text-xs font-semibold text-amber-800">
+                  <input
+                    type="checkbox"
+                    checked={isTestingModeActive}
+                    onChange={(event) => setIsTestingModeActive(event.target.checked)}
+                    className="h-4 w-4 rounded border-amber-300 text-amber-600"
+                  />
+                  Testing Mode
+                </label>
+                {isTestingModeActive ? (
+                  <label className="mt-3 block text-xs font-semibold text-slate-600">
+                    Test meeting date
+                    <input
+                      type="date"
+                      required
+                      value={testingMeetingDate}
+                      onChange={(event) => setTestingMeetingDate(event.target.value)}
+                      className="mt-1 block w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-slate-900"
+                    />
+                  </label>
+                ) : null}
+              </div>
+            ) : null}
           </section>
 
           <div className="flex flex-col gap-3 self-start sm:flex-row sm:items-start xl:justify-self-end">
@@ -2923,6 +2982,11 @@ export default function MeetingWorkspace() {
               <h2 className="text-3xl font-bold text-slate-900">
                 Meeting Notes — {activeMeeting.date}
                 {isViewingTodayMeeting ? " · Current Meeting" : ""}
+                {activeMeeting.isTestMeeting ? (
+                  <span className="ml-2 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 align-middle text-xs font-semibold text-amber-800">
+                    Test Date
+                  </span>
+                ) : null}
               </h2>
               <div className="flex shrink-0 items-center gap-2">
                 <button
@@ -3054,6 +3118,11 @@ export default function MeetingWorkspace() {
               <p>
                 This creates a historical Tactical History snapshot for the current cloud meeting.
               </p>
+              {activeMeeting.isTestMeeting ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 font-semibold text-amber-900">
+                  Testing Mode: this snapshot uses the test date {activeMeeting.date}.
+                </p>
+              ) : null}
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-emerald-950">
                 <p className="font-semibold">What stays unchanged</p>
                 <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -3135,9 +3204,14 @@ export default function MeetingWorkspace() {
                         <p className="font-semibold text-slate-900">
                           {session.title || `Tactical Session ${session.session_date}`}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          Meeting date: {session.session_date}
-                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                          <span>Meeting date: {session.session_date}</span>
+                          {buildTacticalSnapshotSummary(session).isTestMeeting ? (
+                            <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 font-semibold text-amber-800">
+                              Test Date
+                            </span>
+                          ) : null}
+                        </div>
                         <p className="mt-1 text-xs text-slate-500">
                           Captured: {new Date(session.created_at).toLocaleString()}
                         </p>
