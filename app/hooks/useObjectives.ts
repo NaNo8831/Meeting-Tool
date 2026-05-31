@@ -200,6 +200,7 @@ export const useObjectives = (storageKey = 'leadership-objectives') => {
       },
       ...objectives
     ]);
+    return nextId;
   };
 
   const deleteObjective = (id: number) => {

@@ -721,6 +721,9 @@ export default function MeetingWorkspace() {
     replaceObjectives,
     hasLoadedObjectives,
   } = useObjectives(getStorageKey("leadership-objectives"));
+  const [newObjectiveDetailId, setNewObjectiveDetailId] = useState<number | null>(
+    null,
+  );
   const [meetings, setMeetings, hasLoadedMeetings] = useLocalStorage<
     MeetingRecord[]
   >(getStorageKey("leadership-meetings"), initialMeetings);
@@ -1425,6 +1428,10 @@ export default function MeetingWorkspace() {
     setNewAgendaItem("");
     setNewDecisionItem("");
     setNewCascadeItem("");
+  };
+
+  const addAndOpenObjective = () => {
+    setNewObjectiveDetailId(addObjective());
   };
 
   const getStandardObjectiveColor = (item: StandardOperatingObjective) =>
@@ -2821,7 +2828,7 @@ export default function MeetingWorkspace() {
             </p>
             <button
               type="button"
-              onClick={addObjective}
+              onClick={addAndOpenObjective}
               className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-xl font-semibold leading-none text-white shadow-sm hover:bg-blue-700"
               aria-label="Add defining objective"
             >
@@ -2835,6 +2842,7 @@ export default function MeetingWorkspace() {
                 key={objective.id}
                 objective={objective}
                 className={getObjectiveCardWidthClassName(objectives.length)}
+                initiallyOpenDetails={objective.id === newObjectiveDetailId}
                 taskInput={taskInputs[objective.id]}
                 onDragStart={handleObjectiveDragStart}
                 onDragOver={handleDragOver}
@@ -2892,7 +2900,7 @@ export default function MeetingWorkspace() {
                   onClick={() => openStandardObjectiveEditor(item)}
                   className="min-w-0 flex-1 rounded-lg text-left text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-300"
                 >
-                  <span className="block truncate">{item.title}</span>
+                  <span className="line-clamp-2 leading-snug">{item.title}</span>
                 </button>
                 <ColorSquareSelect
                   value={getStandardObjectiveColor(item)}
