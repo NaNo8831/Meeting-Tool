@@ -80,9 +80,8 @@ export function ObjectiveCard({
             {objective.title || 'Untitled defining objective'}
           </h3>
 
-          <p className="mt-3 text-xs font-medium text-slate-600">
-            <span className="font-semibold text-slate-700">Task:</span>{' '}
-            P {planningTaskCount}, IP {inProgressTaskCount}, C {completedTaskCount}
+          <p className="mt-3 inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+            Task: P {planningTaskCount}, IP {inProgressTaskCount}, C {completedTaskCount}
           </p>
           <p className="mt-2 text-right text-xs font-medium text-blue-700">
             Open details →
