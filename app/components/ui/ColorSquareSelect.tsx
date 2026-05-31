@@ -40,15 +40,25 @@ export function ColorSquareSelect({ value, onChange, ariaLabel }: ColorSquareSel
   return (
     <div
       ref={containerRef}
-      className="relative inline-flex shrink-0"
+      className={`relative inline-flex shrink-0 ${isOpen ? 'z-50' : ''}`}
       onClick={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
       onDragStart={(event) => event.stopPropagation()}
     >
+      {isOpen ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-40 cursor-default"
+          aria-label={`Close ${ariaLabel}`}
+          onClick={() => setIsOpen(false)}
+        />
+      ) : null}
+
       <button
         type="button"
         onClick={() => setIsOpen((current) => !current)}
-        className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
+        className={`relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-300 ${isOpen ? 'z-50' : ''}`}
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
@@ -63,7 +73,7 @@ export function ColorSquareSelect({ value, onChange, ariaLabel }: ColorSquareSel
         <div
           role="listbox"
           aria-label={ariaLabel}
-          className="absolute right-0 top-full z-30 mt-2 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-lg"
+          className="pointer-events-auto absolute right-0 top-full z-50 mt-2 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-lg"
         >
           {objectiveColorOptions.map((option) => {
             const isSelected = option.value === selectedOption.value;

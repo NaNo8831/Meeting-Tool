@@ -66,6 +66,14 @@ import type { RichTextDocument, RichTextValue } from "@/app/types/richText";
 
 const getTodayDate = () => new Date().toISOString().slice(0, 10);
 
+const objectiveCardRowClassName =
+  "mx-auto flex max-w-[96rem] flex-wrap justify-center gap-3";
+
+const getObjectiveCardWidthClassName = (itemCount: number) =>
+  itemCount >= 6
+    ? "basis-[13.125rem] grow max-w-[15.375rem]"
+    : "basis-[18.6rem] max-w-[18.6rem]";
+
 function PlaybookManagedSection({
   children,
   className = "",
@@ -713,6 +721,9 @@ export default function MeetingWorkspace() {
     replaceObjectives,
     hasLoadedObjectives,
   } = useObjectives(getStorageKey("leadership-objectives"));
+  const [newObjectiveDetailId, setNewObjectiveDetailId] = useState<number | null>(
+    null,
+  );
   const [meetings, setMeetings, hasLoadedMeetings] = useLocalStorage<
     MeetingRecord[]
   >(getStorageKey("leadership-meetings"), initialMeetings);
@@ -1417,6 +1428,10 @@ export default function MeetingWorkspace() {
     setNewAgendaItem("");
     setNewDecisionItem("");
     setNewCascadeItem("");
+  };
+
+  const addAndOpenObjective = () => {
+    setNewObjectiveDetailId(addObjective());
   };
 
   const getStandardObjectiveColor = (item: StandardOperatingObjective) =>
@@ -2813,7 +2828,7 @@ export default function MeetingWorkspace() {
             </p>
             <button
               type="button"
-              onClick={addObjective}
+              onClick={addAndOpenObjective}
               className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-xl font-semibold leading-none text-white shadow-sm hover:bg-blue-700"
               aria-label="Add defining objective"
             >
@@ -2821,11 +2836,13 @@ export default function MeetingWorkspace() {
             </button>
           </div>
 
-          <div className="grid max-w-[81.75rem] gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr))]">
+          <div className={objectiveCardRowClassName}>
             {objectives.map((objective) => (
               <ObjectiveCard
                 key={objective.id}
                 objective={objective}
+                className={getObjectiveCardWidthClassName(objectives.length)}
+                initiallyOpenDetails={objective.id === newObjectiveDetailId}
                 taskInput={taskInputs[objective.id]}
                 onDragStart={handleObjectiveDragStart}
                 onDragOver={handleDragOver}
@@ -2858,7 +2875,7 @@ export default function MeetingWorkspace() {
             </button>
           </div>
 
-          <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))]">
+          <div className={objectiveCardRowClassName}>
             {standardOperatingObjectives.map((item) => (
               <div
                 key={item.id}
@@ -2869,7 +2886,7 @@ export default function MeetingWorkspace() {
                 onDragOver={handleStandardObjectiveDragOver}
                 onDrop={(event) => handleStandardObjectiveDrop(event, item.id)}
                 onDragEnd={handleStandardObjectiveDragEnd}
-                className={`flex min-w-0 cursor-grab items-center gap-3 rounded-2xl border border-l-8 border-blue-100 bg-blue-50/70 p-3 text-slate-900 shadow-sm transition hover:border-blue-200 hover:bg-blue-100/80 active:cursor-grabbing ${objectiveColorClasses[getStandardObjectiveColor(item)]} ${draggingStandardObjectiveId === item.id ? "opacity-60 ring-2 ring-blue-200" : ""}`}
+                className={`flex min-w-0 cursor-grab items-center gap-3 rounded-2xl border border-l-8 border-blue-100 bg-blue-50/70 p-3 text-slate-900 shadow-sm transition hover:border-blue-200 hover:bg-blue-100/80 active:cursor-grabbing ${getObjectiveCardWidthClassName(standardOperatingObjectives.length)} ${objectiveColorClasses[getStandardObjectiveColor(item)]} ${draggingStandardObjectiveId === item.id ? "opacity-60 ring-2 ring-blue-200" : ""}`}
                 aria-label={`Drag ${item.title || "standard operating objective"} to reorder standard operating objectives`}
               >
                 <span
@@ -2883,7 +2900,7 @@ export default function MeetingWorkspace() {
                   onClick={() => openStandardObjectiveEditor(item)}
                   className="min-w-0 flex-1 rounded-lg text-left text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-300"
                 >
-                  <span className="block truncate">{item.title}</span>
+                  <span className="line-clamp-2 leading-snug">{item.title}</span>
                 </button>
                 <ColorSquareSelect
                   value={getStandardObjectiveColor(item)}

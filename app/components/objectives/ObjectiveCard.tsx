@@ -13,6 +13,8 @@ import type { RichTextDocument } from '@/app/types/richText';
 
 interface ObjectiveCardProps {
   objective: Objective;
+  className?: string;
+  initiallyOpenDetails?: boolean;
   taskInput: TaskInput | undefined;
   onDragStart: (id: number) => void;
   onDragOver: (event: DragEvent<HTMLDivElement>) => void;
@@ -29,6 +31,8 @@ interface ObjectiveCardProps {
 
 export function ObjectiveCard({
   objective,
+  className = '',
+  initiallyOpenDetails = false,
   taskInput,
   onDragStart,
   onDragOver,
@@ -42,7 +46,7 @@ export function ObjectiveCard({
   onOpenTask,
   onTaskStatusChange
 }: ObjectiveCardProps) {
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(initiallyOpenDetails);
   const planningTaskCount = objective.tasks.filter((task) => task.status === 'planning').length;
   const inProgressTaskCount = objective.tasks.filter((task) => task.status === 'in-progress').length;
   const completedTaskCount = objective.tasks.filter((task) => task.status === 'completed').length;
@@ -61,9 +65,9 @@ export function ObjectiveCard({
         onDragStart={() => onDragStart(objective.id)}
         onDragOver={onDragOver}
         onDrop={() => onDrop(objective.id)}
-        className={`relative rounded-2xl border-t-[8px] bg-white p-3 shadow-sm ring-1 ring-slate-100 transition hover:shadow-md ${objectiveColorClasses[objective.color]}`}
+        className={`relative rounded-2xl border-t-[8px] bg-white p-3 shadow-sm ring-1 ring-slate-100 transition hover:shadow-md ${objectiveColorClasses[objective.color]} ${className}`}
       >
-        <div className="absolute right-3 top-3 z-10">
+        <div className="absolute right-3 top-3">
           <ColorSquareSelect
             value={objective.color}
             onChange={(color) => onUpdateColor(objective.id, color)}
@@ -73,19 +77,21 @@ export function ObjectiveCard({
         <button
           type="button"
           onClick={() => setIsDetailOpen(true)}
-          className="block w-full rounded-xl pr-11 text-left focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-4"
+          className="block w-full rounded-xl text-left focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-4"
           aria-label={`Open workflow details for ${objective.title || 'untitled defining objective'}`}
         >
-          <h3 className="line-clamp-3 min-h-[3.5rem] text-lg font-semibold leading-snug text-slate-900">
+          <h3 className="line-clamp-3 min-h-[3.5rem] pr-11 text-lg font-semibold leading-snug text-slate-900">
             {objective.title || 'Untitled defining objective'}
           </h3>
 
-          <p className="mt-3 inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-            Task: P {planningTaskCount}, IP {inProgressTaskCount}, C {completedTaskCount}
-          </p>
-          <p className="mt-2 text-right text-xs font-medium text-blue-700">
-            Open details →
-          </p>
+          <span className="mt-3 flex items-center justify-between gap-2">
+            <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+              Task: P {planningTaskCount}, IP {inProgressTaskCount}, C {completedTaskCount}
+            </span>
+            <span className="shrink-0 text-right text-xs font-medium text-blue-700">
+              Open details
+            </span>
+          </span>
         </button>
       </div>
 
