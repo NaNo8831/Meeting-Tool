@@ -44,6 +44,8 @@ New direction:
 - Keep tactical history snapshots archival-first; do not couple them to realtime or full runtime persistence migration.
 - Do not reintroduce full-workspace JSONB autosave. The `meeting_settings` pilot writes only dashboard/playbook-level settings and leaves runtime reads on the existing workspace path.
 - Keep structured clients keyed by `meeting_id` and let database RLS enforce access so later `meeting_members` owner/editor/viewer expansion does not require owner-only assumptions in feature code.
+- Keep `meetings.name` as the cloud container/dashboard name and `meeting_settings.dashboard_title` as the distinct in-workspace/playbook title; they may initially match but should not be collapsed during this pilot.
+- Report settings autosave status separately from the Manual Save full-workspace backup state so non-pilot edits are never presented as autosaved.
 
 
 ## Strategic Topic lifecycle (current runtime behavior)

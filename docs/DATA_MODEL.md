@@ -26,6 +26,12 @@ Architecture drawbacks of full JSONB autosave:
 - Load/save race conditions are hard to eliminate.
 - Model does not fit future multi-user/realtime behavior.
 
+## Meeting Container Name vs. Workspace Title
+- `meetings.name` is the Cloud Meeting container name shown on the authenticated dashboard and used to identify the routed cloud workspace.
+- `meeting_settings.dashboard_title` is the in-workspace/playbook title shown inside the Meeting Tool workspace.
+- The two values may initially match, but they remain distinct concepts and are not collapsed into one field in this pilot.
+- Keeping the container identity separate from workspace settings remains compatible with future Phase 3 member-based access.
+
 ## Current Persistence Shape (Keep During Migration)
 `meetings.meeting_data` remains in place as:
 - backup/safety net,
@@ -91,7 +97,7 @@ Supabase migration `20260523000000_add_structured_persistence_foundation.sql` in
 
 The foundation remains non-breaking, with one validated write-path pilot:
 - `meeting_settings` receives debounced structured upserts for `dashboard_title`, `organization_info`, `meeting_section_order`, and `setup_completed` only after a signed-in cloud route has finished bootstrapping.
-- Unchanged settings payloads are skipped. Failures surface a calm **Save failed** state, and Manual Save remains available.
+- Unchanged settings payloads are skipped. The UI separately reports settings autosave progress and whether Manual Save is needed for the full workspace backup; failures surface a calm **Settings save failed** state.
 - Runtime app reads are **not** switched to `meeting_settings` yet; refresh still hydrates from the existing workspace backup path.
 - `meetings.meeting_data` remains the active backup/export/import shape and Manual Save/Load safety net.
 - Full-workspace JSONB autosave remains explicitly out of scope.

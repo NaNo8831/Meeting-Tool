@@ -399,6 +399,7 @@ const buildTacticalSnapshotSummary = (
 };
 
 type CloudSaveStatus = "local" | "idle" | "saving" | "saved" | "error";
+type SettingsAutosaveStatus = "ready" | "pending" | "saving" | "saved" | "error";
 const meetingSettingsAutosaveDebounceMs = 1200;
 
 const readBackupEntry = <T,>(
@@ -693,12 +694,23 @@ export default function MeetingWorkspace() {
     useState<CloudSaveStatus>("local");
   const cloudSaveStatusLabel: Record<CloudSaveStatus, string> = {
     local: "Local only",
-    idle: "Unsaved changes",
+    idle: "Cloud ready",
     saving: "Saving…",
     saved: "Saved to cloud",
     error: "Save failed",
   };
+  const [settingsAutosaveStatus, setSettingsAutosaveStatus] =
+    useState<SettingsAutosaveStatus>("ready");
+  const settingsAutosaveStatusLabel: Record<SettingsAutosaveStatus, string> = {
+    ready: "Settings autosave ready",
+    pending: "Settings autosave pending…",
+    saving: "Saving settings…",
+    saved: "Settings saved to cloud",
+    error: "Settings save failed",
+  };
   const [cloudMeetingMessage, setCloudMeetingMessage] = useState("");
+  const [hasUnsavedFullWorkspaceChanges, setHasUnsavedFullWorkspaceChanges] =
+    useState(false);
   const [selectedMeetingHasData, setSelectedMeetingHasData] =
     useState(false);
   const [isCheckingCloudWorkspaceData, setIsCheckingCloudWorkspaceData] =
@@ -858,6 +870,18 @@ export default function MeetingWorkspace() {
   const activeMeetingIndex =
     storedActiveMeetingIndex === -1 ? 0 : storedActiveMeetingIndex;
   const activeMeeting = meetings[activeMeetingIndex] ?? initialMeetings[0];
+  const chronologicallyOrderedMeetings = useMemo(
+    () =>
+      [...meetings].sort(
+        (firstMeeting, secondMeeting) =>
+          firstMeeting.date.localeCompare(secondMeeting.date) ||
+          firstMeeting.id - secondMeeting.id,
+      ),
+    [meetings],
+  );
+  const activeMeetingNotesIndex = chronologicallyOrderedMeetings.findIndex(
+    (meeting) => meeting.id === activeMeeting.id,
+  );
   const isStrategicTopicVisibleForActiveMeeting = (item: MeetingItem) => {
     const capturedMeetingIndex =
       item.capturedMeetingIndex ??
@@ -885,8 +909,9 @@ export default function MeetingWorkspace() {
   const archivedStrategicTopicItems = strategicTopicItems.filter(
     (item) => (item.status ?? "active") === "archived",
   );
-  const canNavigateToPreviousMeeting = activeMeetingIndex > 0;
-  const canNavigateToNextMeeting = activeMeetingIndex < meetings.length - 1;
+  const canNavigateToPreviousMeeting = activeMeetingNotesIndex > 0;
+  const canNavigateToNextMeeting =
+    activeMeetingNotesIndex < chronologicallyOrderedMeetings.length - 1;
   const historicalMeetingIds = useMemo(
     () =>
       new Set(
@@ -1059,10 +1084,7 @@ export default function MeetingWorkspace() {
     if (!selectedMeetingName.trim()) return;
 
     const trimmedDashboardTitle = dashboardTitle.trim();
-    if (
-      !trimmedDashboardTitle ||
-      trimmedDashboardTitle === "Meeting Tool by LyArk"
-    ) {
+    if (trimmedDashboardTitle === "Meeting Tool by LyArk") {
       setDashboardTitle(selectedMeetingName);
     }
   }, [dashboardTitle, selectedMeetingName, setDashboardTitle, workspaceMode]);
@@ -1442,9 +1464,14 @@ export default function MeetingWorkspace() {
       const remainingMeetings = meetings.filter(
         (meeting) => meeting.id !== activeMeeting.id,
       );
+      const chronologicallyOrderedRemainingMeetings =
+        chronologicallyOrderedMeetings.filter(
+          (meeting) => meeting.id !== activeMeeting.id,
+        );
       const fallbackActiveMeeting =
-        remainingMeetings[Math.max(activeMeetingIndex - 1, 0)] ??
-        remainingMeetings[0];
+        chronologicallyOrderedRemainingMeetings[
+          Math.max(activeMeetingNotesIndex - 1, 0)
+        ] ?? chronologicallyOrderedRemainingMeetings[0];
       setMeetings(remainingMeetings);
       setActiveMeetingId(fallbackActiveMeeting.id);
     }
@@ -1458,9 +1485,9 @@ export default function MeetingWorkspace() {
   const navigateMeeting = (direction: "previous" | "next") => {
     const nextIndex =
       direction === "previous"
-        ? activeMeetingIndex - 1
-        : activeMeetingIndex + 1;
-    const nextMeeting = meetings[nextIndex];
+        ? activeMeetingNotesIndex - 1
+        : activeMeetingNotesIndex + 1;
+    const nextMeeting = chronologicallyOrderedMeetings[nextIndex];
     if (!nextMeeting) return;
     setActiveMeetingId(nextMeeting.id);
     setNewAgendaItem("");
@@ -2034,6 +2061,7 @@ export default function MeetingWorkspace() {
       });
       setLocalWorkspaceMigrationSignature(signature);
       lastCloudAutosaveSignatureRef.current = signature;
+      setHasUnsavedFullWorkspaceChanges(false);
       setCloudSaveStatus("saved");
       setCloudMeetingMessage(
         "Local Workspace data was saved to this Cloud Meeting. Local data remains available in this browser.",
@@ -2096,8 +2124,11 @@ export default function MeetingWorkspace() {
       setActiveCloudWorkspaceId(selectedMeetingId);
       applyWorkspaceBackupToState(backup);
       lastCloudAutosaveSignatureRef.current = signature;
+      setHasUnsavedFullWorkspaceChanges(false);
       setCloudSaveStatus("saved");
-      setCloudMeetingMessage("Cloud workspace loaded.");
+      setCloudMeetingMessage(
+        "Cloud workspace loaded. Settings autosave covers playbook settings only; Manual Save backs up the full workspace.",
+      );
       setIsRouteCloudBootstrapping(false);
     } catch (error) {
       setCloudSaveStatus("error");
@@ -2166,6 +2197,7 @@ export default function MeetingWorkspace() {
       setActiveCloudWorkspaceId(selectedMeetingId);
       setSelectedMeetingHasData(true);
       lastCloudAutosaveSignatureRef.current = signature;
+      setHasUnsavedFullWorkspaceChanges(false);
       setCloudSaveStatus("saved");
       setCloudMeetingMessage(statusMessage);
       return true;
@@ -2286,13 +2318,13 @@ export default function MeetingWorkspace() {
     }
 
     setCloudSaveStatus("saving");
-    setCloudMeetingMessage("Saving cloud meeting…");
+    setCloudMeetingMessage("Saving full workspace to cloud backup…");
 
     try {
       const workspaceEntries = getCurrentWorkspaceStorage();
       const wasSaved = await saveWorkspaceBackupToCloud(
         workspaceEntries,
-        "Saved to cloud.",
+        "Full workspace saved to cloud backup.",
       );
       if (wasSaved) {
       }
@@ -2321,6 +2353,8 @@ export default function MeetingWorkspace() {
         lastMeetingSettingsAutosaveSignatureRef.current = "";
         meetingSettingsAutosaveWorkspaceIdRef.current = "";
         pendingMeetingSettingsAutosaveSignatureRef.current = "";
+        setHasUnsavedFullWorkspaceChanges(false);
+        setSettingsAutosaveStatus("ready");
         setCloudSaveStatus("local");
         setCloudMeetingMessage(
           authSession
@@ -2331,6 +2365,7 @@ export default function MeetingWorkspace() {
         return;
       }
 
+      setSettingsAutosaveStatus("ready");
       setCloudSaveStatus("idle");
       setCloudMeetingMessage(
         "Cloud workspace selected. Load cloud data when needed.",
@@ -2389,6 +2424,7 @@ export default function MeetingWorkspace() {
     ) {
       if (pendingMeetingSettingsAutosaveSignatureRef.current) {
         pendingMeetingSettingsAutosaveSignatureRef.current = "";
+        setSettingsAutosaveStatus("saved");
         setCloudSaveStatus("saved");
         setCloudMeetingMessage("Meeting settings match the saved cloud version.");
       }
@@ -2397,8 +2433,9 @@ export default function MeetingWorkspace() {
 
     pendingMeetingSettingsAutosaveSignatureRef.current =
       meetingSettingsAutosaveSignature;
+    setSettingsAutosaveStatus("pending");
     setCloudSaveStatus("idle");
-    setCloudMeetingMessage("Unsaved meeting settings changes are waiting to sync.");
+    setCloudMeetingMessage("Settings autosave pending… Manual Save still backs up the full workspace.");
 
     let isCancelled = false;
     let timeoutId: number;
@@ -2422,6 +2459,7 @@ export default function MeetingWorkspace() {
 
       isMeetingSettingsAutosaveInFlightRef.current = true;
       pendingMeetingSettingsAutosaveSignatureRef.current = "";
+      setSettingsAutosaveStatus("saving");
       setCloudSaveStatus("saving");
       setCloudMeetingMessage("Saving meeting settings to cloud…");
 
@@ -2437,13 +2475,15 @@ export default function MeetingWorkspace() {
           !isCancelled &&
           !pendingMeetingSettingsAutosaveSignatureRef.current
         ) {
+          setSettingsAutosaveStatus("saved");
           setCloudSaveStatus("saved");
           setCloudMeetingMessage(
-            "Meeting settings saved to cloud. Manual Save remains available for the full workspace backup.",
+            "Meeting settings saved to cloud. Manual Save still backs up the full workspace.",
           );
         }
       } catch (error) {
         if (!isCancelled) {
+          setSettingsAutosaveStatus("error");
           setCloudSaveStatus("error");
           setCloudMeetingMessage(
             error instanceof Error
@@ -2481,6 +2521,29 @@ export default function MeetingWorkspace() {
     isCurrentCloudRouteWorkspace,
     isRouteCloudBootstrapping,
     meetingSettingsAutosaveSignature,
+    selectedMeetingId,
+    workspaceMode,
+  ]);
+
+  useEffect(() => {
+    if (workspaceMode !== "cloud") return;
+    if (!selectedMeetingId || !isCurrentCloudRouteWorkspace) return;
+    if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
+      return;
+    if (isRouteCloudBootstrapping || !hasLoadedDashboardStorage) return;
+
+    const currentSignature = getWorkspaceStorageSignature(
+      getCurrentWorkspaceStorage(),
+    );
+    setHasUnsavedFullWorkspaceChanges(
+      currentSignature !== lastCloudAutosaveSignatureRef.current,
+    );
+  }, [
+    activeCloudWorkspaceId,
+    getCurrentWorkspaceStorage,
+    hasLoadedDashboardStorage,
+    isCurrentCloudRouteWorkspace,
+    isRouteCloudBootstrapping,
     selectedMeetingId,
     workspaceMode,
   ]);
@@ -2646,7 +2709,7 @@ export default function MeetingWorkspace() {
         <div className="mb-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-start">
           <div>
             <h1 className="text-5xl font-bold text-slate-900">
-              {dashboardTitle}
+              {dashboardTitle || selectedMeetingName || defaultDashboardTitle}
             </h1>
           </div>
 
@@ -2681,6 +2744,24 @@ export default function MeetingWorkspace() {
                 {isEndingMeeting ? "Ending Meeting…" : "End Meeting"}
               </button>
             </div>
+            {isCurrentCloudRouteWorkspace ? (
+              <div className="mt-3 grid gap-1 border-t border-blue-100 pt-3 text-center text-xs">
+                <span className="font-semibold text-blue-700">
+                  {settingsAutosaveStatusLabel[settingsAutosaveStatus]}
+                </span>
+                <span
+                  className={
+                    hasUnsavedFullWorkspaceChanges
+                      ? "font-semibold text-amber-700"
+                      : "text-slate-500"
+                  }
+                >
+                  {hasUnsavedFullWorkspaceChanges
+                    ? "Manual Save needed for full workspace changes."
+                    : "Full workspace cloud backup is current."}
+                </span>
+              </div>
+            ) : null}
             {testingToolsEnabled ? (
               <div className="mt-4 border-t border-amber-100 pt-3">
                 <label className="flex items-center justify-center gap-2 text-xs font-semibold text-amber-800">
@@ -2757,6 +2838,15 @@ export default function MeetingWorkspace() {
                   </span>
                 </div>
                 <p className="mt-2 text-xs text-slate-500">{cloudMeetingMessage}</p>
+                <p className={`mt-2 text-xs font-semibold ${
+                  hasUnsavedFullWorkspaceChanges
+                    ? "text-amber-700"
+                    : "text-slate-500"
+                }`}>
+                  {hasUnsavedFullWorkspaceChanges
+                    ? "Manual Save needed for full workspace changes."
+                    : "Manual Save backs up objectives, tasks, meeting notes, Strategic Topics, and other workspace changes."}
+                </p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <button
                     type="button"

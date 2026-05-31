@@ -41,7 +41,7 @@ export function MeetingSetupModal({
   };
 
   const saveSetup = () => {
-    onDashboardTitleChange(draftTitle.trim() || dashboardTitle);
+    onDashboardTitleChange(draftTitle.trim());
     onSave(draftInfo);
     onComplete();
     onClose();
