@@ -9,15 +9,9 @@ interface ColorSquareSelectProps {
   value: ObjectiveColor;
   onChange: (color: ObjectiveColor) => void;
   ariaLabel: string;
-  menuLayout?: 'vertical' | 'horizontal';
 }
 
-export function ColorSquareSelect({
-  value,
-  onChange,
-  ariaLabel,
-  menuLayout = 'vertical'
-}: ColorSquareSelectProps) {
+export function ColorSquareSelect({ value, onChange, ariaLabel }: ColorSquareSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const selectedOption = objectiveColorOptions.find((option) => option.value === value) ?? objectiveColorOptions[0];
@@ -48,6 +42,7 @@ export function ColorSquareSelect({
       ref={containerRef}
       className="relative inline-flex shrink-0"
       onClick={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
       onDragStart={(event) => event.stopPropagation()}
     >
@@ -69,7 +64,7 @@ export function ColorSquareSelect({
         <div
           role="listbox"
           aria-label={ariaLabel}
-          className={`absolute right-0 top-full z-30 mt-2 flex gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-lg ${menuLayout === 'horizontal' ? 'flex-row' : 'flex-col'}`}
+          className="pointer-events-auto absolute right-0 top-full z-50 mt-2 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-lg"
         >
           {objectiveColorOptions.map((option) => {
             const isSelected = option.value === selectedOption.value;

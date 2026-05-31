@@ -67,12 +67,11 @@ export function ObjectiveCard({
         onDrop={() => onDrop(objective.id)}
         className={`relative rounded-2xl border-t-[8px] bg-white p-3 shadow-sm ring-1 ring-slate-100 transition hover:shadow-md ${objectiveColorClasses[objective.color]} ${className}`}
       >
-        <div className="absolute right-3 top-3 z-10">
+        <div className="absolute right-3 top-3 z-50">
           <ColorSquareSelect
             value={objective.color}
             onChange={(color) => onUpdateColor(objective.id, color)}
             ariaLabel="Objective card color"
-            menuLayout="horizontal"
           />
         </div>
         <button
