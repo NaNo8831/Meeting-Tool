@@ -38,6 +38,7 @@ export type MeetingSectionKey = "agenda" | "topic" | "decision" | "cascade";
 export interface MeetingRecord {
   id: number;
   date: string;
+  isTestMeeting?: boolean;
   agendaItems: MeetingItem[];
   topicItems: MeetingItem[];
   decisionItems: MeetingItem[];
