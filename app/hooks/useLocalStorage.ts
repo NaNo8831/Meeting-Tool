@@ -24,6 +24,8 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, Dispatch<S
     hasLoadedStoredValueRef.current = false;
 
     const timeoutId = window.setTimeout(() => {
+      setHasLoadedStoredValue(false);
+      setValue(initialValue);
       const storedValue = readLocalStorageValue<T>(key);
       if (storedValue !== null) {
         setValue(storedValue);
@@ -34,7 +36,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, Dispatch<S
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [key]);
+  }, [initialValue, key]);
 
   useEffect(() => {
     if (!hasLoadedStoredValue || !hasLoadedStoredValueRef.current) return;

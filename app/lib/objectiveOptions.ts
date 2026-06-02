@@ -2,14 +2,14 @@ import type { Objective, ObjectiveColor, TaskStatus } from '@/app/types/objectiv
 import type { MeetingSectionKey, OrganizationInfo, StandardOperatingObjective } from '@/app/types/dashboard';
 
 export const defaultOrganizationInfo: OrganizationInfo = {
-  whyExist: 'To help people encounter Jesus and grow in faith.',
+  whyExist: '',
   rallyCry: '',
-  howBehave: 'Childlike Hearts • Loyal Servants • Hungry for More',
-  whatDo: 'We disciple people, build community, and equip leaders.',
-  howSucceed: 'Through intentional leadership and accountability.'
+  howBehave: '',
+  whatDo: '',
+  howSucceed: ''
 };
 
-export const defaultDashboardTitle = 'Meeting Tool by LyArk';
+export const defaultDashboardTitle = '';
 
 export const defaultMeetingSectionOrder: MeetingSectionKey[] = ['agenda', 'topic', 'decision', 'cascade'];
 

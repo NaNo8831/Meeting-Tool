@@ -130,8 +130,8 @@ const normalizeObjectives = (storedObjectives: Objective[]): { objectives: Objec
   return { objectives, changed };
 };
 
-export const useObjectives = () => {
-  const [objectives, setObjectives, hasLoadedObjectives] = useLocalStorage<Objective[]>('leadership-objectives', objectivesData);
+export const useObjectives = (storageKey = 'leadership-objectives') => {
+  const [objectives, setObjectives, hasLoadedObjectives] = useLocalStorage<Objective[]>(storageKey, objectivesData);
   const [taskInputs, setTaskInputs] = useState<Record<number, TaskInput>>({});
   const [selectedTask, setSelectedTask] = useState<{ objectiveId: number; taskId: number } | null>(null);
   const [draggingObjectiveId, setDraggingObjectiveId] = useState<number | null>(null);
@@ -200,6 +200,7 @@ export const useObjectives = () => {
       },
       ...objectives
     ]);
+    return nextId;
   };
 
   const deleteObjective = (id: number) => {
@@ -314,6 +315,7 @@ export const useObjectives = () => {
     updateTaskInput,
     openTaskDetails,
     closeTaskDetails,
+    replaceObjectives: setObjectives,
     hasLoadedObjectives
   };
 };

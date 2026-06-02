@@ -25,6 +25,9 @@ export interface MeetingItem {
   capturedMeetingIndex?: number;
   completed?: boolean;
   completedDate?: string;
+  status?: "active" | "completed" | "archived";
+  completedAt?: string;
+  archivedAt?: string;
   removedMeetingId?: number;
   removedMeetingIndex?: number;
   removedDate?: string;
@@ -35,6 +38,7 @@ export type MeetingSectionKey = "agenda" | "topic" | "decision" | "cascade";
 export interface MeetingRecord {
   id: number;
   date: string;
+  isTestMeeting?: boolean;
   agendaItems: MeetingItem[];
   topicItems: MeetingItem[];
   decisionItems: MeetingItem[];
@@ -52,9 +56,16 @@ export interface MeetingSectionConfig {
   updateItem: (itemId: number, value: string) => void;
   deleteItem: (itemId: number) => void;
   updateCompleted?: (itemId: number, completed: boolean) => void;
-  updateCompletedDate?: (itemId: number, completedDate: string) => void;
+  openHistoryNotes?: (item: MeetingItem) => void;
+  archiveItem?: (itemId: number) => void;
+  unarchiveItem?: (itemId: number) => void;
+  restoreToActive?: (itemId: number) => void;
+  completedHistoryItems?: MeetingItem[];
+  archivedHistoryItems?: MeetingItem[];
   placeholder: string;
   editPlaceholder: string;
+  isReadOnly?: boolean;
+  readOnlyMessage?: string;
 }
 
 export interface TaskInput {

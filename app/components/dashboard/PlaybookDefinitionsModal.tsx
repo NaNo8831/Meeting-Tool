@@ -1,6 +1,7 @@
 'use client';
 
 import { EditableField } from '@/app/components/ui/EditableField';
+import { useBodyScrollLock } from '@/app/hooks/useBodyScrollLock';
 import { RichTextEditor } from '@/app/components/ui/RichTextEditor';
 import type { OrganizationInfo } from '@/app/types/dashboard';
 import type { RichTextDocument } from '@/app/types/richText';
@@ -22,6 +23,8 @@ export function PlaybookDefinitionsModal({
   dashboardTitle,
   onDashboardTitleChange,
 }: PlaybookDefinitionsModalProps) {
+  useBodyScrollLock(isOpen);
+
   if (!isOpen) return null;
 
   const handleSave = (field: keyof OrganizationInfo, value: OrganizationInfo[keyof OrganizationInfo]) => {
@@ -38,15 +41,16 @@ export function PlaybookDefinitionsModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="playbook-definitions-title"
+      onMouseDown={onClose}
     >
       <div
         className="bg-white rounded-3xl p-8 md:p-10 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="mb-8 space-y-3">
-          <h2 id="playbook-definitions-title" className="text-4xl md:text-5xl font-bold text-slate-950">Playbook Definitions</h2>
+          <h2 id="playbook-definitions-title" className="text-4xl md:text-5xl font-bold text-slate-950">Edit Playbook</h2>
           <p className="text-xl text-slate-600">
-            Name your team or meeting here, then define the shared playbook language for the dashboard.
+            Name your team or meeting here, then edit the shared playbook language for the dashboard.
           </p>
         </div>
 
@@ -136,6 +140,7 @@ export function PlaybookDefinitionsModal({
         </div>
 
         <button
+          type="button"
           onClick={onClose}
           className="mt-8 px-8 py-3 bg-blue-600 text-white rounded-xl text-xl font-semibold hover:bg-blue-700"
         >

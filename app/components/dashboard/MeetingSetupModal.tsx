@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useBodyScrollLock } from "@/app/hooks/useBodyScrollLock";
 import { RichTextEditor } from "@/app/components/ui/RichTextEditor";
 import type { OrganizationInfo } from "@/app/types/dashboard";
 import type { RichTextDocument } from "@/app/types/richText";
@@ -16,12 +17,6 @@ interface MeetingSetupModalProps {
   requireCompletion?: boolean;
 }
 
-const setupSteps = [
-  "Name the team or meeting this space supports.",
-  "Capture the shared answers that anchor the dashboard.",
-  "Finish with the top priority everyone should rally around.",
-];
-
 export function MeetingSetupModal({
   isOpen,
   onClose,
@@ -32,6 +27,7 @@ export function MeetingSetupModal({
   onComplete,
   requireCompletion = false,
 }: MeetingSetupModalProps) {
+  useBodyScrollLock(isOpen);
   const [draftTitle, setDraftTitle] = useState(dashboardTitle);
   const [draftInfo, setDraftInfo] = useState(organizationInfo);
 
@@ -45,7 +41,7 @@ export function MeetingSetupModal({
   };
 
   const saveSetup = () => {
-    onDashboardTitleChange(draftTitle.trim() || dashboardTitle);
+    onDashboardTitleChange(draftTitle.trim());
     onSave(draftInfo);
     onComplete();
     onClose();
@@ -68,20 +64,8 @@ export function MeetingSetupModal({
                 Build your meeting playbook
               </h2>
               <p className="mt-4 text-lg leading-relaxed text-slate-200">
-                Complete these prompts once to personalize the dashboard. Your
-                answers are saved in this browser with the existing workspace
-                data.
+                Add your team context once, then update it whenever needed.
               </p>
-              <ol className="mt-6 space-y-3 text-sm text-slate-100">
-                {setupSteps.map((step, index) => (
-                  <li key={step} className="flex gap-3">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-500 font-bold">
-                      {index + 1}
-                    </span>
-                    <span>{step}</span>
-                  </li>
-                ))}
-              </ol>
             </div>
 
             <div>
@@ -98,7 +82,7 @@ export function MeetingSetupModal({
                   value={draftTitle}
                   onChange={(event) => setDraftTitle(event.target.value)}
                   className="mt-3 w-full rounded-xl border border-slate-300 px-4 py-3 text-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                  placeholder="Name your team or meeting"
+                  placeholder=""
                 />
               </div>
             </div>
@@ -119,7 +103,7 @@ export function MeetingSetupModal({
                   updateDraftInfo("whyExist", event.target.value)
                 }
                 className="mt-3 min-h-32 w-full rounded-2xl border border-blue-100 bg-white/90 p-4 text-xl leading-relaxed text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                placeholder="Describe your mission..."
+                placeholder=""
               />
             </section>
 
@@ -133,7 +117,7 @@ export function MeetingSetupModal({
                   onChange={(value: RichTextDocument) =>
                     updateDraftInfo("howBehave", value)
                   }
-                  placeholder="List the values or behaviors you expect..."
+                  placeholder=""
                   className={fieldClasses}
                   editorClassName={editorClasses}
                   minHeightClassName="min-h-[130px]"
@@ -151,7 +135,7 @@ export function MeetingSetupModal({
                   onChange={(value: RichTextDocument) =>
                     updateDraftInfo("whatDo", value)
                   }
-                  placeholder="Describe the work this team does..."
+                  placeholder=""
                   className={fieldClasses}
                   editorClassName={editorClasses}
                   minHeightClassName="min-h-[130px]"
@@ -169,7 +153,7 @@ export function MeetingSetupModal({
                   onChange={(value: RichTextDocument) =>
                     updateDraftInfo("howSucceed", value)
                   }
-                  placeholder="Name the approach or measures for success..."
+                  placeholder=""
                   className={fieldClasses}
                   editorClassName={editorClasses}
                   minHeightClassName="min-h-[130px]"
@@ -193,7 +177,7 @@ export function MeetingSetupModal({
                   updateDraftInfo("rallyCry", event.target.value)
                 }
                 className="mt-3 min-h-28 w-full rounded-2xl border border-blue-100 bg-white/90 p-4 text-2xl font-bold leading-snug text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                placeholder="Top Priority"
+                placeholder=""
               />
             </section>
           </div>

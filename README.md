@@ -6,9 +6,9 @@ Meeting Tool by LyArk is a lightweight operational leadership meeting tool for s
 
 - Next.js app using TypeScript and Tailwind CSS.
 - Deployed on Vercel from the production/stable `main` branch.
-- Phase 1 persistence is browser `localStorage` with JSON export/import backup.
-- No production database, authentication, or cloud storage is required for Phase 1.
-- Supabase cloud/auth/persistence is planned for Phase 2 on the long-running `phase-2-cloud` branch; schema, permissions, migration, and realtime details are still unresolved.
+- Phase 1 workspace persistence is browser `localStorage` with JSON export/import backup.
+- Phase 2 authentication foundation supports optional Supabase email/password sign up, sign in, logout, and session restore on the `phase-2-cloud` branch.
+- Workspace data is not stored in Supabase yet; schema, permissions, migration, and realtime collaboration details are still unresolved.
 
 ## Environment Setup
 
@@ -26,7 +26,14 @@ Meeting Tool by LyArk is a lightweight operational leadership meeting tool for s
 
 3. Open [http://localhost:3000](http://localhost:3000) in a browser.
 
-No `.env` file or external service credentials are required for the current localStorage-first app. If Phase 2 Supabase work begins later, document any required environment variables on the `phase-2-cloud` branch before relying on them.
+The localStorage-first workspace works without signing in. To enable optional Supabase Auth locally, create an uncommitted `.env.local` with:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
+
+Do not commit `.env.local` or service-role secrets. Auth does not migrate, sync, or share workspace data yet; JSON export/import remains the backup and restore path.
 
 ## Validation Commands
 

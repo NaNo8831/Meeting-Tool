@@ -7,7 +7,9 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type MouseEvent,
 } from "react";
+import { useBodyScrollLock } from "@/app/hooks/useBodyScrollLock";
 import type {
   RichTextBlock,
   RichTextColumns,
@@ -28,6 +30,8 @@ interface RichTextEditorProps {
   ariaLabel?: string;
   editingMode?: "manual" | "always";
   onEditingChange?: (isEditing: boolean) => void;
+  disabled?: boolean;
+  activationMode?: 'click' | 'doubleClick';
 }
 
 interface RichTextRendererProps {
@@ -280,7 +284,7 @@ const getBlocksPlainText = (blocks: RichTextBlock[]): string =>
     })
     .join("\n");
 
-const getPlainText = (documentValue: RichTextDocument) =>
+export const getRichTextPlainText = (documentValue: RichTextDocument) =>
   (documentValue.columnBlocks ?? [documentValue.blocks])
     .map((blocks) => getBlocksPlainText(blocks))
     .join("\n")
@@ -553,7 +557,7 @@ export function RichTextRenderer({
   className = "",
 }: RichTextRendererProps) {
   const documentValue = normalizeRichTextValue(value);
-  const hasContent = getPlainText(documentValue).length > 0;
+  const hasContent = getRichTextPlainText(documentValue).length > 0;
   const columnBlocks = documentValue.columnBlocks ?? [documentValue.blocks];
 
   if (!hasContent && placeholder) {
@@ -585,13 +589,16 @@ export function RichTextEditor({
   ariaLabel = "Rich text editor",
   editingMode = "manual",
   onEditingChange,
+  disabled = false,
+  activationMode = 'click',
 }: RichTextEditorProps) {
   const documentValue = useMemo(() => normalizeRichTextValue(value), [value]);
   const isAlwaysEditing = editingMode === "always";
   const [draftDocument, setDraftDocument] = useState(documentValue);
   const [isEditing, setIsEditing] = useState(isAlwaysEditing);
+  useBodyScrollLock(isEditing && !isAlwaysEditing);
   const [hasDraftContent, setHasDraftContent] = useState(
-    getPlainText(documentValue).length > 0,
+    getRichTextPlainText(documentValue).length > 0,
   );
   const [formattingState, setFormattingState] = useState(emptyFormattingState);
   const editorRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -635,7 +642,7 @@ export function RichTextEditor({
 
   const updateDraftDocument = (nextDocument: RichTextDocument) => {
     setDraftDocument(nextDocument);
-    setHasDraftContent(getPlainText(nextDocument).length > 0);
+    setHasDraftContent(getRichTextPlainText(nextDocument).length > 0);
     if (isAlwaysEditing) {
       onChange(nextDocument);
     }
@@ -643,7 +650,7 @@ export function RichTextEditor({
 
   const publishCurrentDraft = () => {
     const nextDocument = readCurrentDraft();
-    setHasDraftContent(getPlainText(nextDocument).length > 0);
+    setHasDraftContent(getRichTextPlainText(nextDocument).length > 0);
     if (isAlwaysEditing) {
       onChange(nextDocument);
     }
@@ -654,15 +661,40 @@ export function RichTextEditor({
   };
 
   const startEditing = () => {
+    if (disabled) return;
     const normalized = documentValue;
     setDraftDocument(normalized);
-    setHasDraftContent(getPlainText(normalized).length > 0);
+    setHasDraftContent(getRichTextPlainText(normalized).length > 0);
     setFormattingState(emptyFormattingState);
     setIsEditing(true);
     onEditingChange?.(true);
   };
 
+  const handleViewerKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" && event.key !== "F2") return;
+
+    event.preventDefault();
+    startEditing();
+  };
+
+  const handleEditButtonClick = (event: MouseEvent<HTMLButtonElement>) => {
+    if (activationMode === "doubleClick") {
+      event.preventDefault();
+      return;
+    }
+
+    startEditing();
+  };
+
+  const handleEditButtonDoubleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    if (activationMode !== "doubleClick") return;
+
+    event.preventDefault();
+    startEditing();
+  };
+
   const saveEditing = () => {
+    if (disabled) return;
     const nextDocument = readCurrentDraft();
     updateDraftDocument(nextDocument);
     setIsEditing(false);
@@ -673,7 +705,7 @@ export function RichTextEditor({
 
   const cancelEditing = () => {
     setDraftDocument(documentValue);
-    setHasDraftContent(getPlainText(documentValue).length > 0);
+    setHasDraftContent(getRichTextPlainText(documentValue).length > 0);
     setIsEditing(false);
     setFormattingState(emptyFormattingState);
     onEditingChange?.(false);
@@ -693,6 +725,7 @@ export function RichTextEditor({
       | "insertUnorderedList"
       | "insertOrderedList",
   ) => {
+    if (disabled) return;
     focusActiveEditor();
     document.execCommand("styleWithCSS", false, "false");
     document.execCommand(command);
@@ -710,6 +743,7 @@ export function RichTextEditor({
   };
 
   const updateColumns = (columns: RichTextColumns) => {
+    if (disabled) return;
     const currentDocument = readCurrentDraft(draftDocument.columns);
     const currentColumnBlocks = currentDocument.columnBlocks ?? [
       currentDocument.blocks,
@@ -735,19 +769,37 @@ export function RichTextEditor({
   if (!isEditing && !isAlwaysEditing) {
     return (
       <div
-        className={`rounded-2xl border border-slate-200 bg-white/80 ${className}`}
+        className={`group rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-200 ${activationMode === "doubleClick" ? "cursor-text" : ""} ${className}`}
+        onDoubleClick={activationMode === "doubleClick" ? startEditing : undefined}
+        onKeyDown={activationMode === "doubleClick" ? handleViewerKeyDown : undefined}
+        tabIndex={activationMode === "doubleClick" ? 0 : undefined}
+        role={activationMode === "doubleClick" ? "button" : undefined}
+        aria-label={activationMode === "doubleClick" ? `${ariaLabel}. Double-click to edit.` : undefined}
+        title={activationMode === "doubleClick" ? "Double-click to edit" : undefined}
       >
         <div className="flex items-start justify-between gap-3 p-3">
-          <RichTextRenderer
-            value={documentValue}
-            placeholder={placeholder}
-            className="flex-1 text-slate-700"
-          />
+          <div className="min-w-0 flex-1">
+            <RichTextRenderer
+              value={documentValue}
+              placeholder={placeholder}
+              className="text-slate-700"
+            />
+            {activationMode === "doubleClick" ? (
+              <p className="mt-2 text-xs font-medium text-slate-400 opacity-0 transition group-hover:opacity-100 group-focus:opacity-100">
+                Double-click to edit
+              </p>
+            ) : null}
+          </div>
           <button
             type="button"
-            onClick={startEditing}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            aria-label={`Edit ${ariaLabel}`}
+            onClick={handleEditButtonClick}
+            onDoubleClick={handleEditButtonDoubleClick}
+            disabled={disabled}
+            className={`${activationMode === "doubleClick" ? "hidden" : "flex"} h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900`}
+            aria-label={activationMode === "doubleClick" ? `Double-click to edit ${ariaLabel}` : `Edit ${ariaLabel}`}
+            aria-hidden={activationMode === "doubleClick" ? true : undefined}
+            tabIndex={activationMode === "doubleClick" ? -1 : undefined}
+            title={activationMode === "doubleClick" ? "Double-click to edit" : undefined}
           >
             <svg
               aria-hidden="true"
@@ -808,7 +860,7 @@ export function RichTextEditor({
                 ref={(node) => {
                   editorRefs.current[index] = node;
                 }}
-                contentEditable
+                contentEditable={!disabled}
                 suppressContentEditableWarning
                 role="textbox"
                 aria-label={
@@ -822,10 +874,10 @@ export function RichTextEditor({
                   activeEditorIndexRef.current = index;
                   updateFormattingState();
                 }}
-                onKeyDown={handleEditorKeyDown}
-                onKeyUp={updateFormattingState}
-                onMouseUp={updateFormattingState}
-                onInput={refreshDraftContentState}
+                onKeyDown={disabled ? undefined : handleEditorKeyDown}
+                onKeyUp={disabled ? undefined : updateFormattingState}
+                onMouseUp={disabled ? undefined : updateFormattingState}
+                onInput={disabled ? undefined : refreshDraftContentState}
                 className={`rich-text-editor rich-text-content rich-text-column-pane ${minHeightClassName} px-4 py-3 text-slate-900 outline-none ${editorClassName}`}
               />
             ))}
@@ -837,6 +889,7 @@ export function RichTextEditor({
             type="button"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => applyCommand("bold")}
+            disabled={disabled}
             className={toolbarButtonClass(formattingState.bold, "font-bold")}
             aria-label="Bold"
             aria-pressed={formattingState.bold}
@@ -847,6 +900,7 @@ export function RichTextEditor({
             type="button"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => applyCommand("italic")}
+            disabled={disabled}
             className={toolbarButtonClass(formattingState.italic, "italic")}
             aria-label="Italic"
             aria-pressed={formattingState.italic}
@@ -857,6 +911,7 @@ export function RichTextEditor({
             type="button"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => applyCommand("underline")}
+            disabled={disabled}
             className={toolbarButtonClass(formattingState.underline, "underline")}
             aria-label="Underline"
             aria-pressed={formattingState.underline}
@@ -868,6 +923,7 @@ export function RichTextEditor({
             type="button"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => applyCommand("insertUnorderedList")}
+            disabled={disabled}
             className={toolbarButtonClass(formattingState.bulletList)}
             aria-label="Bullet dots"
             aria-pressed={formattingState.bulletList}
@@ -878,6 +934,7 @@ export function RichTextEditor({
             type="button"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => applyCommand("insertOrderedList")}
+            disabled={disabled}
             className={toolbarButtonClass(formattingState.numberedList)}
             aria-label="Numbers"
             aria-pressed={formattingState.numberedList}
@@ -896,6 +953,7 @@ export function RichTextEditor({
                 type="button"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => updateColumns(columns as RichTextColumns)}
+                disabled={disabled}
                 className={toolbarButtonClass(draftDocument.columns === columns)}
                 aria-pressed={draftDocument.columns === columns}
               >
@@ -910,6 +968,7 @@ export function RichTextEditor({
             <button
               type="button"
               onClick={saveEditing}
+              disabled={disabled}
               className="rounded-lg bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700"
             >
               Save
