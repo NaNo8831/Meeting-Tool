@@ -3629,7 +3629,7 @@ export default function MeetingWorkspace() {
           <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h3 className="text-lg font-semibold text-slate-900">
-                Strategic Topic Notes
+                {historyNotesTopic.text}
               </h3>
               <button
                 type="button"
@@ -3639,7 +3639,9 @@ export default function MeetingWorkspace() {
                 Close
               </button>
             </div>
-            <p className="mb-2 text-sm text-slate-600">{historyNotesTopic.text}</p>
+            <p className="mb-2 text-sm text-slate-600">
+              Strategic Topic Notes
+            </p>
             <RichTextEditor
               key={`${historyNotesTopic.id}:${isLoadingHistoryNotes ? "loading" : "ready"}`}
               value={historyNotesDraft}

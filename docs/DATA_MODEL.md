@@ -48,10 +48,10 @@ Architecture drawbacks of full JSONB autosave:
 Do **not** remove `meeting_data` in this migration planning stage.
 
 ## Local Workspace Support and Future Evaluation
-- Local Workspace remains browser-only and supported during the current cloud persistence stabilization work.
-- Do not remove Local Workspace in PR #72; it remains a fallback path while cloud persistence is being stabilized.
-- After structured autosave covers all important meeting data and Phase 3 shared meeting access is stable, evaluate removing Local Workspace or demoting it to a developer/testing-only mode.
-- Maintaining parallel local and cloud meeting systems creates code duplication, testing burden, and user confusion. Shared meeting access will make cloud the primary product path, but Local Workspace retirement is a future decision.
+- Local Workspace remains browser-only and supported during the current cloud persistence and shared-access stabilization work.
+- Local Workspace must not autosave to cloud. Do not remove it in Phase 2.5; it remains a fallback path while structured cloud persistence and shared access are being stabilized.
+- After structured cloud autosave protects all valuable meeting data and Phase 3 shared meeting access is stable, evaluate retiring Local Workspace or demoting it to a developer/testing-only mode.
+- Maintaining parallel local and cloud meeting systems creates code duplication, testing burden, and user confusion. The product's team value depends on shared cloud meeting access, which Local Workspace cannot provide, but Local Workspace retirement is a future decision.
 
 ## Tactical History Foundation (Archival Session Records)
 - `tactical_sessions` stores recurring tactical meeting history snapshots.

@@ -28,10 +28,10 @@ New direction:
 - Once structured autosave handles the core operational workspace reliably, evaluate retiring Manual Save from the primary workflow or moving it into a secondary backup/export utility role. Do not remove or demote Manual Save in PR #72.
 
 ## Local Workspace Support and Future Evaluation
-- Local Workspace remains supported and browser-only during the current cloud persistence stabilization work.
-- Do not remove Local Workspace in PR #72. It remains a fallback path while cloud persistence is being stabilized.
-- After structured autosave covers all important meeting data and Phase 3 shared meeting access is stable, evaluate removing Local Workspace or demoting it to a developer/testing-only mode.
-- Maintaining local and cloud as parallel meeting systems creates code duplication, testing burden, and user confusion. Shared meeting access will make cloud the primary product path, but that transition is a future decision rather than PR #72 scope.
+- Local Workspace remains supported and browser-only during the current cloud persistence and shared-access stabilization work.
+- Local Workspace must not autosave to cloud. Do not remove it in Phase 2.5; it remains a fallback path while structured cloud persistence and shared access are being stabilized.
+- After structured cloud autosave protects all valuable meeting data and Phase 3 shared meeting access is stable, evaluate retiring Local Workspace or demoting it to a developer/testing-only mode.
+- Maintaining local and cloud as parallel meeting systems creates code duplication, testing burden, and user confusion. The product's team value depends on shared cloud meeting access, which Local Workspace cannot provide, but that transition is a future decision rather than Phase 2.5 scope.
 
 ## Target Persistence Architecture
 ### Data ownership layers

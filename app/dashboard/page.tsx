@@ -50,15 +50,12 @@ export default function DashboardPage() {
   const [newMeetingName, setNewMeetingName] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [showDashboardMenu, setShowDashboardMenu] = useState(false);
-  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [message, setMessage] = useState("");
   const [createMeetingError, setCreateMeetingError] = useState("");
   const dashboardMenuRef = useRef<HTMLDivElement>(null);
-  const optionsMenuRef = useRef<HTMLDivElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   useBodyScrollLock(
     showDashboardMenu ||
-      showOptionsMenu ||
       meetingPendingDuplicate !== null ||
       meetingPendingDelete !== null,
   );
@@ -119,22 +116,6 @@ export default function DashboardPage() {
       window.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showDashboardMenu]);
-
-  useEffect(() => {
-    if (!showOptionsMenu) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      const menuElement = optionsMenuRef.current;
-      if (!menuElement || !(event.target instanceof Node)) return;
-      if (menuElement.contains(event.target)) return;
-      setShowOptionsMenu(false);
-    };
-
-    window.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      window.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showOptionsMenu]);
 
   const teamName = session?.user.email
     ? `${session.user.email.split("@")[0]}'s Team`
@@ -348,15 +329,22 @@ export default function DashboardPage() {
           <p className="mt-1 text-base text-slate-600">{teamName}</p>
 
           <div className="mt-5 space-y-3">
-            <div className="flex justify-end" ref={dashboardMenuRef}>
+            <div className="flex items-center justify-end gap-2" ref={dashboardMenuRef}>
+              <button
+                type="button"
+                onClick={() => setShowArchived((current) => !current)}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                {showArchived
+                  ? "Hide Archived"
+                  : `Show Archived (${archivedMeetings.length})`}
+              </button>
+
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowDashboardMenu((isOpen) => !isOpen);
-                    setShowOptionsMenu(false);
-                  }}
-                  className="flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:bg-blue-700"
+                  onClick={() => setShowDashboardMenu((isOpen) => !isOpen)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700"
                   aria-expanded={showDashboardMenu}
                   aria-haspopup="menu"
                   aria-label="Open dashboard menu"
@@ -364,7 +352,6 @@ export default function DashboardPage() {
                   <span className="text-lg leading-none" aria-hidden="true">
                     ☰
                   </span>
-                  Menu
                 </button>
 
                 {showDashboardMenu ? (
@@ -375,10 +362,7 @@ export default function DashboardPage() {
                   >
                     <button
                       type="button"
-                      onClick={() => {
-                        setMessage("Settings will be added in a future update.");
-                        setShowDashboardMenu(false);
-                      }}
+                      onClick={() => setShowDashboardMenu(false)}
                       className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
                       role="menuitem"
                     >
@@ -387,13 +371,13 @@ export default function DashboardPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        setMessage("Dark Mode control is coming soon.");
                         setShowDashboardMenu(false);
+                        backupInputRef.current?.click();
                       }}
                       className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
                       role="menuitem"
                     >
-                      Dark Mode (Coming Soon)
+                      Import Backup
                     </button>
                     <button
                       type="button"
@@ -407,18 +391,7 @@ export default function DashboardPage() {
                       className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
                       role="menuitem"
                     >
-                      Log Out
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMessage("Contact Us will be added in a future update.");
-                        setShowDashboardMenu(false);
-                      }}
-                      className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
-                      role="menuitem"
-                    >
-                      Contact Us (Coming Soon)
+                      Logout
                     </button>
                   </div>
                 ) : null}
@@ -439,61 +412,12 @@ export default function DashboardPage() {
               />
 
               <div className="flex items-center justify-end gap-2">
-                <div className="relative" ref={optionsMenuRef}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowOptionsMenu((isOpen) => !isOpen);
-                      setShowDashboardMenu(false);
-                    }}
-                    className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-                    aria-expanded={showOptionsMenu}
-                    aria-haspopup="menu"
-                    aria-label="Open dashboard options"
-                  >
-                    Options
-                  </button>
-
-                  {showOptionsMenu ? (
-                    <div
-                      className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white py-2 shadow-xl sm:left-0 sm:right-auto"
-                      role="menu"
-                      aria-label="Dashboard options"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowArchived((current) => !current);
-                          setShowOptionsMenu(false);
-                        }}
-                        className="block w-full px-5 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700"
-                        role="menuitem"
-                      >
-                        {showArchived
-                          ? "Hide archived"
-                          : `Show archived (${archivedMeetings.length})`}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => backupInputRef.current?.click()}
-                        className="block w-full px-5 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700"
-                        role="menuitem"
-                      >
-                        Import Backup
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-
                 <input
                   ref={backupInputRef}
                   type="file"
                   accept="application/json"
                   className="hidden"
-                  onChange={(event) => {
-                    setShowOptionsMenu(false);
-                    void handleImportBackupPlaceholder(event);
-                  }}
+                  onChange={(event) => void handleImportBackupPlaceholder(event)}
                 />
 
                 <button
