@@ -20,6 +20,19 @@ Reason:
 New direction:
 - Structured persistence by section/item, with incremental rollout and strict backward safety via `meeting_data` backup.
 
+## Manual Save During Autosave Migration
+- Manual Save remains visible, available, and required during the structured autosave migration.
+- PR #72 autosaves only `meeting_settings`; it does **not** autosave objectives, tasks, agenda items, Strategic Topics, meeting notes, Standard Operating Objectives, Defining Objectives, or other operational runtime state.
+- Manual Save writes the full workspace backup to `meetings.meeting_data` and remains the cloud safety net until structured autosave reliably covers all important meeting data.
+- Full-workspace JSONB autosave remains out of scope. Future structured autosave expansion should proceed surface-by-surface in separate PRs.
+- Once structured autosave handles the core operational workspace reliably, evaluate retiring Manual Save from the primary workflow or moving it into a secondary backup/export utility role. Do not remove or demote Manual Save in PR #72.
+
+## Local Workspace Support and Future Evaluation
+- Local Workspace remains supported and browser-only during the current cloud persistence stabilization work.
+- Do not remove Local Workspace in PR #72. It remains a fallback path while cloud persistence is being stabilized.
+- After structured autosave covers all important meeting data and Phase 3 shared meeting access is stable, evaluate removing Local Workspace or demoting it to a developer/testing-only mode.
+- Maintaining local and cloud as parallel meeting systems creates code duplication, testing burden, and user confusion. Shared meeting access will make cloud the primary product path, but that transition is a future decision rather than PR #72 scope.
+
 ## Target Persistence Architecture
 ### Data ownership layers
 1. **Meeting container layer** (`meetings`)

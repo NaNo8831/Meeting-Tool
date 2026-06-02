@@ -24,7 +24,7 @@
 - Treat the Meeting Setup flow as part of the current production baseline on `main` after PR #23.
 - First-Time Setup cleanup is stable on the `phase-2-cloud` flow: use cloud meeting row title as setup title fallback, remove setup filler defaults/placeholders, and keep manual save behavior unchanged.
 - Keep the `meeting_settings` structured persistence pilot intentionally narrow: dashboard/playbook-level settings hydrate after the manual backup loads and autosave after cloud-route bootstrap, unchanged payloads are skipped, and every non-pilot runtime read remains on the existing browser/workspace backup path.
-- Keep full-workspace JSONB autosave out of scope. Manual Save to `meetings.meeting_data` remains the backup safety net while structured surfaces are validated one at a time.
+- Keep full-workspace JSONB autosave out of scope. Manual Save to `meetings.meeting_data` remains visible, available, and required as the full-workspace cloud backup safety net while structured surfaces are validated one at a time.
 - Document and sequence later migration slices without breaking current cloud save/load behavior or hardcoding owner-only client assumptions that would fight Phase 3 member roles.
 - Keep membership architecture, role direction (`owner`/`editor`/`viewer`), and ownership-handling rules documented as the permission foundation for future sharing work.
 
@@ -49,6 +49,8 @@
 
 ## Parked / Deferred Work
 - Full collaboration-grade Phase 2 remains deferred. Basic Cloud Meeting persistence stores the full backup JSON in `meetings.meeting_data`, but realtime collaboration, team sharing, editor/viewer roles, and forced migration remain out of scope.
+- Local Workspace remains supported and browser-only as a fallback during cloud persistence stabilization. Do not remove it in PR #72. After structured autosave covers all important meeting data and Phase 3 shared meeting access is stable, evaluate removing Local Workspace or demoting it to a developer/testing-only mode to reduce parallel-system duplication, test burden, and user confusion.
+- Manual Save remains part of the primary workflow during migration because PR #72 autosaves only `meeting_settings`. After structured autosave reliably covers the core operational workspace, evaluate retiring Manual Save from the primary workflow or moving it into a secondary backup/export utility role.
 - Deferred ideas are now tracked in `planning/FUTURE_PHASES.md` to prevent scope creep in active delivery work.
 
 ## Next Actions

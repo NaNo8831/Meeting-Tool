@@ -5,7 +5,7 @@
 - `/meeting/[id]` loads the selected cloud meeting when explicitly requested.
 - Manual **Save to Cloud** works and remains the full-workspace backup safety net.
 - `meeting_settings` is the only structured persistence pilot: valid loaded `/meeting/[id]` cloud routes hydrate its dashboard/playbook-level fields after the full-workspace backup loads, then debounce changed settings and upsert the one row for that meeting. Local mode never sends this read or write.
-- Refresh reloads the last manual cloud save.
+- Refresh reloads the last manual full-workspace cloud backup, then applies the narrow structured `meeting_settings` pilot fields when present.
 - JSON export/import works.
 - Feedback submission works.
 - Sign out routes users to `/`.
@@ -32,6 +32,13 @@ Architecture drawbacks of full JSONB autosave:
 - The two values may initially match, but they remain distinct concepts and are not collapsed into one field in this pilot.
 - Keeping the container identity separate from workspace settings remains compatible with future Phase 3 member-based access.
 
+## Current Split Save Model
+- `meeting_settings` autosave persists playbook/settings-level data only: `dashboard_title`, `organization_info`, `meeting_section_order`, and `setup_completed`.
+- Manual Save persists the full operational workspace backup to `meetings.meeting_data`, including objectives, tasks, agenda items, Strategic Topics, meeting notes, Standard Operating Objectives, Defining Objectives, and other runtime meeting state.
+- Manual Save remains required, visible, and available until structured autosave reliably covers all important meeting data.
+- Full-workspace JSONB autosave remains out of scope. Future structured autosave expansion should continue surface-by-surface in separate PRs.
+- Once structured autosave handles the core operational workspace reliably, evaluate retiring Manual Save from the primary workflow or moving it into a secondary backup/export utility role. Do not remove or demote Manual Save in PR #72.
+
 ## Current Persistence Shape (Keep During Migration)
 `meetings.meeting_data` remains in place as:
 - backup/safety net,
@@ -39,6 +46,12 @@ Architecture drawbacks of full JSONB autosave:
 - manual save/load payload.
 
 Do **not** remove `meeting_data` in this migration planning stage.
+
+## Local Workspace Support and Future Evaluation
+- Local Workspace remains browser-only and supported during the current cloud persistence stabilization work.
+- Do not remove Local Workspace in PR #72; it remains a fallback path while cloud persistence is being stabilized.
+- After structured autosave covers all important meeting data and Phase 3 shared meeting access is stable, evaluate removing Local Workspace or demoting it to a developer/testing-only mode.
+- Maintaining parallel local and cloud meeting systems creates code duplication, testing burden, and user confusion. Shared meeting access will make cloud the primary product path, but Local Workspace retirement is a future decision.
 
 ## Tactical History Foundation (Archival Session Records)
 - `tactical_sessions` stores recurring tactical meeting history snapshots.
