@@ -93,7 +93,7 @@ Planned save flow:
 - **Phase B:** Add structured tables; new edits begin dual-write or structured-write per scoped surface.
 - **Phase C:** Hydrate app reads from structured tables (surface-by-surface rollout).
 - **Phase D:** Keep `meeting_data` for backup/export snapshot only.
-- **Phase E:** Add members/realtime features on top of structured tables.
+- **Phase E:** Add shared membership on top of the stable cloud foundation; keep realtime features deferred unless separately prioritized.
 
 ## Structured Persistence Foundation (Phase A/B Schema Introduction)
 Supabase migration `20260523000000_add_structured_persistence_foundation.sql` introduces non-breaking structured tables:
@@ -121,7 +121,7 @@ Why this pilot is intentionally narrow:
 
 ## Explicit Out of Scope (This Plan)
 - Realtime behavior.
-- Invitations.
+- Invite delivery and polished onboarding; Phase 3 PR 1A plans pending-invite storage only.
 - Full org/team hierarchy.
 - Slug URLs.
 - Multiple local workspaces.
@@ -136,3 +136,45 @@ Why this pilot is intentionally narrow:
 - Completion is non-destructive and distinct from archive (`completed` ≠ `archived`).
 - Topic-attached Notes in `strategic_topic_notes` remain attached by `strategic_topic_item_id` across active/completed/archived states.
 - Current runtime source remains meeting workspace/runtime storage shape unless/until `public.strategic_topics` is explicitly wired for active reads.
+
+## Phase 3 Meeting Membership and Invite Model (Planned, Not Implemented)
+Phase 3 introduces shared meeting access as a layered extension of the Phase 2 meeting container. No schema change is included in this planning PR.
+
+### Existing foundation findings
+- `meetings.owner_id` is the current owner authority and remains the compatibility path for the first migrations.
+- `meeting_members` already exists with unique (`meeting_id`, `user_id`) membership edges.
+- The current `meeting_members.role` constraint is `owner`, `admin`, `member`. This does **not** match the planned long-term model of `owner`, `editor`, `viewer`.
+- Current structured-table RLS uses `user_owns_meeting(meeting_id)` and does not grant access through `meeting_members`.
+- No meeting invitation table exists yet.
+
+### Intended membership model
+`meeting_members` should represent accepted identity-linked access:
+- `meeting_id`: the shared cloud meeting.
+- `user_id`: accepted authenticated user identity.
+- `role`: planned long-term values `owner`, `editor`, `viewer`.
+- lifecycle timestamps/status metadata only where needed for safe rollout and auditability.
+- unique accepted membership per (`meeting_id`, `user_id`).
+
+For Team Beta, the UI and policies may expose only Owner and Editor behavior initially. Everyone with access can edit in that beta slice. Viewer remains a durable planned role so the schema direction does not need to be redesigned later.
+
+### Intended pending-invite model
+Add a dedicated meeting-scoped invitation record in PR 1A rather than forcing a pre-signup invite into `meeting_members.user_id`:
+- meeting reference,
+- normalized invited email,
+- intended role (Team Beta can default to `editor`),
+- invitation lifecycle such as pending, accepted, and revoked,
+- inviter identity and timestamps,
+- acceptance linkage or audit metadata needed to connect the invite to an authenticated user safely.
+
+Exact table name, token strategy, expiration behavior, and acceptance flow remain implementation-design questions for PR 1A. Email text is suitable for pending invitation matching but must not become the long-term authorization authority after acceptance.
+
+### Ownership direction
+- Keep one active owner authority for the initial Team Beta.
+- Add explicit ownership transfer later.
+- Defer multiple owners and organization/admin ownership until a later scoped design.
+
+### Concurrency and save boundaries
+- Last Save Wins is acceptable for Team Beta.
+- Realtime collaboration, presence, cursors, websockets, CRDTs, and custom conflict resolution are out of scope.
+- Manual Save remains the full-workspace `meetings.meeting_data` cloud backup.
+- Do not reintroduce full-workspace JSONB autosave. Continue structured autosave expansion surface-by-surface after shared access is stable.

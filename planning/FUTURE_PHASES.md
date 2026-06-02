@@ -23,16 +23,17 @@ This file preserves intentionally deferred ideas so the team can avoid unplanned
 - Plan org-aware data boundaries before any schema normalization.
 
 ## Invitations/sharing
-- Define invite lifecycle (send, accept, revoke, expire) for shared cloud meetings.
-- Decide whether invitations are workspace-scoped, org-scoped, or both.
-- Add clear onboarding flows for first-time invited users.
-- Ensure invite/share additions do not break local-first backup and migration behavior.
+Shared meeting access has been promoted into Phase 3 planning. Keep only later refinements here:
+- Decide whether invitation expiration is needed after the initial pending/accepted/revoked lifecycle.
+- Evaluate organization-scoped invitations only after meeting-scoped invites are stable.
+- Add auditable invitation events if Team Beta usage shows a need.
 
 ## Advanced roles
-- Expand beyond owner-only access to explicit owner/editor/viewer roles.
-- Define per-surface permissions (edit tasks, archive items, manage workspace settings, export/import).
-- Resolve conflict behavior when permissions change while users are active.
+The durable `owner`/`editor`/`viewer` direction is part of Phase 3. Keep later refinements here:
+- Define fine-grained per-surface Viewer permissions before Viewer is exposed.
+- Resolve behavior when permissions change while users are active.
 - Add auditable role change events before broad rollout.
+- Evaluate multiple-owner or organization/admin ownership only after the single-owner shared-access beta is stable.
 
 ## Realtime collaboration
 - Evaluate presence indicators, live cursors, and optimistic vs authoritative merge strategy.

@@ -7,8 +7,8 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate plus autosave only the narrow `meeting_settings` structured pilot after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: complete Phase 2.5 cleanup and final QA polish after core Phase 2 workflows passed validation, while preserving the narrow `meeting_settings` autosave pilot and manual full-workspace backup behavior.
-- Current branch note: Phase 2.5 Cleanup and Final QA Polish is based from the available Phase 2 cloud branch context in this workspace; this container has no configured git remote, so latest remote refresh could not be performed locally.
+- Current focus: begin Phase 3 with **Shared Meeting Access Foundation** planning on the stable Phase 2 Single-User Cloud Beta baseline. The first implementation slice is schema alignment only; this planning PR does not change app code, RLS, or migrations.
+- Current branch note: Phase 3 work targets `phase-3-shared-access`. This local checkout is named `work` and is based on merge commit `cac3380` (`Merge pull request #74 from NaNo8831/phase-2-cloud`); no git remote is configured in this container.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
 
 ## Production State
@@ -26,7 +26,10 @@
 - Keep the `meeting_settings` structured persistence pilot intentionally narrow: dashboard/playbook-level settings hydrate after the manual backup loads and autosave after cloud-route bootstrap, unchanged payloads are skipped, and every non-pilot runtime read remains on the existing browser/workspace backup path.
 - Keep full-workspace JSONB autosave out of scope. Manual Save to `meetings.meeting_data` remains visible, available, and required as the full-workspace cloud backup safety net while structured surfaces are validated one at a time.
 - Document and sequence later migration slices without breaking current cloud save/load behavior or hardcoding owner-only client assumptions that would fight Phase 3 member roles.
-- Keep membership architecture, role direction (`owner`/`editor`/`viewer`), and ownership-handling rules documented as the permission foundation for future sharing work.
+- Begin Phase 3 with **Shared Meeting Access Foundation**: align schema intent, then introduce membership RLS, shared dashboard access, access-management UI, invite polish, and later structured-autosave expansion.
+- Keep membership architecture and long-term role direction (`owner`/`editor`/`viewer`) explicit. The current schema constraint is still `owner`/`admin`/`member`; resolve that mismatch in a dedicated implementation migration, not silently in this planning PR.
+- Support pending invitations for people who have not signed up yet. For the first Team Beta, expose only Owner and Editor behavior if needed and allow everyone with access to edit; defer Viewer enforcement until the permission surface is ready.
+- Keep Last Save Wins as the Team Beta concurrency model. Realtime collaboration, presence, cursors, websockets, CRDTs, and conflict resolution remain out of scope.
 
 ## Sprint Status
 
@@ -54,13 +57,15 @@
 - Manual Save remains part of the primary workflow during migration because PR #72 autosaves only `meeting_settings`. After structured autosave reliably covers the core operational workspace, evaluate retiring Manual Save from the primary workflow or moving it into a secondary backup/export utility role.
 - Broader responsive/layout polish remains deferred; do not turn Phase 2.5 into a responsive redesign or sticky-header redesign.
 - Additional structured autosave surfaces remain deferred and should be sequenced independently after the existing pilot is validated.
-- Phase 3 shared meeting access remains deferred until the structured cloud persistence foundation is stable.
+- Phase 3 shared meeting access is now active planning work; keep implementation incremental and begin with PR 1A schema alignment before any membership RLS grants.
 - Documentation/user guide work remains deferred until the shared access foundation is established.
 - Deferred ideas are now tracked in `planning/FUTURE_PHASES.md` to prevent scope creep in active delivery work.
 
 ## Next Actions
 
+- Prepare **PR 1A — Shared Access Schema Alignment** from `phase-3-shared-access`: add the smallest non-breaking migration needed to align meeting membership roles and pending-invite storage while preserving the Phase 2 owner path.
+- Follow with **PR 1B — Membership RLS Foundation**, then shared dashboard access, meeting access-management UI, invite UX polish, and structured autosave expansion surface-by-surface.
 - Use the planning files as the source of truth before future changes.
 - Validate the `meeting_settings` hydrate/autosave pilot and its separate Manual Save backup signaling on a Supabase-configured Phase 2 preview.
 - Validate Cloud Meeting Persistence on a Supabase-configured preview, including signed-out local mode, signed-in local mode staying browser-only, signed-in create/select/switch behavior from the dashboard, no auto-load or auto-migration from local mode, manual full-workspace save/load only on valid Cloud Meeting routes, soft-deleted meetings staying hidden/inaccessible, optional Local Workspace migration into empty and populated cloud meetings from a valid cloud route, migration cancel behavior, duplicate-prompt suppression, import while Cloud Meeting is selected, overwrite confirmation, user-scoped workspace selection, owner-only RLS, existing localStorage data, export/import, and Feedback Widget behavior.
-- Plan any future normalization, migration, sharing, roles, and realtime collaboration separately before expanding beyond basic owner-only JSONB persistence.
+- Keep realtime collaboration and broader ownership models separate from Phase 3 Team Beta. Resolve shared-access schema alignment before expanding membership RLS or structured autosave surfaces.

@@ -82,8 +82,38 @@ The structured persistence foundation migration enables RLS on all newly introdu
 - this is enforced per table through owner-check policies and a shared meeting ownership helper.
 - `meeting_members` exists now for future sharing expansion, but does **not** yet grant non-owner access in runtime policies.
 
+## Phase 3 Shared Access Permission Direction (Planned, Not Implemented)
+Phase 3 begins with a safe transition from owner-only RLS to membership-aware RLS. The database remains authoritative; dashboard filtering and UI controls must not substitute for policies.
+
+### Current mismatch to resolve in PR 1A
+- Current schema role values: `owner`, `admin`, `member`.
+- Planned durable role values: `owner`, `editor`, `viewer`.
+- Do not silently map or reinterpret these values in client code. PR 1A must define an explicit migration/alignment strategy before PR 1B grants member access.
+
+### Team Beta capability shape
+| Capability | Owner | Editor | Viewer (planned later) |
+| --- | --- | --- | --- |
+| View shared meeting | Yes | Yes | Yes |
+| Edit operational meeting content | Yes | Yes | No |
+| Use Manual Save full-workspace backup | Yes | Yes for Team Beta unless narrowed by a later decision | No by default |
+| Invite/revoke members and change roles | Yes | No | No |
+| Transfer ownership | Later explicit flow | No | No |
+
+The first Team Beta may expose only Owner and Editor behavior. Everyone with access can edit during that beta. Viewer remains part of the long-term model, but read-only enforcement and UX can follow after the shared-access foundation is stable.
+
+### Invitation authority boundary
+- Pending invitations must work for email addresses that do not yet map to `auth.users`.
+- Email is acceptable for pending invite matching and onboarding.
+- Accepted runtime authorization must resolve through authenticated user identity and meeting membership, not email text.
+
+### Deferred ownership models
+- Keep one active owner authority for the initial rollout.
+- Add explicit ownership transfer later.
+- Do not implement multiple owners or organization/admin ownership in the first Phase 3 PR.
+
 ## Out of Scope in This Planning Stage
-- Invitation flows.
-- Full org/team hierarchy.
-- Realtime collaboration policies.
-- Final granular permission matrix per entity/action.
+- Realtime collaboration policies, presence, cursors, websockets, CRDTs, and conflict resolution.
+- Full org/team hierarchy or organization/admin ownership.
+- Multiple active owners.
+- Ownership-transfer UI or migration behavior.
+- Final granular viewer permission matrix per entity/action.
