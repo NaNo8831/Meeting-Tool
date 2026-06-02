@@ -51,6 +51,8 @@ import {
 } from "@/app/lib/workspaceBackup";
 import {
   supabaseMeetingClient,
+  type SupabaseMeetingSettings,
+  type SupabaseMeetingSettingsUpsert,
   type SupabaseStrategicTopicNote,
   type SupabaseTacticalSession,
 } from "@/app/lib/supabaseClient";
@@ -59,6 +61,7 @@ import type {
   MeetingRecord,
   MeetingSectionConfig,
   MeetingSectionKey,
+  OrganizationInfo,
   StandardOperatingObjective,
 } from "@/app/types/dashboard";
 import type { ObjectiveColor } from "@/app/types/objective";
@@ -398,6 +401,8 @@ const buildTacticalSnapshotSummary = (
 };
 
 type CloudSaveStatus = "local" | "idle" | "saving" | "saved" | "error";
+type SettingsAutosaveStatus = "ready" | "pending" | "saving" | "saved" | "error";
+const meetingSettingsAutosaveDebounceMs = 1200;
 
 const readBackupEntry = <T,>(
   backup: WorkspaceBackupFile,
@@ -693,10 +698,21 @@ export default function MeetingWorkspace() {
     local: "Local only",
     idle: "Cloud ready",
     saving: "Working…",
-    saved: "Saved",
-    error: "Needs attention",
+    saved: "Full workspace backup saved",
+    error: "Cloud action failed",
+  };
+  const [settingsAutosaveStatus, setSettingsAutosaveStatus] =
+    useState<SettingsAutosaveStatus>("ready");
+  const settingsAutosaveStatusLabel: Record<SettingsAutosaveStatus, string> = {
+    ready: "Settings autosave ready",
+    pending: "Settings autosave pending…",
+    saving: "Saving settings…",
+    saved: "Settings saved to cloud",
+    error: "Settings save failed",
   };
   const [cloudMeetingMessage, setCloudMeetingMessage] = useState("");
+  const [hasUnsavedFullWorkspaceChanges, setHasUnsavedFullWorkspaceChanges] =
+    useState(false);
   const [selectedMeetingHasData, setSelectedMeetingHasData] =
     useState(false);
   const [isCheckingCloudWorkspaceData, setIsCheckingCloudWorkspaceData] =
@@ -816,6 +832,10 @@ export default function MeetingWorkspace() {
   const [draggingStandardObjectiveId, setDraggingStandardObjectiveId] =
     useState<number | null>(null);
   const lastCloudAutosaveSignatureRef = useRef("");
+  const lastMeetingSettingsAutosaveSignatureRef = useRef("");
+  const meetingSettingsAutosaveWorkspaceIdRef = useRef("");
+  const pendingMeetingSettingsAutosaveSignatureRef = useRef("");
+  const isMeetingSettingsAutosaveInFlightRef = useRef(false);
   const lastAutoLoadedCloudMeetingIdRef = useRef("");
   const [isRouteCloudBootstrapping, setIsRouteCloudBootstrapping] =
     useState(false);
@@ -852,6 +872,18 @@ export default function MeetingWorkspace() {
   const activeMeetingIndex =
     storedActiveMeetingIndex === -1 ? 0 : storedActiveMeetingIndex;
   const activeMeeting = meetings[activeMeetingIndex] ?? initialMeetings[0];
+  const chronologicallyOrderedMeetings = useMemo(
+    () =>
+      [...meetings].sort(
+        (firstMeeting, secondMeeting) =>
+          firstMeeting.date.localeCompare(secondMeeting.date) ||
+          firstMeeting.id - secondMeeting.id,
+      ),
+    [meetings],
+  );
+  const activeMeetingNotesIndex = chronologicallyOrderedMeetings.findIndex(
+    (meeting) => meeting.id === activeMeeting.id,
+  );
   const isStrategicTopicVisibleForActiveMeeting = (item: MeetingItem) => {
     const capturedMeetingIndex =
       item.capturedMeetingIndex ??
@@ -879,8 +911,9 @@ export default function MeetingWorkspace() {
   const archivedStrategicTopicItems = strategicTopicItems.filter(
     (item) => (item.status ?? "active") === "archived",
   );
-  const canNavigateToPreviousMeeting = activeMeetingIndex > 0;
-  const canNavigateToNextMeeting = activeMeetingIndex < meetings.length - 1;
+  const canNavigateToPreviousMeeting = activeMeetingNotesIndex > 0;
+  const canNavigateToNextMeeting =
+    activeMeetingNotesIndex < chronologicallyOrderedMeetings.length - 1;
   const historicalMeetingIds = useMemo(
     () =>
       new Set(
@@ -1053,10 +1086,7 @@ export default function MeetingWorkspace() {
     if (!selectedMeetingName.trim()) return;
 
     const trimmedDashboardTitle = dashboardTitle.trim();
-    if (
-      !trimmedDashboardTitle ||
-      trimmedDashboardTitle === "Meeting Tool by LyArk"
-    ) {
+    if (trimmedDashboardTitle === "Meeting Tool by LyArk") {
       setDashboardTitle(selectedMeetingName);
     }
   }, [dashboardTitle, selectedMeetingName, setDashboardTitle, workspaceMode]);
@@ -1436,9 +1466,14 @@ export default function MeetingWorkspace() {
       const remainingMeetings = meetings.filter(
         (meeting) => meeting.id !== activeMeeting.id,
       );
+      const chronologicallyOrderedRemainingMeetings =
+        chronologicallyOrderedMeetings.filter(
+          (meeting) => meeting.id !== activeMeeting.id,
+        );
       const fallbackActiveMeeting =
-        remainingMeetings[Math.max(activeMeetingIndex - 1, 0)] ??
-        remainingMeetings[0];
+        chronologicallyOrderedRemainingMeetings[
+          Math.max(activeMeetingNotesIndex - 1, 0)
+        ] ?? chronologicallyOrderedRemainingMeetings[0];
       setMeetings(remainingMeetings);
       setActiveMeetingId(fallbackActiveMeeting.id);
     }
@@ -1452,9 +1487,9 @@ export default function MeetingWorkspace() {
   const navigateMeeting = (direction: "previous" | "next") => {
     const nextIndex =
       direction === "previous"
-        ? activeMeetingIndex - 1
-        : activeMeetingIndex + 1;
-    const nextMeeting = meetings[nextIndex];
+        ? activeMeetingNotesIndex - 1
+        : activeMeetingNotesIndex + 1;
+    const nextMeeting = chronologicallyOrderedMeetings[nextIndex];
     if (!nextMeeting) return;
     setActiveMeetingId(nextMeeting.id);
     setNewAgendaItem("");
@@ -2028,6 +2063,7 @@ export default function MeetingWorkspace() {
       });
       setLocalWorkspaceMigrationSignature(signature);
       lastCloudAutosaveSignatureRef.current = signature;
+      setHasUnsavedFullWorkspaceChanges(false);
       setCloudSaveStatus("saved");
       setCloudMeetingMessage(
         "Local Workspace data was saved to this Cloud Meeting. Local data remains available in this browser.",
@@ -2054,6 +2090,33 @@ export default function MeetingWorkspace() {
     storeWorkspaceBackupInBrowser,
   ]);
 
+  const applyMeetingSettingsToState = useCallback(
+    (settings: SupabaseMeetingSettings | null) => {
+      if (!settings) return;
+
+      if (settings.dashboard_title !== null) {
+        setDashboardTitle(settings.dashboard_title);
+      }
+      if (settings.organization_info !== null) {
+        setOrganizationInfo(
+          settings.organization_info as unknown as OrganizationInfo,
+        );
+      }
+      if (settings.meeting_section_order !== null) {
+        setMeetingSectionOrder(
+          settings.meeting_section_order as MeetingSectionKey[],
+        );
+      }
+      setHasCompletedMeetingSetup(settings.setup_completed);
+    },
+    [
+      setDashboardTitle,
+      setHasCompletedMeetingSetup,
+      setMeetingSectionOrder,
+      setOrganizationInfo,
+    ],
+  );
+
   const handleLoadCloudMeeting = useCallback(async () => {
     if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
       setCloudSaveStatus(isLocalRoute ? "local" : "error");
@@ -2069,12 +2132,20 @@ export default function MeetingWorkspace() {
     setCloudMeetingMessage("Loading cloud meeting…");
 
     try {
-      const cloudData = await supabaseMeetingClient.loadWorkspaceData({
-        accessToken: authSession.accessToken,
-        workspaceId: selectedMeetingId,
-      });
+      const [cloudData, meetingSettings] = await Promise.all([
+        supabaseMeetingClient.loadWorkspaceData({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+        }),
+        supabaseMeetingClient.loadMeetingSettings({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+        }),
+      ]);
 
       if (!cloudData) {
+        applyMeetingSettingsToState(meetingSettings);
+        setActiveCloudWorkspaceId(selectedMeetingId);
         setCloudSaveStatus("idle");
         setCloudMeetingMessage(
           "This cloud meeting has no saved data yet. Use Save current workspace to cloud when ready.",
@@ -2088,9 +2159,13 @@ export default function MeetingWorkspace() {
       storeWorkspaceBackupInBrowser(backup, selectedMeetingId);
       setActiveCloudWorkspaceId(selectedMeetingId);
       applyWorkspaceBackupToState(backup);
+      applyMeetingSettingsToState(meetingSettings);
       lastCloudAutosaveSignatureRef.current = signature;
-      setCloudSaveStatus("saved");
-      setCloudMeetingMessage("Cloud workspace loaded.");
+      setHasUnsavedFullWorkspaceChanges(false);
+      setCloudSaveStatus("idle");
+      setCloudMeetingMessage(
+        "Cloud workspace loaded. Settings autosave covers playbook settings only; Manual Save backs up the full workspace.",
+      );
       setIsRouteCloudBootstrapping(false);
     } catch (error) {
       setCloudSaveStatus("error");
@@ -2102,6 +2177,7 @@ export default function MeetingWorkspace() {
       setIsRouteCloudBootstrapping(false);
     }
   }, [
+    applyMeetingSettingsToState,
     applyWorkspaceBackupToState,
     authSession,
     isCurrentCloudRouteWorkspace,
@@ -2159,6 +2235,7 @@ export default function MeetingWorkspace() {
       setActiveCloudWorkspaceId(selectedMeetingId);
       setSelectedMeetingHasData(true);
       lastCloudAutosaveSignatureRef.current = signature;
+      setHasUnsavedFullWorkspaceChanges(false);
       setCloudSaveStatus("saved");
       setCloudMeetingMessage(statusMessage);
       return true;
@@ -2231,7 +2308,6 @@ export default function MeetingWorkspace() {
       setTacticalSessions((current) => [created, ...current]);
       setSelectedTacticalSessionId(created.id);
       setShowEndMeetingConfirm(false);
-      setShowTacticalHistory(true);
       setCloudMeetingMessage(
         "Tactical session history snapshot saved. Current meeting workspace remains active.",
       );
@@ -2279,13 +2355,13 @@ export default function MeetingWorkspace() {
     }
 
     setCloudSaveStatus("saving");
-    setCloudMeetingMessage("Saving cloud meeting…");
+    setCloudMeetingMessage("Saving full workspace to cloud backup…");
 
     try {
       const workspaceEntries = getCurrentWorkspaceStorage();
       const wasSaved = await saveWorkspaceBackupToCloud(
         workspaceEntries,
-        "Saved to cloud.",
+        "Full workspace saved to cloud backup.",
       );
       if (wasSaved) {
       }
@@ -2311,6 +2387,11 @@ export default function MeetingWorkspace() {
     const timeoutId = window.setTimeout(() => {
       if (workspaceMode === "local") {
         lastCloudAutosaveSignatureRef.current = "";
+        lastMeetingSettingsAutosaveSignatureRef.current = "";
+        meetingSettingsAutosaveWorkspaceIdRef.current = "";
+        pendingMeetingSettingsAutosaveSignatureRef.current = "";
+        setHasUnsavedFullWorkspaceChanges(false);
+        setSettingsAutosaveStatus("ready");
         setCloudSaveStatus("local");
         setCloudMeetingMessage(
           authSession
@@ -2321,6 +2402,7 @@ export default function MeetingWorkspace() {
         return;
       }
 
+      setSettingsAutosaveStatus("ready");
       setCloudSaveStatus("idle");
       setCloudMeetingMessage(
         "Cloud workspace selected. Load cloud data when needed.",
@@ -2338,19 +2420,161 @@ export default function MeetingWorkspace() {
     return () => window.clearTimeout(timeoutId);
   }, [loadTacticalSessions]);
 
+  const meetingSettingsAutosavePayload = useMemo<SupabaseMeetingSettingsUpsert>(
+    () => ({
+      dashboard_title: dashboardTitle,
+      organization_info: { ...organizationInfo },
+      meeting_section_order: meetingSectionOrder,
+      setup_completed: hasCompletedMeetingSetup,
+    }),
+    [
+      dashboardTitle,
+      hasCompletedMeetingSetup,
+      meetingSectionOrder,
+      organizationInfo,
+    ],
+  );
+  const meetingSettingsAutosaveSignature = useMemo(
+    () => JSON.stringify(meetingSettingsAutosavePayload),
+    [meetingSettingsAutosavePayload],
+  );
+
   useEffect(() => {
     if (workspaceMode !== "cloud") return;
-    if (!selectedMeetingId) return;
+    if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace)
+      return;
     if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
       return;
-    if (isRouteCloudBootstrapping) return;
+    if (isRouteCloudBootstrapping || !hasLoadedDashboardStorage) return;
 
-    const timeoutId = window.setTimeout(() => {
-    }, 0);
+    if (meetingSettingsAutosaveWorkspaceIdRef.current !== selectedMeetingId) {
+      meetingSettingsAutosaveWorkspaceIdRef.current = selectedMeetingId;
+      lastMeetingSettingsAutosaveSignatureRef.current =
+        meetingSettingsAutosaveSignature;
+      pendingMeetingSettingsAutosaveSignatureRef.current = "";
+      return;
+    }
 
-    return () => window.clearTimeout(timeoutId);
+    if (
+      meetingSettingsAutosaveSignature ===
+      lastMeetingSettingsAutosaveSignatureRef.current
+    ) {
+      if (pendingMeetingSettingsAutosaveSignatureRef.current) {
+        pendingMeetingSettingsAutosaveSignatureRef.current = "";
+        setSettingsAutosaveStatus("saved");
+        setCloudMeetingMessage("Meeting settings match the saved cloud version.");
+      }
+      return;
+    }
+
+    pendingMeetingSettingsAutosaveSignatureRef.current =
+      meetingSettingsAutosaveSignature;
+    setSettingsAutosaveStatus("pending");
+    setCloudMeetingMessage("Settings autosave pending… Manual Save still backs up the full workspace.");
+
+    let isCancelled = false;
+    let timeoutId: number;
+    const flushPendingSettings = async () => {
+      if (isCancelled) return;
+      if (isMeetingSettingsAutosaveInFlightRef.current) {
+        timeoutId = window.setTimeout(
+          flushPendingSettings,
+          meetingSettingsAutosaveDebounceMs,
+        );
+        return;
+      }
+
+      const pendingSignature =
+        pendingMeetingSettingsAutosaveSignatureRef.current;
+      if (
+        !pendingSignature ||
+        pendingSignature === lastMeetingSettingsAutosaveSignatureRef.current
+      )
+        return;
+
+      isMeetingSettingsAutosaveInFlightRef.current = true;
+      pendingMeetingSettingsAutosaveSignatureRef.current = "";
+      setSettingsAutosaveStatus("saving");
+      setCloudMeetingMessage("Saving meeting settings to cloud…");
+
+      try {
+        await supabaseMeetingClient.saveMeetingSettings({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+          settings: JSON.parse(pendingSignature) as SupabaseMeetingSettingsUpsert,
+        });
+        lastMeetingSettingsAutosaveSignatureRef.current = pendingSignature;
+
+        if (
+          !isCancelled &&
+          !pendingMeetingSettingsAutosaveSignatureRef.current
+        ) {
+          setSettingsAutosaveStatus("saved");
+          setCloudMeetingMessage(
+            "Meeting settings saved to cloud. Manual Save still backs up the full workspace.",
+          );
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setSettingsAutosaveStatus("error");
+          setCloudMeetingMessage(
+            error instanceof Error
+              ? error.message
+              : "Meeting settings could not be saved to cloud.",
+          );
+        }
+      } finally {
+        isMeetingSettingsAutosaveInFlightRef.current = false;
+        if (
+          !isCancelled &&
+          pendingMeetingSettingsAutosaveSignatureRef.current
+        ) {
+          timeoutId = window.setTimeout(
+            flushPendingSettings,
+            meetingSettingsAutosaveDebounceMs,
+          );
+        }
+      }
+    };
+
+    timeoutId = window.setTimeout(
+      flushPendingSettings,
+      meetingSettingsAutosaveDebounceMs,
+    );
+
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timeoutId);
+    };
   }, [
     activeCloudWorkspaceId,
+    authSession,
+    hasLoadedDashboardStorage,
+    isCurrentCloudRouteWorkspace,
+    isRouteCloudBootstrapping,
+    meetingSettingsAutosaveSignature,
+    selectedMeetingId,
+    workspaceMode,
+  ]);
+
+  useEffect(() => {
+    if (workspaceMode !== "cloud") return;
+    if (!selectedMeetingId || !isCurrentCloudRouteWorkspace) return;
+    if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
+      return;
+    if (isRouteCloudBootstrapping || !hasLoadedDashboardStorage) return;
+
+    const currentSignature = getWorkspaceStorageSignature(
+      getCurrentWorkspaceStorage(),
+    );
+    setHasUnsavedFullWorkspaceChanges(
+      currentSignature !== lastCloudAutosaveSignatureRef.current,
+    );
+  }, [
+    activeCloudWorkspaceId,
+    getCurrentWorkspaceStorage,
+    hasLoadedDashboardStorage,
+    isCurrentCloudRouteWorkspace,
     isRouteCloudBootstrapping,
     selectedMeetingId,
     workspaceMode,
@@ -2517,7 +2741,7 @@ export default function MeetingWorkspace() {
         <div className="mb-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-start">
           <div>
             <h1 className="text-5xl font-bold text-slate-900">
-              {dashboardTitle}
+              {dashboardTitle || selectedMeetingName || defaultDashboardTitle}
             </h1>
           </div>
 
@@ -2552,6 +2776,24 @@ export default function MeetingWorkspace() {
                 {isEndingMeeting ? "Ending Meeting…" : "End Meeting"}
               </button>
             </div>
+            {isCurrentCloudRouteWorkspace ? (
+              <div className="mt-3 grid gap-1 border-t border-blue-100 pt-3 text-center text-xs">
+                <span className="font-semibold text-blue-700">
+                  {settingsAutosaveStatusLabel[settingsAutosaveStatus]}
+                </span>
+                <span
+                  className={
+                    hasUnsavedFullWorkspaceChanges
+                      ? "font-semibold text-amber-700"
+                      : "text-slate-500"
+                  }
+                >
+                  {hasUnsavedFullWorkspaceChanges
+                    ? "Manual Save needed for full workspace changes."
+                    : "Full workspace backup saved."}
+                </span>
+              </div>
+            ) : null}
             {testingToolsEnabled ? (
               <div className="mt-4 border-t border-amber-100 pt-3">
                 <label className="flex items-center justify-center gap-2 text-xs font-semibold text-amber-800">
@@ -2627,7 +2869,19 @@ export default function MeetingWorkspace() {
                     {cloudSaveStatusLabel[cloudSaveStatus]}
                   </span>
                 </div>
+                <p className="mt-2 text-xs font-semibold text-blue-700">
+                  {settingsAutosaveStatusLabel[settingsAutosaveStatus]}
+                </p>
                 <p className="mt-2 text-xs text-slate-500">{cloudMeetingMessage}</p>
+                <p className={`mt-2 text-xs font-semibold ${
+                  hasUnsavedFullWorkspaceChanges
+                    ? "text-amber-700"
+                    : "text-slate-500"
+                }`}>
+                  {hasUnsavedFullWorkspaceChanges
+                    ? "Manual Save needed for full workspace changes."
+                    : "Full workspace backup saved. Manual Save backs up objectives, tasks, meeting notes, Strategic Topics, and other workspace changes."}
+                </p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <button
                     type="button"
@@ -3271,7 +3525,7 @@ export default function MeetingWorkspace() {
       {selectedStandardObjectiveId !== null ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
           <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl md:p-8">
-            <div className="mb-6 flex items-start justify-between gap-4">
+            <div className="relative z-[80] mb-6 flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
                   Standard Operating Objective
