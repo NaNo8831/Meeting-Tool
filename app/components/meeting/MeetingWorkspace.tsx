@@ -51,6 +51,7 @@ import {
 } from "@/app/lib/workspaceBackup";
 import {
   supabaseMeetingClient,
+  type SupabaseMeetingSettings,
   type SupabaseMeetingSettingsUpsert,
   type SupabaseStrategicTopicNote,
   type SupabaseTacticalSession,
@@ -60,6 +61,7 @@ import type {
   MeetingRecord,
   MeetingSectionConfig,
   MeetingSectionKey,
+  OrganizationInfo,
   StandardOperatingObjective,
 } from "@/app/types/dashboard";
 import type { ObjectiveColor } from "@/app/types/objective";
@@ -695,9 +697,9 @@ export default function MeetingWorkspace() {
   const cloudSaveStatusLabel: Record<CloudSaveStatus, string> = {
     local: "Local only",
     idle: "Cloud ready",
-    saving: "Saving…",
-    saved: "Saved to cloud",
-    error: "Save failed",
+    saving: "Working…",
+    saved: "Full workspace backup saved",
+    error: "Cloud action failed",
   };
   const [settingsAutosaveStatus, setSettingsAutosaveStatus] =
     useState<SettingsAutosaveStatus>("ready");
@@ -2088,6 +2090,33 @@ export default function MeetingWorkspace() {
     storeWorkspaceBackupInBrowser,
   ]);
 
+  const applyMeetingSettingsToState = useCallback(
+    (settings: SupabaseMeetingSettings | null) => {
+      if (!settings) return;
+
+      if (settings.dashboard_title !== null) {
+        setDashboardTitle(settings.dashboard_title);
+      }
+      if (settings.organization_info !== null) {
+        setOrganizationInfo(
+          settings.organization_info as unknown as OrganizationInfo,
+        );
+      }
+      if (settings.meeting_section_order !== null) {
+        setMeetingSectionOrder(
+          settings.meeting_section_order as MeetingSectionKey[],
+        );
+      }
+      setHasCompletedMeetingSetup(settings.setup_completed);
+    },
+    [
+      setDashboardTitle,
+      setHasCompletedMeetingSetup,
+      setMeetingSectionOrder,
+      setOrganizationInfo,
+    ],
+  );
+
   const handleLoadCloudMeeting = useCallback(async () => {
     if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
       setCloudSaveStatus(isLocalRoute ? "local" : "error");
@@ -2103,12 +2132,19 @@ export default function MeetingWorkspace() {
     setCloudMeetingMessage("Loading cloud meeting…");
 
     try {
-      const cloudData = await supabaseMeetingClient.loadWorkspaceData({
-        accessToken: authSession.accessToken,
-        workspaceId: selectedMeetingId,
-      });
+      const [cloudData, meetingSettings] = await Promise.all([
+        supabaseMeetingClient.loadWorkspaceData({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+        }),
+        supabaseMeetingClient.loadMeetingSettings({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+        }),
+      ]);
 
       if (!cloudData) {
+        applyMeetingSettingsToState(meetingSettings);
         setActiveCloudWorkspaceId(selectedMeetingId);
         setCloudSaveStatus("idle");
         setCloudMeetingMessage(
@@ -2123,9 +2159,10 @@ export default function MeetingWorkspace() {
       storeWorkspaceBackupInBrowser(backup, selectedMeetingId);
       setActiveCloudWorkspaceId(selectedMeetingId);
       applyWorkspaceBackupToState(backup);
+      applyMeetingSettingsToState(meetingSettings);
       lastCloudAutosaveSignatureRef.current = signature;
       setHasUnsavedFullWorkspaceChanges(false);
-      setCloudSaveStatus("saved");
+      setCloudSaveStatus("idle");
       setCloudMeetingMessage(
         "Cloud workspace loaded. Settings autosave covers playbook settings only; Manual Save backs up the full workspace.",
       );
@@ -2140,6 +2177,7 @@ export default function MeetingWorkspace() {
       setIsRouteCloudBootstrapping(false);
     }
   }, [
+    applyMeetingSettingsToState,
     applyWorkspaceBackupToState,
     authSession,
     isCurrentCloudRouteWorkspace,
@@ -2270,7 +2308,6 @@ export default function MeetingWorkspace() {
       setTacticalSessions((current) => [created, ...current]);
       setSelectedTacticalSessionId(created.id);
       setShowEndMeetingConfirm(false);
-      setShowTacticalHistory(true);
       setCloudMeetingMessage(
         "Tactical session history snapshot saved. Current meeting workspace remains active.",
       );
@@ -2425,7 +2462,6 @@ export default function MeetingWorkspace() {
       if (pendingMeetingSettingsAutosaveSignatureRef.current) {
         pendingMeetingSettingsAutosaveSignatureRef.current = "";
         setSettingsAutosaveStatus("saved");
-        setCloudSaveStatus("saved");
         setCloudMeetingMessage("Meeting settings match the saved cloud version.");
       }
       return;
@@ -2434,7 +2470,6 @@ export default function MeetingWorkspace() {
     pendingMeetingSettingsAutosaveSignatureRef.current =
       meetingSettingsAutosaveSignature;
     setSettingsAutosaveStatus("pending");
-    setCloudSaveStatus("idle");
     setCloudMeetingMessage("Settings autosave pending… Manual Save still backs up the full workspace.");
 
     let isCancelled = false;
@@ -2460,7 +2495,6 @@ export default function MeetingWorkspace() {
       isMeetingSettingsAutosaveInFlightRef.current = true;
       pendingMeetingSettingsAutosaveSignatureRef.current = "";
       setSettingsAutosaveStatus("saving");
-      setCloudSaveStatus("saving");
       setCloudMeetingMessage("Saving meeting settings to cloud…");
 
       try {
@@ -2476,7 +2510,6 @@ export default function MeetingWorkspace() {
           !pendingMeetingSettingsAutosaveSignatureRef.current
         ) {
           setSettingsAutosaveStatus("saved");
-          setCloudSaveStatus("saved");
           setCloudMeetingMessage(
             "Meeting settings saved to cloud. Manual Save still backs up the full workspace.",
           );
@@ -2484,7 +2517,6 @@ export default function MeetingWorkspace() {
       } catch (error) {
         if (!isCancelled) {
           setSettingsAutosaveStatus("error");
-          setCloudSaveStatus("error");
           setCloudMeetingMessage(
             error instanceof Error
               ? error.message
@@ -2758,7 +2790,7 @@ export default function MeetingWorkspace() {
                 >
                   {hasUnsavedFullWorkspaceChanges
                     ? "Manual Save needed for full workspace changes."
-                    : "Full workspace cloud backup is current."}
+                    : "Full workspace backup saved."}
                 </span>
               </div>
             ) : null}
@@ -2837,6 +2869,9 @@ export default function MeetingWorkspace() {
                     {cloudSaveStatusLabel[cloudSaveStatus]}
                   </span>
                 </div>
+                <p className="mt-2 text-xs font-semibold text-blue-700">
+                  {settingsAutosaveStatusLabel[settingsAutosaveStatus]}
+                </p>
                 <p className="mt-2 text-xs text-slate-500">{cloudMeetingMessage}</p>
                 <p className={`mt-2 text-xs font-semibold ${
                   hasUnsavedFullWorkspaceChanges
@@ -2845,7 +2880,7 @@ export default function MeetingWorkspace() {
                 }`}>
                   {hasUnsavedFullWorkspaceChanges
                     ? "Manual Save needed for full workspace changes."
-                    : "Manual Save backs up objectives, tasks, meeting notes, Strategic Topics, and other workspace changes."}
+                    : "Full workspace backup saved. Manual Save backs up objectives, tasks, meeting notes, Strategic Topics, and other workspace changes."}
                 </p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <button
@@ -3490,7 +3525,7 @@ export default function MeetingWorkspace() {
       {selectedStandardObjectiveId !== null ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
           <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl md:p-8">
-            <div className="mb-6 flex items-start justify-between gap-4">
+            <div className="relative z-[80] mb-6 flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
                   Standard Operating Objective

@@ -4,7 +4,7 @@
 - `/dashboard` works for authenticated meeting selection.
 - `/meeting/[id]` loads the selected cloud meeting when explicitly requested.
 - Manual **Save to Cloud** works and remains the full-workspace backup safety net.
-- `meeting_settings` is the only structured autosave pilot: valid loaded `/meeting/[id]` cloud routes debounce changed dashboard/playbook-level settings and upsert the one row for that meeting. Local mode never sends this write.
+- `meeting_settings` is the only structured persistence pilot: valid loaded `/meeting/[id]` cloud routes hydrate its dashboard/playbook-level fields after the full-workspace backup loads, then debounce changed settings and upsert the one row for that meeting. Local mode never sends this read or write.
 - Refresh reloads the last manual cloud save.
 - JSON export/import works.
 - Feedback submission works.
@@ -98,7 +98,7 @@ Supabase migration `20260523000000_add_structured_persistence_foundation.sql` in
 The foundation remains non-breaking, with one validated write-path pilot:
 - `meeting_settings` receives debounced structured upserts for `dashboard_title`, `organization_info`, `meeting_section_order`, and `setup_completed` only after a signed-in cloud route has finished bootstrapping.
 - Unchanged settings payloads are skipped. The UI separately reports settings autosave progress and whether Manual Save is needed for the full workspace backup; failures surface a calm **Settings save failed** state.
-- Runtime app reads are **not** switched to `meeting_settings` yet; refresh still hydrates from the existing workspace backup path.
+- The four pilot fields hydrate from `meeting_settings` after the full-workspace backup loads, so structured settings take precedence on refresh. Objectives, tasks, agenda items, Strategic Topics, meeting notes, SOOs, and other runtime state still hydrate from the existing workspace backup path.
 - `meetings.meeting_data` remains the active backup/export/import shape and Manual Save/Load safety net.
 - Full-workspace JSONB autosave remains explicitly out of scope.
 

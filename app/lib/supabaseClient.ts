@@ -620,6 +620,33 @@ export const supabaseMeetingClient = {
     return meeting;
   },
 
+  async loadMeetingSettings({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("meeting_settings")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}&select=*&limit=1`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Meeting settings load"),
+      );
+    }
+
+    const settings = (await response.json()) as SupabaseMeetingSettings[];
+    return settings[0] ?? null;
+  },
+
   async saveMeetingSettings({
     accessToken,
     workspaceId,

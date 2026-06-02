@@ -4,7 +4,7 @@
 - Next.js + TypeScript + Tailwind app deployed on Vercel.
 - Local Workspace remains browser `localStorage` based.
 - Cloud Meeting full-workspace persistence uses manual save/load to `meetings.meeting_data` JSONB.
-- Valid `/meeting/[id]` cloud routes also run one narrow structured-write pilot: debounced `meeting_settings` autosave after the selected cloud meeting finishes loading. `/meeting/local` never writes this pilot to cloud.
+- Valid `/meeting/[id]` cloud routes run one narrow structured persistence pilot: hydrate `meeting_settings` after the full-workspace backup loads, then debounce settings-only autosave. `/meeting/local` never reads or writes this cloud pilot.
 - Backup/Restore JSON export/import remains operational and must stay intact.
 - Feedback remains separate from meeting persistence.
 - Auth sign out returns to `/`.
@@ -42,7 +42,7 @@ New direction:
 - Do not remove `meeting_data` yet.
 - Keep rollouts reversible and feature-scoped.
 - Keep tactical history snapshots archival-first; do not couple them to realtime or full runtime persistence migration.
-- Do not reintroduce full-workspace JSONB autosave. The `meeting_settings` pilot writes only dashboard/playbook-level settings and leaves runtime reads on the existing workspace path.
+- Do not reintroduce full-workspace JSONB autosave. The `meeting_settings` pilot reads and writes only dashboard/playbook-level settings; all other runtime reads remain on the existing workspace backup path.
 - Keep structured clients keyed by `meeting_id` and let database RLS enforce access so later `meeting_members` owner/editor/viewer expansion does not require owner-only assumptions in feature code.
 - Keep `meetings.name` as the cloud container/dashboard name and `meeting_settings.dashboard_title` as the distinct in-workspace/playbook title; they may initially match but should not be collapsed during this pilot.
 - Report settings autosave status separately from the Manual Save full-workspace backup state so non-pilot edits are never presented as autosaved.
