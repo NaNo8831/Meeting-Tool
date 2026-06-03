@@ -82,34 +82,42 @@ The structured persistence foundation migration enables RLS on all newly introdu
 - this is enforced per table through owner-check policies and a shared meeting ownership helper.
 - `meeting_members` exists now for future sharing expansion, but does **not** yet grant non-owner access in runtime policies.
 
-## Phase 3 Shared Access Permission Direction (Planned, Not Implemented)
-Phase 3 begins with a safe transition from owner-only RLS to membership-aware RLS. The database remains authoritative; dashboard filtering and UI controls must not substitute for policies.
+## Phase 3 Shared Access Permission State After PR 1A
+PR 1A is schema alignment only. It aligns membership and invitation storage, but does not grant members runtime access yet.
 
-### Current mismatch to resolve in PR 1A
-- Current schema role values: `owner`, `admin`, `member`.
-- Planned durable role values: `owner`, `editor`, `viewer`.
-- Do not silently map or reinterpret these values in client code. PR 1A must define an explicit migration/alignment strategy before PR 1B grants member access.
+### Schema-aligned role state
+- `meeting_members.role` is migrated from the older `owner`/`admin`/`member` vocabulary to `owner`/`editor`/`viewer`.
+- Existing `owner` rows remain `owner`; existing `admin` and `member` rows become `editor`.
+- The role constraint now accepts only `owner`, `editor`, and `viewer`.
+- Every `meetings.owner_id` user is backfilled into `meeting_members` with role `owner`, but `meetings.owner_id` remains the current runtime owner authority.
+
+### Invitation permissions
+- `meeting_invitations` stores pending, accepted, and revoked meeting-scoped invite records.
+- Pending invitation email is normalized as lowercase trimmed text and can exist before an `auth.users` row exists.
+- Duplicate active pending invitations for the same meeting and normalized email are blocked by a partial unique index.
+- Email text is not runtime authorization authority; accepted access must be tied to authenticated user identity and `meeting_members` in later work.
+
+### RLS behavior after PR 1A
+- Existing `meetings`, `meeting_members`, and structured-table RLS remains owner-only through `user_owns_meeting(meeting_id)`.
+- `meeting_invitations` has RLS enabled with the same owner-only `Meeting owners full access` policy.
+- Membership rows and pending invitations do not expand dashboard visibility, Manual Save access, structured-table access, or any other runtime meeting access yet.
+- PR 1B must explicitly add membership-aware RLS before editors/viewers can access shared meetings.
 
 ### Team Beta capability shape
-| Capability | Owner | Editor | Viewer (planned later) |
-| --- | --- | --- | --- |
-| View shared meeting | Yes | Yes | Yes |
-| Edit operational meeting content | Yes | Yes | No |
-| Use Manual Save full-workspace backup | Yes | Yes for Team Beta unless narrowed by a later decision | No by default |
-| Invite/revoke members and change roles | Yes | No | No |
-| Transfer ownership | Later explicit flow | No | No |
+| Capability | Owner | Editor | Viewer (planned later) | PR 1A runtime state |
+| --- | --- | --- | --- | --- |
+| View shared meeting | Yes | Yes | Yes | Owner-only; member access not granted yet |
+| Edit operational meeting content | Yes | Yes | No | Owner-only; member access not granted yet |
+| Use Manual Save full-workspace backup | Yes | Yes for Team Beta unless narrowed by a later decision | No by default | Owner-only through existing policies |
+| Invite/revoke members and change roles | Yes | No | No | No UI/runtime flow added yet; invite rows are owner-only |
+| Transfer ownership | Later explicit flow | No | No | Not implemented |
 
-The first Team Beta may expose only Owner and Editor behavior. Everyone with access can edit during that beta. Viewer remains part of the long-term model, but read-only enforcement and UX can follow after the shared-access foundation is stable.
-
-### Invitation authority boundary
-- Pending invitations must work for email addresses that do not yet map to `auth.users`.
-- Email is acceptable for pending invite matching and onboarding.
-- Accepted runtime authorization must resolve through authenticated user identity and meeting membership, not email text.
+The first Team Beta may expose only Owner and Editor behavior after PR 1B and follow-up UI work. Viewer remains part of the long-term model, but read-only enforcement and UX can follow after the shared-access foundation is stable.
 
 ### Deferred ownership models
 - Keep one active owner authority for the initial rollout.
 - Add explicit ownership transfer later.
-- Do not implement multiple owners or organization/admin ownership in the first Phase 3 PR.
+- Do not implement multiple owners or organization/admin ownership in PR 1A.
 
 ## Out of Scope in This Planning Stage
 - Realtime collaboration policies, presence, cursors, websockets, CRDTs, and conflict resolution.

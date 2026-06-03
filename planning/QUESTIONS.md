@@ -2,10 +2,10 @@
 
 | Question | Area | Status |
 | --- | --- | --- |
-| What exact pending-invite table name, token strategy, expiration behavior, and acceptance transaction should PR 1A use? | Phase 3 shared access | Open |
-| How should existing or test `meeting_members` rows using `admin` or `member` be migrated into the planned `editor` or `viewer` roles? | Phase 3 roles | Open |
+| What exact pending-invite table name, token strategy, expiration behavior, and acceptance transaction should PR 1A use? | Phase 3 shared access | Refined: PR 1A uses `meeting_invitations` with pending/accepted/revoked status and no token/expiration/acceptance transaction yet; PR 1B/follow-up invite UX must define token delivery and acceptance flow. |
+| How should existing or test `meeting_members` rows using `admin` or `member` be migrated into the planned `editor` or `viewer` roles? | Phase 3 roles | Answered in PR 1A: `owner` stays `owner`; `admin` and `member` migrate to `editor`; future roles are constrained to `owner`, `editor`, `viewer`. |
 | Should Team Beta allow Editors to invoke Manual Save, duplicate, archive, and soft-delete, or reserve some meeting-container actions for Owners? | Phase 3 permissions | Open |
-| Should invitation revocation preserve an audit row, and when should re-inviting reuse or replace that row? | Phase 3 invites | Open |
+| Should invitation revocation preserve an audit row, and when should re-inviting reuse or replace that row? | Phase 3 invites | Refined: PR 1A preserves rows with `pending`, `accepted`, or `revoked` status and blocks duplicate active pending invites; follow-up UX should decide whether to update revoked rows or insert new rows when re-inviting. |
 | What Supabase schema should follow basic JSONB persistence if normalization is needed? | Cloud data model | Open |
 | How long should workspace data remain JSONB before considering normalized tables? | Cloud data model | Open |
 | Should local-to-cloud migration state eventually move from browser-local signatures into cloud metadata? | Migration | Open |

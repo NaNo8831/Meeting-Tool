@@ -18,14 +18,18 @@
 - Use Vercel preview for user-facing changes before merge.
 
 ## Phase 3 Shared Access Validation Areas (Planned)
-Apply these checks incrementally as each Phase 3 implementation PR lands. This planning PR changes documentation only.
+Apply these checks incrementally as each Phase 3 implementation PR lands. PR 1A changes schema and documentation only; it does not change application runtime code.
 
 ### PR 1A — Schema alignment
-- Existing owner-created cloud meetings remain accessible.
-- Membership role migration/alignment handles the current `owner`/`admin`/`member` constraint explicitly and produces the intended `owner`/`editor`/`viewer` direction.
-- Pending invite records can exist before the invited person signs up.
-- Duplicate invite, accepted-member, revoke, and re-invite behavior is defined and tested.
-- No migration removes or rewrites `meetings.meeting_data`; Manual Save remains intact.
+Validation performed for `20260603090000_align_shared_access_schema.sql`:
+- Migration SQL reviewed for coherent PostgreSQL/Supabase ordering: add membership metadata, drop old role check, migrate role values, add new role check, backfill owner rows, add triggers, create invitation table, indexes, unique pending-invite guard, and owner-only invitation RLS.
+- Role alignment is explicit: `owner` → `owner`, `admin` → `editor`, and `member` → `editor`.
+- Owner backfill is included so every `meetings.owner_id` has an active `meeting_members` owner row while `meetings.owner_id` remains authoritative.
+- Pending invite records can exist before the invited person signs up because `meeting_invitations.email`/`normalized_email` are required but `accepted_by` is nullable.
+- Duplicate active pending invitations for the same meeting/email are blocked by a partial unique index on (`meeting_id`, `normalized_email`) where `status = 'pending'`.
+- `meeting_invitations` RLS is enabled with owner-only access through `user_owns_meeting(meeting_id)`. Existing meeting-scoped RLS policies are not changed to member-aware policies.
+- No application runtime access is expanded; no dashboard sharing, member-management UI, realtime collaboration, autosave expansion, Local Mode change, or `meetings.meeting_data` removal/rewrite is included.
+- Documentation was updated to match the migration and to keep PR 1B open for membership-aware RLS.
 
 ### PR 1B — Membership RLS foundation
 - Owner access remains unchanged for `meetings` and every structured table.

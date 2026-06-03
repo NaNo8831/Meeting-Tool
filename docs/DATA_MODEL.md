@@ -137,38 +137,51 @@ Why this pilot is intentionally narrow:
 - Topic-attached Notes in `strategic_topic_notes` remain attached by `strategic_topic_item_id` across active/completed/archived states.
 - Current runtime source remains meeting workspace/runtime storage shape unless/until `public.strategic_topics` is explicitly wired for active reads.
 
-## Phase 3 Meeting Membership and Invite Model (Planned, Not Implemented)
-Phase 3 introduces shared meeting access as a layered extension of the Phase 2 meeting container. No schema change is included in this planning PR.
+## Phase 3 Meeting Membership and Invite Model (PR 1A Schema Alignment)
+Supabase migration `20260603090000_align_shared_access_schema.sql` prepares shared access storage without changing runtime access behavior. It does not remove or rewrite `meetings.meeting_data`, and `meetings.owner_id` remains the owner authority for compatibility until a later membership-RLS PR.
 
-### Existing foundation findings
-- `meetings.owner_id` is the current owner authority and remains the compatibility path for the first migrations.
-- `meeting_members` already exists with unique (`meeting_id`, `user_id`) membership edges.
-- The current `meeting_members.role` constraint is `owner`, `admin`, `member`. This does **not** match the planned long-term model of `owner`, `editor`, `viewer`.
-- Current structured-table RLS uses `user_owns_meeting(meeting_id)` and does not grant access through `meeting_members`.
-- No meeting invitation table exists yet.
+### Current foundation findings
+- `meetings.owner_id` is the current owner authority and remains the compatibility path after PR 1A.
+- `meeting_members` existed with unique (`meeting_id`, `user_id`) membership edges and an older role constraint of `owner`, `admin`, `member`.
+- Current meeting-scoped RLS uses `user_owns_meeting(meeting_id)` and still does not grant runtime access through `meeting_members`.
+- No dashboard sharing, member-management UI, realtime behavior, Local Mode change, or structured autosave expansion is included in PR 1A.
 
-### Intended membership model
-`meeting_members` should represent accepted identity-linked access:
+### `meeting_members` after PR 1A
+`meeting_members` now represents accepted identity-linked access preparation:
 - `meeting_id`: the shared cloud meeting.
 - `user_id`: accepted authenticated user identity.
-- `role`: planned long-term values `owner`, `editor`, `viewer`.
-- lifecycle timestamps/status metadata only where needed for safe rollout and auditability.
-- unique accepted membership per (`meeting_id`, `user_id`).
+- `role`: constrained to `owner`, `editor`, `viewer`.
+- `created_at`: original membership creation timestamp.
+- `updated_at`: maintained by the shared `set_entity_updated_at()` trigger.
+- `invited_by`: optional inviter identity for future rollout metadata.
+- `removed_at`: optional soft-removal marker for future access-management work.
+- unique accepted membership per (`meeting_id`, `user_id`) remains in place.
+
+Existing role values are migrated explicitly: `owner` remains `owner`, `admin` becomes `editor`, and `member` becomes `editor`. Every existing meeting owner is backfilled into `meeting_members` with role `owner`; if the owner already had a membership row with another role or a `removed_at` value, the row is restored to active owner membership.
 
 For Team Beta, the UI and policies may expose only Owner and Editor behavior initially. Everyone with access can edit in that beta slice. Viewer remains a durable planned role so the schema direction does not need to be redesigned later.
 
-### Intended pending-invite model
-Add a dedicated meeting-scoped invitation record in PR 1A rather than forcing a pre-signup invite into `meeting_members.user_id`:
-- meeting reference,
-- normalized invited email,
-- intended role (Team Beta can default to `editor`),
-- invitation lifecycle such as pending, accepted, and revoked,
-- inviter identity and timestamps,
-- acceptance linkage or audit metadata needed to connect the invite to an authenticated user safely.
+### `meeting_invitations` pending-invite storage
+PR 1A adds a dedicated meeting-scoped `meeting_invitations` table for pre-signup invite records instead of forcing a pending invite into `meeting_members.user_id`:
+- `id uuid primary key default gen_random_uuid()`.
+- `meeting_id uuid not null references public.meetings(id) on delete cascade`.
+- `email text not null`; a trigger trims it before insert/update.
+- `normalized_email text not null`; a trigger stores lowercase trimmed email and a check keeps it aligned with `email`.
+- `role text not null default 'editor' check (role in ('editor','viewer'))`.
+- `status text not null default 'pending' check (status in ('pending','accepted','revoked'))`.
+- `invited_by uuid null references auth.users(id) on delete set null`.
+- `accepted_by uuid null references auth.users(id) on delete set null`.
+- `created_at timestamptz not null default now()`.
+- `updated_at timestamptz not null default now()` maintained by `set_entity_updated_at()`.
+- `accepted_at timestamptz null`.
+- `revoked_at timestamptz null`.
 
-Exact table name, token strategy, expiration behavior, and acceptance flow remain implementation-design questions for PR 1A. Email text is suitable for pending invitation matching but must not become the long-term authorization authority after acceptance.
+Indexes cover `meeting_id`, `normalized_email`, and `status`. A partial unique index on (`meeting_id`, `normalized_email`) where `status = 'pending'` blocks duplicate active pending invitations for the same meeting/email while allowing later accepted/revoked history and re-invite flows.
+
+Email text is suitable for pending invitation matching and onboarding, but it is not the runtime authorization authority after acceptance. Runtime authorization must resolve through authenticated user identity and a `meeting_members` row in later PRs.
 
 ### Ownership direction
+- Keep `meetings.owner_id` as the active owner authority in PR 1A.
 - Keep one active owner authority for the initial Team Beta.
 - Add explicit ownership transfer later.
 - Defer multiple owners and organization/admin ownership until a later scoped design.
