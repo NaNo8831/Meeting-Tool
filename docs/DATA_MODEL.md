@@ -198,3 +198,10 @@ Email text is suitable for pending invitation matching and onboarding, but it is
 - Realtime collaboration, presence, cursors, websockets, CRDTs, and custom conflict resolution are out of scope.
 - Manual Save remains the full-workspace `meetings.meeting_data` cloud backup.
 - Do not reintroduce full-workspace JSONB autosave. Continue structured autosave expansion surface-by-surface after shared access is stable.
+
+
+## Supabase Admin Readability Views
+- `meeting_members_with_meeting` exposes membership rows with `meeting_name`, `meeting_id`, `user_id`, `role`, removal state, and timestamps for easier access inspection.
+- `meeting_invitations_with_meeting` exposes invitation rows with `meeting_name`, invite email fields, role/status, inviter/accepter IDs, and creation time.
+- `meeting_settings_with_meeting`, `strategic_topics_with_meeting`, and `tactical_sessions_with_meeting` expose compact meeting-name context for high-value structured tables that administrators are likely to inspect.
+- These are read-only inspection views over existing tables. They do not add columns, duplicate storage, runtime read/write paths, RLS policies, or audit/change-event storage.

@@ -7,7 +7,7 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate plus autosave only the narrow `meeting_settings` structured pilot after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: Phase 3 **Shared Meeting Access Foundation** PR 1B membership RLS foundation is implemented as a Supabase migration plus documentation updates. This slice expands database authorization to active meeting members while keeping dashboard sharing UI, invite UI, member-management UI, realtime behavior, autosave scope, Local Mode, ownership transfer, multiple owners, Viewer UI enforcement, and `meetings.meeting_data` rewrites out of scope.
+- Current focus: Phase 3 **Shared Meeting Access Foundation** PR 1C admin-readability cleanup is implemented as Supabase inspection views plus documentation updates. This slice adds meeting-name context for selected Supabase tables and records the audit/change-attribution posture while keeping runtime app behavior, dashboard behavior, authentication, RLS behavior, meeting access permissions, autosave, Local Mode, audit logging, and change-tracking infrastructure unchanged.
 - Current branch note: Phase 3 work targets `phase-3-shared-access`. This local checkout is named `work` and is based on merge commit `cac3380` (`Merge pull request #74 from NaNo8831/phase-2-cloud`); no git remote is configured in this container.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
 
@@ -63,7 +63,7 @@
 
 ## Next Actions
 
-- Review and apply **PR 1B — Membership RLS Foundation** from `phase-3-shared-access`: migration `20260604090000_add_membership_rls_foundation.sql` adds membership-aware helpers and policies while preserving owner access and owner-only access management.
+- Review and apply **PR 1C — Supabase Admin Readability + Attribution Documentation Cleanup** from `phase-3-shared-access`: migration `20260604100000_add_admin_readability_views.sql` adds read-only inspection views while preserving runtime behavior and existing access policies.
 - Next recommended action: **PR 2 — Shared Dashboard Access** should add dashboard visibility/entry for meetings shared through active membership without adding invite/member-management UI beyond its scope.
 - Use the planning files as the source of truth before future changes.
 - Validate the `meeting_settings` hydrate/autosave pilot and its separate Manual Save backup signaling on a Supabase-configured Phase 2 preview.
