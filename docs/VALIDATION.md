@@ -1,6 +1,7 @@
 # Validation
 
 ## Current Validation Approach
+
 - Manual PR testing for changed user flows.
 - Vercel preview testing for user-facing changes.
 - `npm run lint` for linting.
@@ -9,6 +10,7 @@
 - Backup/export/import testing for changes that touch persistence, localStorage keys, or workspace restoration.
 
 ## Pre-Merge Checklist
+
 - Confirm branch context is correct for the work.
 - Review `git diff --name-only` for unexpected app or config changes.
 - For documentation-only changes, confirm no app behavior changed; lint/type/build are not required.
@@ -18,10 +20,13 @@
 - Use Vercel preview for user-facing changes before merge.
 
 ## Phase 3 Shared Access Validation Areas (Planned)
+
 Apply these checks incrementally as each Phase 3 implementation PR lands. PR 1A changes schema and documentation only; it does not change application runtime code.
 
 ### PR 1A — Schema alignment
+
 Validation performed for `20260603090000_align_shared_access_schema.sql`:
+
 - Migration SQL reviewed for coherent PostgreSQL/Supabase ordering: add membership metadata, drop old role check, migrate role values, add new role check, backfill owner rows, add triggers, create invitation table, indexes, unique pending-invite guard, and owner-only invitation RLS.
 - Role alignment is explicit: `owner` → `owner`, `admin` → `editor`, and `member` → `editor`.
 - Owner backfill is included so every `meetings.owner_id` has an active `meeting_members` owner row while `meetings.owner_id` remains authoritative.
@@ -32,6 +37,7 @@ Validation performed for `20260603090000_align_shared_access_schema.sql`:
 - Documentation was updated to match the migration and to keep PR 1B open for membership-aware RLS.
 
 ### PR 1B — Membership RLS foundation
+
 - Owner access remains unchanged for `meetings` and every structured table.
 - Accepted members can access only meetings they belong to.
 - Non-members cannot read or mutate shared meeting rows by guessing IDs.
@@ -39,14 +45,15 @@ Validation performed for `20260603090000_align_shared_access_schema.sql`:
 - Membership policies cover manual backup load/save and the `meeting_settings` structured pilot without policy drift.
 
 ### Dashboard and access-management follow-ups
+
 - Dashboard distinguishes **Owned by Me** from **Shared with Me**.
 - Owner-only access-management controls are not exposed as effective authorization for editors.
 - Team Beta Owner and Editor users can edit shared meeting content under Last Save Wins behavior.
 - Viewer enforcement is validated before Viewer is exposed in the UI.
 - Local Mode remains browser-only and unexpanded. Backup export/import and Manual Save continue to work.
 
-
 ### PR 2A — Dashboard query/access abstraction
+
 - `/dashboard` now loads cloud meeting cards through `listDashboardMeetings`, which reuses the existing `meetings` query and Supabase RLS instead of adding migrations, RLS changes, auth changes, Local Mode changes, invite UI, member-management UI, Viewer UX, autosave expansion, or realtime collaboration.
 - `DashboardMeeting` classifies visible rows as owned when `owner_id` matches the signed-in user and shared otherwise; shared role lookup remains intentionally minimal because `meeting_members` is access-management data.
 - Dashboard duplicate, archive, restore, and soft-delete controls are gated by `canManageMeetingLifecycle`, which is true only for owned meetings; shared meetings returned by RLS remain Open-only until PR 2B renders the final Shared with Me section.
@@ -54,11 +61,25 @@ Validation performed for `20260603090000_align_shared_access_schema.sql`:
 - Archived soft-delete uses `public.soft_delete_owned_archived_meeting(target_meeting_id uuid)`, a narrow owner-only RPC for archived, non-deleted meetings, because the membership-aware `meetings` update policy can reject a row after `deleted_at` makes it non-active. The RPC does not broaden shared editor permissions or return the updated hidden row.
 - Owner account, shared/editor account, and non-member checks should be repeated on a Supabase-configured preview because local CI does not exercise deployed RLS.
 
+### PR 2B — Owned by Me / Shared with Me dashboard UI
+
+- `/dashboard` should show `Cloud Meetings` with separate `Owned by Me` and `Shared with Me` sections; owned and shared cards must not be mixed and no ownership badges should be used.
+- Search should be a single dashboard search over both sections, with results still rendered under the correct section headings.
+- Section contents should sort alphabetically by meeting name after search and archive filtering.
+- The existing Show Archived toggle should hide archived owned and shared meetings when off, and show archived owned and shared meetings when on.
+- Shared cards should show `Owner: <display name>` from existing metadata when available, email-derived display text when available, or `Owner` as the fallback; shared cards should expose only Open.
+- Owner cards should keep existing lifecycle actions: active owned cards show Open, Duplicate, Archive; archived owned cards show Open, Restore, Delete.
+- Preview validation should repeat Mariano owner-account checks, FSP shared/editor-account checks, and non-member visibility checks before merge.
+- Invite User Flow, member management, ownership transfer, multiple owners, Viewer UX, realtime collaboration, autosave behavior changes, Supabase schema changes, migrations, RLS policy changes, authentication changes, and Local Mode changes remain deferred/out of scope.
+
 ### Explicit non-goals for validation
+
 Do not add realtime collaboration test requirements for Phase 3 Team Beta: presence, cursors, websockets, CRDTs, and custom conflict resolution remain out of scope.
 
 ### PR 1B — Membership RLS foundation
+
 Validation performed for `20260604090000_add_membership_rls_foundation.sql`:
+
 - Migration SQL reviewed for coherent PostgreSQL/Supabase ordering: preserve `user_owns_meeting`, add membership-aware helper functions, add a new-meeting owner-membership trigger and an owner-id update guard, replace inherited `Workspace owners ...` `meetings` policies, keep access-management tables owner/manage-only, then replace owner-only structured-table policies with select/edit splits.
 - Helper behavior is explicit: owners can access/edit/manage; active `owner` and `editor` membership rows can access/edit; active `viewer` membership rows can access/read; all membership checks require `removed_at is null`; pending invitation email text is never consulted for runtime access.
 - `meetings.meeting_data` remains in place and is still loaded/saved through the `meetings` table, now protected by the membership-aware `meetings` select/update RLS policies rather than a separate API-only authorization helper.

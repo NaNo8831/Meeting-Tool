@@ -16,6 +16,22 @@ import {
 } from "@/app/lib/dashboardMeetings";
 import { validateWorkspaceBackup } from "@/app/lib/workspaceBackup";
 
+const sortMeetingsByName = (meetings: DashboardMeeting[]) =>
+  [...meetings].sort((first, second) =>
+    first.name.localeCompare(second.name, undefined, { sensitivity: "base" }),
+  );
+
+const meetingMatchesSearch = (meeting: DashboardMeeting, query: string) => {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  if (!normalizedQuery) return true;
+
+  return (
+    meeting.name.toLocaleLowerCase().includes(normalizedQuery) ||
+    (meeting.access === "shared" &&
+      meeting.ownerDisplayName.toLocaleLowerCase().includes(normalizedQuery))
+  );
+};
+
 const formatRelativeTimestamp = (timestamp: string) => {
   const milliseconds = Date.parse(timestamp);
   if (Number.isNaN(milliseconds)) return "Unknown";
@@ -58,6 +74,7 @@ export default function DashboardPage() {
   const [meetingPendingDelete, setMeetingPendingDelete] =
     useState<DashboardMeeting | null>(null);
   const [newMeetingName, setNewMeetingName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [showDashboardMenu, setShowDashboardMenu] = useState(false);
   const [message, setMessage] = useState("");
@@ -88,6 +105,7 @@ export default function DashboardPage() {
         const nextMeetings = await listDashboardMeetings({
           accessToken: session.accessToken,
           currentUserId: session.user.id,
+          currentUserEmail: session.user.email,
         });
         if (!isMounted) return;
         setMeetings(nextMeetings);
@@ -153,7 +171,11 @@ export default function DashboardPage() {
       });
 
       setMeetings((currentMeetings) => [
-        toDashboardMeeting({ meeting, currentUserId: session.user.id }),
+        toDashboardMeeting({
+          meeting,
+          currentUserId: session.user.id,
+          currentUserEmail: session.user.email,
+        }),
         ...currentMeetings,
       ]);
       setNewMeetingName("");
@@ -207,6 +229,7 @@ export default function DashboardPage() {
         toDashboardMeeting({
           meeting: duplicated,
           currentUserId: session.user.id,
+          currentUserEmail: session.user.email,
         }),
         ...currentMeetings,
       ]);
@@ -246,6 +269,7 @@ export default function DashboardPage() {
             ? toDashboardMeeting({
                 meeting: archivedMeeting,
                 currentUserId: session.user.id,
+                currentUserEmail: session.user.email,
               })
             : currentMeeting,
         ),
@@ -279,6 +303,7 @@ export default function DashboardPage() {
             ? toDashboardMeeting({
                 meeting: restoredMeeting,
                 currentUserId: session.user.id,
+                currentUserEmail: session.user.email,
               })
             : currentMeeting,
         ),
@@ -348,11 +373,112 @@ export default function DashboardPage() {
     }
   };
 
-  const activeMeetings = meetings.filter((meeting) => !meeting.archived_at);
+  const visibleMeetings = (
+    showArchived ? meetings : meetings.filter((meeting) => !meeting.archived_at)
+  ).filter((meeting) => meetingMatchesSearch(meeting, searchQuery));
   const archivedMeetings = meetings.filter((meeting) =>
     Boolean(meeting.archived_at),
   );
-  const visibleMeetings = showArchived ? meetings : activeMeetings;
+  const ownedMeetingCount = meetings.filter(
+    (meeting) => meeting.access === "owned",
+  ).length;
+  const sharedMeetingCount = meetings.filter(
+    (meeting) => meeting.access === "shared",
+  ).length;
+  const ownedMeetings = sortMeetingsByName(
+    visibleMeetings.filter((meeting) => meeting.access === "owned"),
+  );
+  const sharedMeetings = sortMeetingsByName(
+    visibleMeetings.filter((meeting) => meeting.access === "shared"),
+  );
+  const searchIsActive = Boolean(searchQuery.trim());
+
+  const getOwnedMeetingsEmptyMessage = () => {
+    if (ownedMeetingCount === 0)
+      return "Create your first meeting to get started.";
+    if (searchIsActive) return "No owned meetings match this search.";
+    return "No active owned meetings in this view.";
+  };
+
+  const getSharedMeetingsEmptyMessage = () => {
+    if (sharedMeetingCount === 0) return "No shared meetings yet.";
+    if (searchIsActive) return "No shared meetings match this search.";
+    return "No active shared meetings in this view.";
+  };
+
+  const renderMeetingCard = (meeting: DashboardMeeting) => (
+    <article
+      key={meeting.id}
+      className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div>
+        <p className="text-xs uppercase tracking-wide text-slate-500">
+          Team {teamName}
+        </p>
+        <h3 className="mt-1 text-lg font-semibold text-slate-900">
+          {meeting.name}
+        </h3>
+        {meeting.access === "shared" ? (
+          <p className="mt-1 text-sm font-semibold text-slate-700">
+            Owner: {meeting.ownerDisplayName}
+          </p>
+        ) : null}
+        <p className="mt-1 text-sm text-slate-600">
+          Last updated {formatRelativeTimestamp(meeting.updated_at)}
+        </p>
+      </div>
+
+      <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
+        {meeting.canManageMeetingLifecycle ? (
+          !meeting.archived_at ? (
+            <div className="flex flex-col items-stretch gap-2 sm:items-end">
+              <button
+                type="button"
+                onClick={() => setMeetingPendingDuplicate(meeting)}
+                className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                disabled={Boolean(isDuplicating)}
+              >
+                {isDuplicating === meeting.id ? "Duplicating…" : "Duplicate"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleArchiveMeeting(meeting)}
+                className="rounded-xl border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50"
+                disabled={isArchiving === meeting.id}
+              >
+                {isArchiving === meeting.id ? "Archiving…" : "Archive"}
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-stretch gap-2 sm:items-end">
+              <button
+                type="button"
+                onClick={() => void handleRestoreArchivedMeeting(meeting)}
+                className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={Boolean(isRestoringArchived)}
+              >
+                {isRestoringArchived === meeting.id ? "Restoring…" : "Restore"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMeetingPendingDelete(meeting)}
+                className="rounded-xl border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+                disabled={Boolean(isDeletingArchived)}
+              >
+                {isDeletingArchived === meeting.id ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          )
+        ) : null}
+        <Link
+          href={`/meeting/${meeting.id}`}
+          className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+        >
+          Open
+        </Link>
+      </div>
+    </article>
+  );
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
@@ -476,6 +602,19 @@ export default function DashboardPage() {
                 {createMeetingError}
               </p>
             ) : null}
+
+            <label className="block">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Search cloud meetings
+              </span>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search owned and shared meetings"
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </label>
           </div>
         </header>
 
@@ -488,94 +627,62 @@ export default function DashboardPage() {
           </p>
         ) : null}
 
-        <section className="space-y-3">
+        <section className="space-y-6" aria-labelledby="cloud-meetings-heading">
+          <h2
+            id="cloud-meetings-heading"
+            className="text-2xl font-semibold text-slate-900"
+          >
+            Cloud Meetings
+          </h2>
+
           {isLoadingMeetings ? (
             <p className="text-sm text-slate-500">Loading meetings…</p>
-          ) : visibleMeetings.length === 0 ? (
-            <p className="rounded-2xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-600 shadow-sm">
-              {showArchived
-                ? "No meetings found for this filter."
-                : "No active meetings yet. Create your first recurring meeting above."}
-            </p>
           ) : (
-            visibleMeetings.map((meeting) => (
-              <article
-                key={meeting.id}
-                className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-slate-500">
-                    Team {teamName}
-                  </p>
-                  <h2 className="mt-1 text-lg font-semibold text-slate-900">
-                    {meeting.name}
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Last updated {formatRelativeTimestamp(meeting.updated_at)}
-                  </p>
-                </div>
+            <>
+              {searchIsActive && visibleMeetings.length === 0 ? (
+                <p className="rounded-2xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-600 shadow-sm">
+                  No meetings found for this search.
+                </p>
+              ) : null}
 
-                <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
-                  {meeting.canManageMeetingLifecycle ? (
-                    !meeting.archived_at ? (
-                      <div className="flex flex-col items-stretch gap-2 sm:items-end">
-                        <button
-                          type="button"
-                          onClick={() => setMeetingPendingDuplicate(meeting)}
-                          className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                          disabled={Boolean(isDuplicating)}
-                        >
-                          {isDuplicating === meeting.id
-                            ? "Duplicating…"
-                            : "Duplicate"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleArchiveMeeting(meeting)}
-                          className="rounded-xl border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50"
-                          disabled={isArchiving === meeting.id}
-                        >
-                          {isArchiving === meeting.id
-                            ? "Archiving…"
-                            : "Archive"}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-stretch gap-2 sm:items-end">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void handleRestoreArchivedMeeting(meeting)
-                          }
-                          className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-                          disabled={Boolean(isRestoringArchived)}
-                        >
-                          {isRestoringArchived === meeting.id
-                            ? "Restoring…"
-                            : "Restore"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setMeetingPendingDelete(meeting)}
-                          className="rounded-xl border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
-                          disabled={Boolean(isDeletingArchived)}
-                        >
-                          {isDeletingArchived === meeting.id
-                            ? "Deleting…"
-                            : "Delete"}
-                        </button>
-                      </div>
-                    )
-                  ) : null}
-                  <Link
-                    href={`/meeting/${meeting.id}`}
-                    className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-                  >
-                    Open
-                  </Link>
-                </div>
-              </article>
-            ))
+              <section
+                className="space-y-3"
+                aria-labelledby="owned-meetings-heading"
+              >
+                <h2
+                  id="owned-meetings-heading"
+                  className="text-xl font-semibold text-slate-900"
+                >
+                  Owned by Me
+                </h2>
+                {ownedMeetings.length > 0 ? (
+                  ownedMeetings.map(renderMeetingCard)
+                ) : (
+                  <p className="rounded-2xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-600 shadow-sm">
+                    {getOwnedMeetingsEmptyMessage()}
+                  </p>
+                )}
+              </section>
+
+              <section
+                className="space-y-3"
+                aria-labelledby="shared-meetings-heading"
+              >
+                <h2
+                  id="shared-meetings-heading"
+                  className="text-xl font-semibold text-slate-900"
+                >
+                  Shared with Me
+                </h2>
+                {sharedMeetings.length > 0 ? (
+                  sharedMeetings.map(renderMeetingCard)
+                ) : (
+                  <p className="rounded-2xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-600 shadow-sm">
+                    {getSharedMeetingsEmptyMessage()}
+                  </p>
+                )}
+              </section>
+            </>
           )}
         </section>
       </div>
