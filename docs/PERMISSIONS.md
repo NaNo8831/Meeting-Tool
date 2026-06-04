@@ -1,10 +1,10 @@
 # Permissions
 
-## Current State (Owner-Only Cloud Meetings)
+## Current State (Membership-Aware Cloud Meetings)
 - Signed-out users can use Local Workspace via `localStorage` and export/import.
-- Signed-in users can create/select owner-only cloud meetings.
-- Owner can manually save/load meeting workspace data via `meetings.meeting_data`.
-- RLS currently protects owner-only access to meeting rows.
+- Signed-in users can create cloud meetings they own and can access cloud meetings where RLS recognizes their active membership.
+- Owners and active `owner`/`editor` members can manually save/load meeting workspace data through `meetings.meeting_data`; active `viewer` members can read meeting rows, but Viewer UI/enforcement remains deferred.
+- RLS is the runtime authorization source for cloud meeting rows, the full-workspace `meeting_data` backup path, the `meeting_settings` pilot, tactical/strategic history tables, membership rows, and invitation rows.
 
 ## Membership Architecture (Foundation)
 The permission foundation is membership-first, not email-first.
@@ -14,7 +14,7 @@ The permission foundation is membership-first, not email-first.
 - `meeting_members`: membership edge table linking `meeting_id` + `user_id` with lifecycle/status fields as needed.
 - Domain tables (for example `tasks`, `objectives`, `strategic_topics`) reference `meeting_id` and inherit access from membership and role policy.
 
-### Access evaluation order (target)
+### Access evaluation order
 1. Verify authenticated user identity (`auth.uid()`).
 2. Resolve meeting scope (`meeting_id`).
 3. Resolve membership row in `meeting_members`.
@@ -23,8 +23,8 @@ The permission foundation is membership-first, not email-first.
 
 This keeps authorization consistent across all section/item tables and avoids one-off policy drift.
 
-## Roles (Planned Capability Direction)
-Role names are directional and can be refined later, but behavior should map to this shape:
+## Roles (Current PR 1B Authorization Shape)
+Role behavior is now enforced at the database policy layer for meeting access and editing. Final UI affordances and finer container actions can still be refined later:
 
 - `owner`
   - Meeting administrator.
@@ -52,8 +52,8 @@ Ownership needs explicit, auditable behavior rather than implicit assumptions.
 - Transfer should update both meeting authority and membership role mapping atomically.
 - Transfer behavior should not break existing manual Save/Load or backup/export expectations.
 
-## Future Permission Foundation Principles
-These principles should guide all future policy expansion:
+## Permission Foundation Principles
+These principles guide policy expansion:
 
 1. **Least privilege first**: default deny; grant only required actions per role.
 2. **Single policy model**: avoid per-feature custom auth logic that bypasses membership checks.
@@ -62,57 +62,62 @@ These principles should guide all future policy expansion:
 5. **Backup safety preserved**: permission changes must not remove JSON export/import recovery paths.
 6. **No overbuild in Phase 1/early Phase 2**: add only permission surfaces needed for the current structured-write rollout.
 
-## Direction for Structured Persistence Permissions
-Permission design should move from owner-only row access to membership-based access using explicit meeting membership rows.
+## Structured Persistence Permissions
+Permission design now uses explicit meeting membership rows for runtime access while preserving `meetings.owner_id` as the owner compatibility path.
 
-### Planned model
-- `meeting_members` links users to meetings.
-- Future role direction: `owner`, `editor`, `viewer` (exact capability matrix deferred).
-- Meeting owner remains the meeting administrator.
-- Members gain row access through membership joins/policies.
+### Current model
+- `meeting_members` links authenticated users to meetings.
+- Current roles are `owner`, `editor`, and `viewer`.
+- Meeting owner remains the meeting administrator through `meetings.owner_id`.
+- Active members gain row access through shared helper functions and RLS policies.
 
 ### Policy principles
 - Do not rely on email text fields for authorization.
-- Use authenticated user IDs and membership relationships.
+- Use authenticated user IDs and active membership relationships.
 - `owner_email` (if kept) is convenience metadata only (admin/debug), not policy authority.
 
-## Current Structured Table Policy Baseline
-The structured persistence foundation migration enables RLS on all newly introduced structured tables and applies an initial safe owner-only rule:
-- authenticated users can select/insert/update/delete only rows whose `meeting_id` belongs to a meeting they own (`meetings.owner_id = auth.uid()`).
-- this is enforced per table through owner-check policies and a shared meeting ownership helper.
-- `meeting_members` exists now for future sharing expansion, but does **not** yet grant non-owner access in runtime policies.
-
-## Phase 3 Shared Access Permission State After PR 1A
-PR 1A is schema alignment only. It aligns membership and invitation storage, but does not grant members runtime access yet.
+## Phase 3 Shared Access Permission State After PR 1B
+PR 1B adds the membership-aware RLS foundation. It does not add dashboard sharing UI, invite UI, member-management UI, Local Mode changes, autosave expansion, ownership transfer, multiple owners, or realtime collaboration.
 
 ### Schema-aligned role state
 - `meeting_members.role` is migrated from the older `owner`/`admin`/`member` vocabulary to `owner`/`editor`/`viewer`.
 - Existing `owner` rows remain `owner`; existing `admin` and `member` rows become `editor`.
 - The role constraint now accepts only `owner`, `editor`, and `viewer`.
-- Every `meetings.owner_id` user is backfilled into `meeting_members` with role `owner`, but `meetings.owner_id` remains the current runtime owner authority.
+- Every pre-existing `meetings.owner_id` user is backfilled into `meeting_members` with role `owner`, new meetings receive an owner membership row through the PR 1B trigger, and `meetings.owner_id` remains the owner authority for compatibility and access management.
 
 ### Invitation permissions
 - `meeting_invitations` stores pending, accepted, and revoked meeting-scoped invite records.
 - Pending invitation email is normalized as lowercase trimmed text and can exist before an `auth.users` row exists.
 - Duplicate active pending invitations for the same meeting and normalized email are blocked by a partial unique index.
-- Email text is not runtime authorization authority; accepted access must be tied to authenticated user identity and `meeting_members` in later work.
+- Email text is not runtime authorization authority; runtime access is tied to authenticated user identity and an active `meeting_members` row.
 
-### RLS behavior after PR 1A
-- Existing `meetings`, `meeting_members`, and structured-table RLS remains owner-only through `user_owns_meeting(meeting_id)`.
-- `meeting_invitations` has RLS enabled with the same owner-only `Meeting owners full access` policy.
-- Membership rows and pending invitations do not expand dashboard visibility, Manual Save access, structured-table access, or any other runtime meeting access yet.
-- PR 1B must explicitly add membership-aware RLS before editors/viewers can access shared meetings.
+### RLS helper functions after PR 1B
+- `public.user_owns_meeting(target_meeting_id uuid)` remains the owner compatibility helper and checks `meetings.owner_id = auth.uid()`.
+- `public.user_is_active_meeting_member(target_meeting_id uuid)` returns true only for authenticated users with a `meeting_members` row for that meeting, role `owner`, `editor`, or `viewer`, and `removed_at is null`.
+- `public.user_can_access_meeting(target_meeting_id uuid)` allows the owner or any active member role to read meeting-scoped content.
+- `public.user_can_edit_meeting(target_meeting_id uuid)` allows the owner or active `owner`/`editor` membership to edit meeting-scoped content.
+- `public.user_can_manage_meeting_access(target_meeting_id uuid)` remains owner-only for access management.
+- `public.ensure_meeting_owner_member()` maintains an active owner membership row when a new meeting is created; `public.prevent_meeting_owner_id_update()` blocks implicit ownership transfer because transfer is not implemented.
+
+### RLS behavior after PR 1B
+- `meetings` select allows non-deleted meetings when `user_can_access_meeting(id)` is true.
+- `meetings` update allows `user_can_edit_meeting(id)` so the existing `meetings.meeting_data` Manual Save path can work for Team Beta editors; insert remains `owner_id = auth.uid()`.
+- `meeting_settings`, `objectives`, `tasks`, `standard_operating_objectives`, `strategic_topics`, `tactical_sessions`, `tactical_items`, `strategic_sessions`, and `strategic_session_notes` allow active members to select and active owners/editors to insert/update/delete.
+- `meeting_members` remains owner/manage-only for select, insert, update, and delete. Editors and viewers cannot invite, remove, or change roles through RLS.
+- `meeting_invitations` remains owner/manage-only. Pending invite email alone does not grant runtime access.
+- Removed members (`removed_at is not null`) are excluded from all access/edit helpers.
+- The repo does not currently include a Supabase migration-created `strategic_topic_notes` table, so PR 1B does not invent or policy that table.
 
 ### Team Beta capability shape
-| Capability | Owner | Editor | Viewer (planned later) | PR 1A runtime state |
+| Capability | Owner | Editor | Viewer | PR 1B runtime state |
 | --- | --- | --- | --- | --- |
-| View shared meeting | Yes | Yes | Yes | Owner-only; member access not granted yet |
-| Edit operational meeting content | Yes | Yes | No | Owner-only; member access not granted yet |
-| Use Manual Save full-workspace backup | Yes | Yes for Team Beta unless narrowed by a later decision | No by default | Owner-only through existing policies |
-| Invite/revoke members and change roles | Yes | No | No | No UI/runtime flow added yet; invite rows are owner-only |
-| Transfer ownership | Later explicit flow | No | No | Not implemented |
+| View shared meeting | Yes | Yes | Yes | Membership-aware RLS grants read access to active members. |
+| Edit operational meeting content | Yes | Yes | No | Owners and active editors can edit meeting-scoped content; Viewer UI/read-only enforcement remains deferred. |
+| Use Manual Save full-workspace backup | Yes | Yes for Team Beta unless narrowed by a later decision | No by default | `meetings` update RLS allows owners/editors so `meeting_data` save can work for editors. |
+| Invite/revoke members and change roles | Yes | No | No | Access-management tables remain owner/manage-only; no UI/runtime flow added yet. |
+| Transfer ownership | Later explicit flow | No | No | Not implemented; `owner_id` updates are blocked. |
 
-The first Team Beta may expose only Owner and Editor behavior after PR 1B and follow-up UI work. Viewer remains part of the long-term model, but read-only enforcement and UX can follow after the shared-access foundation is stable.
+The first Team Beta may expose only Owner and Editor behavior in UI. Viewer can read at the database policy layer after PR 1B, but read-only workspace UX/enforcement remains deferred until Viewer is intentionally exposed.
 
 ### Deferred ownership models
 - Keep one active owner authority for the initial rollout.

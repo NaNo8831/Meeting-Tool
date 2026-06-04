@@ -138,13 +138,13 @@ Why this pilot is intentionally narrow:
 - Current runtime source remains meeting workspace/runtime storage shape unless/until `public.strategic_topics` is explicitly wired for active reads.
 
 ## Phase 3 Meeting Membership and Invite Model (PR 1A Schema Alignment)
-Supabase migration `20260603090000_align_shared_access_schema.sql` prepares shared access storage without changing runtime access behavior. It does not remove or rewrite `meetings.meeting_data`, and `meetings.owner_id` remains the owner authority for compatibility until a later membership-RLS PR.
+Supabase migration `20260603090000_align_shared_access_schema.sql` prepared shared access storage, and migration `20260604090000_add_membership_rls_foundation.sql` adds membership-aware runtime RLS. Neither migration removes or rewrites `meetings.meeting_data`; `meetings.owner_id` remains the owner authority for compatibility and access management.
 
 ### Current foundation findings
-- `meetings.owner_id` is the current owner authority and remains the compatibility path after PR 1A.
-- `meeting_members` existed with unique (`meeting_id`, `user_id`) membership edges and an older role constraint of `owner`, `admin`, `member`.
-- Current meeting-scoped RLS uses `user_owns_meeting(meeting_id)` and still does not grant runtime access through `meeting_members`.
-- No dashboard sharing, member-management UI, realtime behavior, Local Mode change, or structured autosave expansion is included in PR 1A.
+- `meetings.owner_id` is the current owner authority and remains the compatibility path after PR 1B.
+- `meeting_members` stores unique (`meeting_id`, `user_id`) membership edges with `owner`, `editor`, and `viewer` roles.
+- Meeting-scoped RLS now uses membership-aware helpers for runtime access while keeping invite/member management owner-only. New meetings also receive an active `meeting_members` owner row through an insert trigger, and `owner_id` updates are blocked until an explicit transfer flow is designed.
+- No dashboard sharing, member-management UI, invite UI, realtime behavior, Local Mode change, or structured autosave expansion is included in PR 1B.
 
 ### `meeting_members` after PR 1A
 `meeting_members` now represents accepted identity-linked access preparation:
@@ -178,13 +178,20 @@ PR 1A adds a dedicated meeting-scoped `meeting_invitations` table for pre-signup
 
 Indexes cover `meeting_id`, `normalized_email`, and `status`. A partial unique index on (`meeting_id`, `normalized_email`) where `status = 'pending'` blocks duplicate active pending invitations for the same meeting/email while allowing later accepted/revoked history and re-invite flows.
 
-Email text is suitable for pending invitation matching and onboarding, but it is not the runtime authorization authority after acceptance. Runtime authorization must resolve through authenticated user identity and a `meeting_members` row in later PRs.
+Email text is suitable for pending invitation matching and onboarding, but it is not runtime authorization authority. Runtime authorization now resolves through authenticated user identity and an active `meeting_members` row, with `removed_at is null`.
 
 ### Ownership direction
-- Keep `meetings.owner_id` as the active owner authority in PR 1A.
+- Keep `meetings.owner_id` as the active owner authority and access-management authority in PR 1B.
 - Keep one active owner authority for the initial Team Beta.
 - Add explicit ownership transfer later.
 - Defer multiple owners and organization/admin ownership until a later scoped design.
+
+### Membership-aware RLS boundaries after PR 1B
+- Owners can access, edit, and manage meeting access.
+- Active `owner` and `editor` members can access and edit meeting-scoped content, including the full-workspace `meetings.meeting_data` Manual Save path and the `meeting_settings` pilot.
+- Active `viewer` members can read meeting-scoped rows where policies expose read access; Viewer UI/read-only enforcement remains deferred.
+- Pending invitations and removed memberships do not grant runtime access.
+- Access-management tables (`meeting_members`, `meeting_invitations`) remain owner-only.
 
 ### Concurrency and save boundaries
 - Last Save Wins is acceptable for Team Beta.

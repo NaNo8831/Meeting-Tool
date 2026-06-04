@@ -7,7 +7,7 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate plus autosave only the narrow `meeting_settings` structured pilot after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: Phase 3 **Shared Meeting Access Foundation** PR 1A schema alignment is implemented as a Supabase migration plus documentation updates. This slice does not change app runtime access, dashboard sharing UI, member-management UI, realtime behavior, autosave scope, Local Mode, or `meetings.meeting_data`.
+- Current focus: Phase 3 **Shared Meeting Access Foundation** PR 1B membership RLS foundation is implemented as a Supabase migration plus documentation updates. This slice expands database authorization to active meeting members while keeping dashboard sharing UI, invite UI, member-management UI, realtime behavior, autosave scope, Local Mode, ownership transfer, multiple owners, Viewer UI enforcement, and `meetings.meeting_data` rewrites out of scope.
 - Current branch note: Phase 3 work targets `phase-3-shared-access`. This local checkout is named `work` and is based on merge commit `cac3380` (`Merge pull request #74 from NaNo8831/phase-2-cloud`); no git remote is configured in this container.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
 
@@ -57,14 +57,14 @@
 - Manual Save remains part of the primary workflow during migration because PR #72 autosaves only `meeting_settings`. After structured autosave reliably covers the core operational workspace, evaluate retiring Manual Save from the primary workflow or moving it into a secondary backup/export utility role.
 - Broader responsive/layout polish remains deferred; do not turn Phase 2.5 into a responsive redesign or sticky-header redesign.
 - Additional structured autosave surfaces remain deferred and should be sequenced independently after the existing pilot is validated.
-- Phase 3 shared meeting access is active implementation work. PR 1A schema alignment is the first slice; membership RLS grants remain deferred to PR 1B.
+- Phase 3 shared meeting access is active implementation work. PR 1A schema alignment is complete, and PR 1B adds the membership-aware RLS foundation; dashboard shared-access surfaces and invite/member UX remain deferred follow-ups.
 - Documentation/user guide work remains deferred until the shared access foundation is established.
 - Deferred ideas are now tracked in `planning/FUTURE_PHASES.md` to prevent scope creep in active delivery work.
 
 ## Next Actions
 
-- Review and apply **PR 1A — Shared Access Schema Alignment** from `phase-3-shared-access`: migration `20260603090000_align_shared_access_schema.sql` aligns membership roles, backfills owner rows, and adds owner-only pending-invite storage while preserving the Phase 2 owner path.
-- Next recommended action: **PR 1B — Membership RLS Foundation** should add member-aware policies explicitly, then later slices can add shared dashboard access, meeting access-management UI, invite UX polish, and structured autosave expansion surface-by-surface.
+- Review and apply **PR 1B — Membership RLS Foundation** from `phase-3-shared-access`: migration `20260604090000_add_membership_rls_foundation.sql` adds membership-aware helpers and policies while preserving owner access and owner-only access management.
+- Next recommended action: **PR 2 — Shared Dashboard Access** should add dashboard visibility/entry for meetings shared through active membership without adding invite/member-management UI beyond its scope.
 - Use the planning files as the source of truth before future changes.
 - Validate the `meeting_settings` hydrate/autosave pilot and its separate Manual Save backup signaling on a Supabase-configured Phase 2 preview.
 - Validate Cloud Meeting Persistence on a Supabase-configured preview, including signed-out local mode, signed-in local mode staying browser-only, signed-in create/select/switch behavior from the dashboard, no auto-load or auto-migration from local mode, manual full-workspace save/load only on valid Cloud Meeting routes, soft-deleted meetings staying hidden/inaccessible, optional Local Workspace migration into empty and populated cloud meetings from a valid cloud route, migration cancel behavior, duplicate-prompt suppression, import while Cloud Meeting is selected, overwrite confirmation, user-scoped workspace selection, owner-only RLS, existing localStorage data, export/import, and Feedback Widget behavior.
