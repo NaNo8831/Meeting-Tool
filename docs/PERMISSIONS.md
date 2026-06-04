@@ -105,6 +105,7 @@ PR 1B adds the membership-aware RLS foundation. It does not add dashboard sharin
 - `meeting_settings`, `objectives`, `tasks`, `standard_operating_objectives`, `strategic_topics`, `tactical_sessions`, `tactical_items`, `strategic_sessions`, and `strategic_session_notes` allow active members to select and active owners/editors to insert/update/delete.
 - `meeting_members` remains owner/manage-only for select, insert, update, and delete. Editors and viewers cannot invite, remove, or change roles through RLS.
 - `meeting_invitations` remains owner/manage-only. Pending invite email alone does not grant runtime access.
+- Archived dashboard soft-delete uses the narrow `soft_delete_owned_archived_meeting` RPC so only `meetings.owner_id = auth.uid()` can mark an archived, non-deleted meeting as deleted without granting editors container lifecycle permissions.
 - Removed members (`removed_at is not null`) are excluded from all access/edit helpers.
 - The repo does not currently include a Supabase migration-created `strategic_topic_notes` table, so PR 1B does not invent or policy that table.
 

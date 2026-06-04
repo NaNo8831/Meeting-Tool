@@ -51,7 +51,7 @@ Validation performed for `20260603090000_align_shared_access_schema.sql`:
 - `DashboardMeeting` classifies visible rows as owned when `owner_id` matches the signed-in user and shared otherwise; shared role lookup remains intentionally minimal because `meeting_members` is access-management data.
 - Dashboard duplicate, archive, restore, and soft-delete controls are gated by `canManageMeetingLifecycle`, which is true only for owned meetings; shared meetings returned by RLS remain Open-only until PR 2B renders the final Shared with Me section.
 - Duplicate inserts use an owner-only source guard, an explicit client-side meeting id, `return=minimal`, and a follow-up owner-visible fetch so insert success is not coupled to PostgREST representation reads under membership-aware RLS.
-- Archived soft-delete filters by owner and uses `return=minimal` because the updated row is intentionally excluded by the dashboard select policy once `deleted_at` is set.
+- Archived soft-delete uses `public.soft_delete_owned_archived_meeting(target_meeting_id uuid)`, a narrow owner-only RPC for archived, non-deleted meetings, because the membership-aware `meetings` update policy can reject a row after `deleted_at` makes it non-active. The RPC does not broaden shared editor permissions or return the updated hidden row.
 - Owner account, shared/editor account, and non-member checks should be repeated on a Supabase-configured preview because local CI does not exercise deployed RLS.
 
 ### Explicit non-goals for validation

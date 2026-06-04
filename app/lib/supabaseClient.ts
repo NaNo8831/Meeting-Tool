@@ -568,21 +568,16 @@ export const supabaseMeetingClient = {
   async softDeleteArchivedWorkspace({
     accessToken,
     workspaceId,
-    ownerId,
   }: {
     accessToken: string;
     workspaceId: string;
-    ownerId: string;
   }) {
     const response = await fetch(
-      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}&owner_id=eq.${encodeURIComponent(ownerId)}&archived_at=not.is.null&deleted_at=is.null`,
+      getRestUrl("rpc/soft_delete_owned_archived_meeting"),
       {
-        method: "PATCH",
-        headers: {
-          ...getSupabaseHeaders(accessToken),
-          Prefer: "return=minimal",
-        },
-        body: JSON.stringify({ deleted_at: new Date().toISOString() }),
+        method: "POST",
+        headers: getSupabaseHeaders(accessToken),
+        body: JSON.stringify({ target_meeting_id: workspaceId }),
       },
     );
 
