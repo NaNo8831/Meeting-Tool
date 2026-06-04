@@ -8,6 +8,8 @@ import { useSupabaseAuth } from "@/app/hooks/useSupabaseAuth";
 import {
   isSupabaseConfigured,
   supabaseMeetingClient,
+  supabaseProfileClient,
+  type SupabaseProfile,
 } from "@/app/lib/supabaseClient";
 import {
   listDashboardMeetings,
@@ -77,6 +79,13 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [showDashboardMenu, setShowDashboardMenu] = useState(false);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [profile, setProfile] = useState<SupabaseProfile | null>(null);
+  const [profileFirstName, setProfileFirstName] = useState("");
+  const [profileLastName, setProfileLastName] = useState("");
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileMessage, setProfileMessage] = useState("");
   const [message, setMessage] = useState("");
   const [createMeetingError, setCreateMeetingError] = useState("");
   const dashboardMenuRef = useRef<HTMLDivElement>(null);
@@ -84,7 +93,8 @@ export default function DashboardPage() {
   useBodyScrollLock(
     showDashboardMenu ||
       meetingPendingDuplicate !== null ||
-      meetingPendingDelete !== null,
+      meetingPendingDelete !== null ||
+      showProfileEditor,
   );
 
   useEffect(() => {
@@ -92,6 +102,42 @@ export default function DashboardPage() {
       router.replace("/");
     }
   }, [isLoading, router, session]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProfile = async () => {
+      if (!session || !isSupabaseConfigured) return;
+      setIsLoadingProfile(true);
+      setProfileMessage("");
+
+      try {
+        const bootstrappedProfile =
+          await supabaseProfileClient.ensureOwnProfile(session.accessToken);
+        if (!isMounted) return;
+        setProfile(bootstrappedProfile);
+        setProfileFirstName(bootstrappedProfile.first_name ?? "");
+        setProfileLastName(bootstrappedProfile.last_name ?? "");
+      } catch (error) {
+        if (!isMounted) return;
+        setProfileMessage(
+          error instanceof Error
+            ? error.message
+            : "Could not load your profile.",
+        );
+      } finally {
+        if (isMounted) {
+          setIsLoadingProfile(false);
+        }
+      }
+    };
+
+    void loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [session]);
 
   useEffect(() => {
     let isMounted = true;
@@ -146,9 +192,13 @@ export default function DashboardPage() {
     };
   }, [showDashboardMenu]);
 
-  const teamName = session?.user.email
-    ? `${session.user.email.split("@")[0]}'s Team`
-    : "Your Team";
+  const profileDisplayName = profile?.display_name?.trim();
+  const dashboardTitle = profileDisplayName
+    ? `${profileDisplayName}'s Meetings`
+    : "Your Meetings";
+  const currentOwnerProfile = profile
+    ? { display_name: profile.display_name, email: profile.email }
+    : null;
 
   const handleCreateBlankMeeting = async () => {
     if (!session || isCreatingMeeting) return;
@@ -175,6 +225,7 @@ export default function DashboardPage() {
           meeting,
           currentUserId: session.user.id,
           currentUserEmail: session.user.email,
+          ownerProfile: currentOwnerProfile,
         }),
         ...currentMeetings,
       ]);
@@ -230,6 +281,7 @@ export default function DashboardPage() {
           meeting: duplicated,
           currentUserId: session.user.id,
           currentUserEmail: session.user.email,
+          ownerProfile: currentOwnerProfile,
         }),
         ...currentMeetings,
       ]);
@@ -270,6 +322,7 @@ export default function DashboardPage() {
                 meeting: archivedMeeting,
                 currentUserId: session.user.id,
                 currentUserEmail: session.user.email,
+                ownerProfile: currentOwnerProfile,
               })
             : currentMeeting,
         ),
@@ -304,6 +357,7 @@ export default function DashboardPage() {
                 meeting: restoredMeeting,
                 currentUserId: session.user.id,
                 currentUserEmail: session.user.email,
+                ownerProfile: currentOwnerProfile,
               })
             : currentMeeting,
         ),
@@ -317,6 +371,54 @@ export default function DashboardPage() {
       );
     } finally {
       setIsRestoringArchived(null);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!session || isSavingProfile) return;
+
+    const trimmedFirstName = profileFirstName.trim();
+    const trimmedLastName = profileLastName.trim();
+    if (!trimmedFirstName || !trimmedLastName) {
+      setProfileMessage("First and last name are required.");
+      return;
+    }
+
+    setIsSavingProfile(true);
+    setProfileMessage("");
+
+    try {
+      const updatedProfile = await supabaseProfileClient.updateOwnProfile({
+        accessToken: session.accessToken,
+        userId: session.user.id,
+        profile: {
+          first_name: trimmedFirstName,
+          last_name: trimmedLastName,
+        },
+      });
+      setProfile(updatedProfile);
+      setProfileFirstName(updatedProfile.first_name ?? "");
+      setProfileLastName(updatedProfile.last_name ?? "");
+      setMeetings((currentMeetings) =>
+        currentMeetings.map((meeting) =>
+          meeting.owner_id === session.user.id
+            ? toDashboardMeeting({
+                meeting,
+                currentUserId: session.user.id,
+                currentUserEmail: session.user.email,
+                ownerProfile: updatedProfile,
+              })
+            : meeting,
+        ),
+      );
+      setProfileMessage("Profile saved.");
+      setShowProfileEditor(false);
+    } catch (error) {
+      setProfileMessage(
+        error instanceof Error ? error.message : "Could not save your profile.",
+      );
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -412,17 +514,10 @@ export default function DashboardPage() {
       className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
     >
       <div>
-        <p className="text-xs uppercase tracking-wide text-slate-500">
-          Team {teamName}
+        <h3 className="text-lg font-semibold text-slate-900">{meeting.name}</h3>
+        <p className="mt-1 text-sm font-semibold text-slate-700">
+          Owner: {meeting.ownerDisplayName}
         </p>
-        <h3 className="mt-1 text-lg font-semibold text-slate-900">
-          {meeting.name}
-        </h3>
-        {meeting.access === "shared" ? (
-          <p className="mt-1 text-sm font-semibold text-slate-700">
-            Owner: {meeting.ownerDisplayName}
-          </p>
-        ) : null}
         <p className="mt-1 text-sm text-slate-600">
           Last updated {formatRelativeTimestamp(meeting.updated_at)}
         </p>
@@ -487,8 +582,9 @@ export default function DashboardPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
             Dashboard
           </p>
-          <h1 className="mt-2 text-3xl font-semibold text-slate-900">Team</h1>
-          <p className="mt-1 text-base text-slate-600">{teamName}</p>
+          <h1 className="mt-2 text-3xl font-semibold text-slate-900">
+            {dashboardTitle}
+          </h1>
 
           <div className="mt-5 space-y-3">
             <div
@@ -527,11 +623,14 @@ export default function DashboardPage() {
                   >
                     <button
                       type="button"
-                      onClick={() => setShowDashboardMenu(false)}
+                      onClick={() => {
+                        setShowDashboardMenu(false);
+                        setShowProfileEditor(true);
+                      }}
                       className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
                       role="menuitem"
                     >
-                      Settings
+                      Profile
                     </button>
                     <button
                       type="button"
@@ -686,6 +785,84 @@ export default function DashboardPage() {
           )}
         </section>
       </div>
+
+      {showProfileEditor ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Profile
+              </p>
+              <h2 className="mt-1 text-lg font-semibold text-slate-900">
+                Your display name
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">
+                Add your first and last name so meetings can show durable owner
+                attribution.
+              </p>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">
+                  First name
+                </span>
+                <input
+                  type="text"
+                  value={profileFirstName}
+                  onChange={(event) => setProfileFirstName(event.target.value)}
+                  disabled={isLoadingProfile || isSavingProfile}
+                  maxLength={80}
+                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">
+                  Last name
+                </span>
+                <input
+                  type="text"
+                  value={profileLastName}
+                  onChange={(event) => setProfileLastName(event.target.value)}
+                  disabled={isLoadingProfile || isSavingProfile}
+                  maxLength={80}
+                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+              </label>
+
+              {profile?.email ? (
+                <p className="text-xs text-slate-500">Email: {profile.email}</p>
+              ) : null}
+
+              {profileMessage ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                  {profileMessage}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowProfileEditor(false)}
+                disabled={isSavingProfile}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveProfile()}
+                disabled={isLoadingProfile || isSavingProfile}
+                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSavingProfile ? "Saving…" : "Save Profile"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {meetingPendingDuplicate ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">

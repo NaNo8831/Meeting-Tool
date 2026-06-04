@@ -123,3 +123,11 @@ Phase 3 starts from the stable Phase 2 Single-User Cloud Beta and adds shared me
 ### Current-to-target authorization transition
 
 The database currently has an owner-only `meetings.owner_id` authority path and owner-check RLS for structured tables. `meeting_members` exists, but its current constraint uses `owner`, `admin`, and `member`, and its rows do not grant runtime access. Phase 3 must align this schema explicitly to the planned `owner`, `editor`, and `viewer` model before membership-based RLS is enabled. Do not silently reinterpret existing role strings in client code.
+
+## User profile foundation
+
+- `public.profiles` is the Phase 3 user-attribution layer for authenticated cloud users. It is separate from `meetings.owner_id` and `meeting_members.user_id`; those ID columns remain the authorization and ownership authorities.
+- New auth users receive a profile through a database trigger. Existing auth users are backfilled safely when the dashboard calls `ensure_own_profile()` after sign-in.
+- The dashboard Profile editor is intentionally minimal and updates only first/last name. The database derives `display_name` and mirrors email from `auth.users` so display attribution survives future invite workflows and ownership transfers.
+- Dashboard owner labels are built from profile data when available, with graceful fallback for legacy rows. A narrow owner-profile RPC returns only owner display/email fallback fields for meetings the caller can already access.
+- Invite management, member management, ownership transfer, organizations, avatars, audit history, Viewer UX, and dashboard member lists are outside this foundation PR.

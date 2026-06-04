@@ -1,6 +1,8 @@
 import {
   supabaseMeetingClient,
+  supabaseProfileClient,
   type SupabaseMeeting,
+  type SupabaseMeetingOwnerProfile,
 } from "@/app/lib/supabaseClient";
 
 export type DashboardMeetingAccess = "owned" | "shared";
@@ -52,11 +54,24 @@ export const getDashboardMeetingOwnerDisplayName = ({
   meeting,
   currentUserId,
   currentUserEmail,
+  ownerProfile,
 }: {
   meeting: Pick<SupabaseMeeting, "metadata_json" | "owner_id">;
   currentUserId: string;
   currentUserEmail?: string | null;
+  ownerProfile?: Pick<
+    SupabaseMeetingOwnerProfile,
+    "display_name" | "email"
+  > | null;
 }) => {
+  const profileDisplayName = emailDisplayValue(
+    ownerProfile?.display_name ?? null,
+  );
+  if (profileDisplayName) return profileDisplayName;
+
+  const profileEmail = emailDisplayValue(ownerProfile?.email ?? null);
+  if (profileEmail) return profileEmail;
+
   const metadataDisplayName = stringMetadataValue(meeting.metadata_json, [
     "owner_display_name",
     "ownerDisplayName",
@@ -85,10 +100,15 @@ export const toDashboardMeeting = ({
   meeting,
   currentUserId,
   currentUserEmail,
+  ownerProfile,
 }: {
   meeting: SupabaseMeeting;
   currentUserId: string;
   currentUserEmail?: string | null;
+  ownerProfile?: Pick<
+    SupabaseMeetingOwnerProfile,
+    "display_name" | "email"
+  > | null;
 }): DashboardMeeting => {
   const ownedByCurrentUser = isOwnedByCurrentUser(meeting, currentUserId);
 
@@ -99,6 +119,7 @@ export const toDashboardMeeting = ({
       meeting,
       currentUserId,
       currentUserEmail,
+      ownerProfile,
     }),
     currentUserRole: ownedByCurrentUser ? "owner" : null,
     isOwnedByCurrentUser: ownedByCurrentUser,
@@ -119,12 +140,18 @@ export const listDashboardMeetings = async ({
   currentUserEmail?: string | null;
 }): Promise<DashboardMeeting[]> => {
   const meetings = await supabaseMeetingClient.listWorkspaces(accessToken);
+  const ownerProfiles =
+    await supabaseProfileClient.listAccessibleMeetingOwnerProfiles(accessToken);
+  const ownerProfilesByMeetingId = new Map(
+    ownerProfiles.map((profile) => [profile.meeting_id, profile]),
+  );
 
   return meetings.map((meeting) =>
     toDashboardMeeting({
       meeting,
       currentUserId,
       currentUserEmail,
+      ownerProfile: ownerProfilesByMeetingId.get(meeting.id) ?? null,
     }),
   );
 };

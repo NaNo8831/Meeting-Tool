@@ -90,3 +90,19 @@ Validation performed for `20260604090000_add_membership_rls_foundation.sql`:
 - PR #77 manual validation passed for owner access, editor direct-URL access to the shared cloud meeting, removed-member blocking, pending invitations not granting access, and shared dashboard visibility remaining deferred to PR 2.
 - Documentation now records the decision to defer detailed audit logging and per-user edit attribution.
 - Full migration application and broader role-matrix validation should still be repeated in a Supabase-linked preview before deployed-environment merge when practical.
+
+## PR 3A user profile validation
+
+Automated validation:
+
+- Run `npm run lint`.
+- Run `npx tsc --noEmit`.
+- Run `npm run build`.
+
+Manual validation:
+
+- Sign in as an existing user and confirm the dashboard bootstraps a profile without forcing setup.
+- Open Dashboard Profile, set first and last name, save, refresh, and confirm the values persist.
+- Confirm owned/shared dashboard cards show `Owner: <display_name>` when profile data exists.
+- Confirm legacy users with no first/last name fall back to email, then `Owner` if no display data is available.
+- Confirm direct profile editing is limited to the signed-in user's own row.
