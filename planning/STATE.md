@@ -7,7 +7,7 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate plus autosave only the narrow `meeting_settings` structured pilot after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: Phase 3 **PR 3B Invite Flow Architecture Review** defines the next pending-invitation implementation path after PR 3A User Profile Foundation. The recommended PR 3B scope is owner-created pending invites by email, owner pending-invite listing/revocation, signed-in matching-email invite acceptance, editor membership creation on acceptance, and minimal dashboard refresh after acceptance. The review intentionally makes no runtime, dashboard behavior, Supabase schema, RLS, auth, Local Mode, member-management, ownership-transfer, Viewer UX, email delivery, or realtime collaboration changes.
+- Current focus: Phase 3 **PR 3B Invite User Flow** implements the first user-facing pending-invitation workflow. Owners can invite editors by email from active owned dashboard cards, list/revoke pending invites, and invitees can explicitly accept pending invitations matching their signed-in auth email so an active editor membership is created and the meeting appears under `Shared with Me`.
 - Current branch note: Phase 3 work targets `phase-3-shared-access`. This local checkout is named `work` and is based on merge commit `cac3380` (`Merge pull request #74 from NaNo8831/phase-2-cloud`); no git remote is configured in this container.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
 
@@ -30,7 +30,7 @@
 - Keep membership architecture and long-term role direction (`owner`/`editor`/`viewer`) explicit. PR 1A migration `20260603090000_align_shared_access_schema.sql` aligns `meeting_members.role` to `owner`/`editor`/`viewer`, maps existing `admin` and `member` values to `editor`, and backfills owner membership rows while preserving `meetings.owner_id` as the runtime owner authority.
 - Support pending invitations for people who have not signed up yet. For the first Team Beta, expose only Owner and Editor behavior if needed and allow everyone with access to edit; defer Viewer enforcement until the permission surface is ready.
 - Keep Last Save Wins as the Team Beta concurrency model. Realtime collaboration, presence, cursors, websockets, CRDTs, and conflict resolution remain out of scope.
-- Next recommended action: validate PR 2B on a Supabase-configured preview with owner, shared/editor, and non-member accounts, then proceed to PR 3 Invite User Flow/access-management UI. Invite UI, member management, role editing, ownership transfer, Viewer UX, RLS changes, migrations, auth changes, Local Mode changes, autosave expansion, and realtime collaboration remain out of PR 2B scope.
+- Next recommended action: validate PR 3B on a Supabase-configured preview with owner, invitee, unrelated user, shared/editor, and non-member accounts. Member management/removal, role editing, ownership transfer, Viewer UX, tokenized invite links, automated email delivery, Local Mode changes, autosave expansion, and realtime collaboration remain deferred.
 
 ## Sprint Status
 
@@ -79,3 +79,12 @@
 - Dashboard owner attribution now uses profile display data when available and falls back gracefully to email/legacy metadata/`Owner` without requiring existing users to update immediately.
 - Direct profile table access remains own-row only. A narrow accessible-meeting owner profile RPC supports safe dashboard display for meetings visible through existing meeting RLS.
 - Deferred from PR 3A: invite UI, member management UI, ownership transfer, multiple owners, audit history, member card display, avatar system, organizations, Viewer UX, and Local Mode changes.
+
+## Phase 3 PR 3B Invite User Flow
+
+- Added database RPCs for owner pending-invite creation, owner pending-invite listing, owner revocation, invitee matching-email pending-invite listing, and explicit invite acceptance.
+- Invite acceptance creates or reactivates an active editor membership and marks the invitation accepted in the same database function.
+- Pending invitations remain non-authoritative for runtime access; meetings are visible/openable only after existing RLS sees an active membership.
+- Dashboard owner UI is intentionally minimal and lives behind an `Access` button on active owned meeting cards.
+- Dashboard invitee UI is a pending-invitations section above Cloud Meetings with an explicit Accept action.
+- Tokenized links, automated email delivery, member management/removal, role editing, Viewer UX, ownership transfer, multiple owners, organizations, realtime collaboration, Local Mode changes, and autosave behavior changes remain deferred.

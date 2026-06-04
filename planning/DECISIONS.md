@@ -49,3 +49,11 @@
 - Protect `profiles` with own-row RLS for direct table access. Shared dashboard attribution uses a narrow security-definer function that returns only accessible meeting owner `display_name`/email fallback data for meetings the caller can already access.
 - Future dashboard direction remains: header copy can become `Mariano's Teams`; cards can show meeting title, `Owner: Mariano`, and later `Members: Emily, Kyle, Jacob`; Team placeholder text should be removed from cards when member display is added.
 - Future member display should distinguish Owner, Editors, and Viewers. Future invite attribution should support `Invited by Mariano`; future audit attribution should support `Last edited by Mariano`.
+
+## Phase 3 PR 3B invite-flow implementation decisions
+
+- PR 3B uses explicit signed-in email-match acceptance for invitations. Tokenized invite links and automated email delivery remain deferred.
+- Dashboard invite UI is intentionally minimal: active owned dashboard cards expose an `Access` control; shared/editor cards do not expose invite controls.
+- Pending invitations are not access grants. Acceptance creates or reactivates an active `meeting_members` row with `role = 'editor'` and only then the shared meeting becomes visible through existing RLS/dashboard listing.
+- Revoked and accepted invitation rows remain historical records. Re-invite creates a new pending row when there is no active pending invitation and no active member for that meeting/email.
+- PR 3B uses narrow security-definer RPCs for owner create/list/revoke and invitee list/accept operations instead of broadening client access to access-management tables.

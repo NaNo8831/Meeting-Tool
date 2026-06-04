@@ -29,4 +29,9 @@
 - Should a later PR add tokenized invite links for smoother cross-device/signup flow, and should those tokens expire?
 - When automated email delivery is introduced, which provider and sender domain should Meeting Tool use?
 - Should invitations ever expire automatically, or should owner revocation remain the only pending-invite cleanup path for Team Beta?
-- Should former removed members be reactivated through the same invite acceptance flow or through a separate member-management action?
+- Answered for PR 3B: former removed members are reactivated through the same explicit invite acceptance flow when a matching pending invitation is accepted; separate member-management actions remain deferred.
+
+## PR 3B invite-flow resolved/deferred notes
+
+- Resolved for PR 3B: former removed members are reactivated through explicit invite acceptance when a matching pending invitation is accepted.
+- Deferred: tokenized invite links, token expiration policy, automated email provider/sender domain, automatic invite expiration, member removal, role editing, Viewer UX, ownership transfer, multiple owners, organizations, and realtime collaboration.

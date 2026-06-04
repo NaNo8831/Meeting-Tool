@@ -7,8 +7,11 @@ import { useBodyScrollLock } from "@/app/hooks/useBodyScrollLock";
 import { useSupabaseAuth } from "@/app/hooks/useSupabaseAuth";
 import {
   isSupabaseConfigured,
+  supabaseInvitationClient,
   supabaseMeetingClient,
   supabaseProfileClient,
+  type SupabaseMeetingInvitation,
+  type SupabasePendingMeetingInvitation,
   type SupabaseProfile,
 } from "@/app/lib/supabaseClient";
 import {
@@ -75,6 +78,26 @@ export default function DashboardPage() {
     useState<DashboardMeeting | null>(null);
   const [meetingPendingDelete, setMeetingPendingDelete] =
     useState<DashboardMeeting | null>(null);
+  const [meetingPendingAccess, setMeetingPendingAccess] =
+    useState<DashboardMeeting | null>(null);
+  const [pendingInvitations, setPendingInvitations] = useState<
+    SupabasePendingMeetingInvitation[]
+  >([]);
+  const [ownedMeetingInvitations, setOwnedMeetingInvitations] = useState<
+    SupabaseMeetingInvitation[]
+  >([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [isLoadingInvitations, setIsLoadingInvitations] = useState(false);
+  const [isAcceptingInvitation, setIsAcceptingInvitation] = useState<
+    string | null
+  >(null);
+  const [isLoadingOwnedInvitations, setIsLoadingOwnedInvitations] =
+    useState(false);
+  const [isCreatingInvitation, setIsCreatingInvitation] = useState(false);
+  const [isRevokingInvitation, setIsRevokingInvitation] = useState<
+    string | null
+  >(null);
+  const [accessMessage, setAccessMessage] = useState("");
   const [newMeetingName, setNewMeetingName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -94,6 +117,7 @@ export default function DashboardPage() {
     showDashboardMenu ||
       meetingPendingDuplicate !== null ||
       meetingPendingDelete !== null ||
+      meetingPendingAccess !== null ||
       showProfileEditor,
   );
 
@@ -170,6 +194,41 @@ export default function DashboardPage() {
     };
 
     void loadMeetings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [session]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPendingInvitations = async () => {
+      if (!session || !isSupabaseConfigured) return;
+      setIsLoadingInvitations(true);
+
+      try {
+        const invitations =
+          await supabaseInvitationClient.listMyPendingInvitations(
+            session.accessToken,
+          );
+        if (!isMounted) return;
+        setPendingInvitations(invitations);
+      } catch (error) {
+        if (!isMounted) return;
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "Could not load pending invitations.",
+        );
+      } finally {
+        if (isMounted) {
+          setIsLoadingInvitations(false);
+        }
+      }
+    };
+
+    void loadPendingInvitations();
 
     return () => {
       isMounted = false;
@@ -475,6 +534,138 @@ export default function DashboardPage() {
     }
   };
 
+  const refreshDashboardMeetings = async () => {
+    if (!session) return;
+
+    const nextMeetings = await listDashboardMeetings({
+      accessToken: session.accessToken,
+      currentUserId: session.user.id,
+      currentUserEmail: session.user.email,
+    });
+    setMeetings(nextMeetings);
+  };
+
+  const handleOpenAccess = async (meeting: DashboardMeeting) => {
+    if (!session || !meeting.canManageMeetingLifecycle) return;
+
+    setMeetingPendingAccess(meeting);
+    setInviteEmail("");
+    setAccessMessage("");
+    setOwnedMeetingInvitations([]);
+    setIsLoadingOwnedInvitations(true);
+
+    try {
+      const invitations =
+        await supabaseInvitationClient.listMeetingPendingInvitations({
+          accessToken: session.accessToken,
+          meetingId: meeting.id,
+        });
+      setOwnedMeetingInvitations(invitations);
+    } catch (error) {
+      setAccessMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not load pending invitations.",
+      );
+    } finally {
+      setIsLoadingOwnedInvitations(false);
+    }
+  };
+
+  const handleCreateInvitation = async () => {
+    if (!session || !meetingPendingAccess || isCreatingInvitation) return;
+
+    const trimmedEmail = inviteEmail.trim();
+    if (!trimmedEmail) {
+      setAccessMessage("Enter an email address to invite.");
+      return;
+    }
+
+    setIsCreatingInvitation(true);
+    setAccessMessage("");
+
+    try {
+      const invitation = await supabaseInvitationClient.createInvitation({
+        accessToken: session.accessToken,
+        meetingId: meetingPendingAccess.id,
+        email: trimmedEmail,
+      });
+      setOwnedMeetingInvitations((currentInvitations) => [
+        invitation,
+        ...currentInvitations,
+      ]);
+      setInviteEmail("");
+      setAccessMessage(`Invited ${invitation.email} as an editor.`);
+    } catch (error) {
+      setAccessMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not create this invitation.",
+      );
+    } finally {
+      setIsCreatingInvitation(false);
+    }
+  };
+
+  const handleRevokeInvitation = async (invitationId: string) => {
+    if (!session || isRevokingInvitation) return;
+
+    setIsRevokingInvitation(invitationId);
+    setAccessMessage("");
+
+    try {
+      const revokedInvitation = await supabaseInvitationClient.revokeInvitation(
+        {
+          accessToken: session.accessToken,
+          invitationId,
+        },
+      );
+      setOwnedMeetingInvitations((currentInvitations) =>
+        currentInvitations.filter(
+          (invitation) => invitation.id !== revokedInvitation.id,
+        ),
+      );
+      setAccessMessage(`Revoked invite for ${revokedInvitation.email}.`);
+    } catch (error) {
+      setAccessMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not revoke this invitation.",
+      );
+    } finally {
+      setIsRevokingInvitation(null);
+    }
+  };
+
+  const handleAcceptInvitation = async (invitationId: string) => {
+    if (!session || isAcceptingInvitation) return;
+
+    setIsAcceptingInvitation(invitationId);
+    setMessage("");
+
+    try {
+      await supabaseInvitationClient.acceptInvitation({
+        accessToken: session.accessToken,
+        invitationId,
+      });
+      setPendingInvitations((currentInvitations) =>
+        currentInvitations.filter(
+          (invitation) => invitation.id !== invitationId,
+        ),
+      );
+      await refreshDashboardMeetings();
+      setMessage("Invitation accepted. The meeting is now shared with you.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not accept this invitation.",
+      );
+    } finally {
+      setIsAcceptingInvitation(null);
+    }
+  };
+
   const visibleMeetings = (
     showArchived ? meetings : meetings.filter((meeting) => !meeting.archived_at)
   ).filter((meeting) => meetingMatchesSearch(meeting, searchQuery));
@@ -527,6 +718,14 @@ export default function DashboardPage() {
         {meeting.canManageMeetingLifecycle ? (
           !meeting.archived_at ? (
             <div className="flex flex-col items-stretch gap-2 sm:items-end">
+              <button
+                type="button"
+                onClick={() => void handleOpenAccess(meeting)}
+                className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                disabled={isLoadingOwnedInvitations}
+              >
+                Access
+              </button>
               <button
                 type="button"
                 onClick={() => setMeetingPendingDuplicate(meeting)}
@@ -726,6 +925,59 @@ export default function DashboardPage() {
           </p>
         ) : null}
 
+        <section
+          className="space-y-3 rounded-3xl border border-blue-100 bg-blue-50 p-5 shadow-sm"
+          aria-labelledby="pending-invitations-heading"
+        >
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+              Pending invitations
+            </p>
+            <h2
+              id="pending-invitations-heading"
+              className="mt-1 text-xl font-semibold text-slate-900"
+            >
+              Meetings shared with your email
+            </h2>
+          </div>
+
+          {isLoadingInvitations ? (
+            <p className="text-sm text-slate-600">Checking invitations…</p>
+          ) : pendingInvitations.length > 0 ? (
+            <div className="space-y-2">
+              {pendingInvitations.map((invitation) => (
+                <article
+                  key={invitation.id}
+                  className="flex flex-col gap-3 rounded-2xl border border-blue-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <h3 className="font-semibold text-slate-900">
+                      {invitation.meeting_name}
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Invited by {invitation.owner_display_name} as an editor.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleAcceptInvitation(invitation.id)}
+                    disabled={Boolean(isAcceptingInvitation)}
+                    className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isAcceptingInvitation === invitation.id
+                      ? "Accepting…"
+                      : "Accept"}
+                  </button>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-600">
+              No pending invitations match your signed-in email.
+            </p>
+          )}
+        </section>
+
         <section className="space-y-6" aria-labelledby="cloud-meetings-heading">
           <h2
             id="cloud-meetings-heading"
@@ -858,6 +1110,102 @@ export default function DashboardPage() {
                 className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSavingProfile ? "Saving…" : "Save Profile"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {meetingPendingAccess ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Meeting access
+              </p>
+              <h2 className="mt-1 text-lg font-semibold text-slate-900">
+                Invite editors to {meetingPendingAccess.name}
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">
+                Pending invites do not grant access until the matching signed-in
+                email accepts them.
+              </p>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(event) => setInviteEmail(event.target.value)}
+                  placeholder="teammate@example.com"
+                  disabled={isCreatingInvitation}
+                  className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleCreateInvitation()}
+                  disabled={isCreatingInvitation}
+                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isCreatingInvitation ? "Inviting…" : "Invite"}
+                </button>
+              </div>
+
+              {accessMessage ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                  {accessMessage}
+                </p>
+              ) : null}
+
+              <section className="space-y-2" aria-label="Pending invitations">
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Pending invitations
+                </h3>
+                {isLoadingOwnedInvitations ? (
+                  <p className="text-sm text-slate-500">Loading invites…</p>
+                ) : ownedMeetingInvitations.length > 0 ? (
+                  ownedMeetingInvitations.map((invitation) => (
+                    <div
+                      key={invitation.id}
+                      className="flex flex-col gap-2 rounded-xl border border-slate-200 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">
+                          {invitation.email}
+                        </p>
+                        <p className="text-xs text-slate-500">Editor invite</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void handleRevokeInvitation(invitation.id)
+                        }
+                        disabled={Boolean(isRevokingInvitation)}
+                        className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isRevokingInvitation === invitation.id
+                          ? "Revoking…"
+                          : "Revoke"}
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-600">
+                    No pending invitations for this meeting.
+                  </p>
+                )}
+              </section>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setMeetingPendingAccess(null)}
+                disabled={isCreatingInvitation || Boolean(isRevokingInvitation)}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Close
               </button>
             </div>
           </div>

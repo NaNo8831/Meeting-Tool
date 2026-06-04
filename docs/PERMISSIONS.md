@@ -181,3 +181,15 @@ The first Team Beta may expose only Owner and Editor behavior in UI. Viewer can 
 - Invitee pending-invite reads should be scoped to the signed-in user's current normalized auth email. Users must not see invitation rows for other email addresses.
 - Invitation acceptance should require a matching pending invite for the signed-in user's normalized auth email, reject revoked or accepted rows, create/reactivate an editor membership, and stamp `accepted_by`/`accepted_at`.
 - Revocation should only affect pending invitations. Removing accepted members belongs to a later member-management PR.
+
+## Phase 3 PR 3B Invitation Permissions
+
+PR 3B adds explicit invite RPCs without broadening meeting RLS:
+
+- `create_meeting_invitation(target_meeting_id, invite_email)` allows only meeting access managers (currently the owner) to create pending editor invitations.
+- `list_meeting_pending_invitations(target_meeting_id)` allows only meeting access managers to list pending invitations for that meeting.
+- `revoke_meeting_invitation(target_invitation_id)` allows only meeting access managers to revoke pending invitations.
+- `list_my_pending_meeting_invitations()` returns only pending invitations whose normalized email matches the signed-in user's normalized auth email.
+- `accept_meeting_invitation(target_invitation_id)` requires a matching signed-in email and atomically creates/reactivates editor membership before marking the invitation accepted.
+
+Pending invitations are not access grants. Runtime access remains based on `meetings`/meeting-scoped RLS and active `meeting_members` rows. Editors can edit shared meetings after acceptance but cannot create, list, or revoke invitations.
