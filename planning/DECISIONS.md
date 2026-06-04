@@ -2,6 +2,7 @@
 
 | Date | Decision | Rationale / Notes |
 | --- | --- | --- |
+| 2026-06-03 | Align Phase 3 shared-access schema with `owner`/`editor`/`viewer` roles and meeting-scoped pending invitations. | PR 1A maps existing `admin` and `member` membership rows to `editor`, keeps `owner` as `owner`, backfills every `meetings.owner_id` into `meeting_members`, preserves `meetings.owner_id` and `meetings.meeting_data`, and adds `meeting_invitations` with owner-only RLS; membership runtime access remains deferred to PR 1B. |
 | 2026-06-02 | Start Phase 3 with Shared Meeting Access Foundation on the stable Phase 2 Single-User Cloud Beta baseline. | Sequence work as PR 1A schema alignment, PR 1B membership RLS foundation, PR 2 shared dashboard access, PR 3 meeting access-management UI, PR 4 invite UX polish, and PR 5+ structured autosave expansion. |
 | 2026-06-02 | Support pending meeting invitations for people who have not signed up yet. | Invitation storage must represent an invited email and pending lifecycle before an `auth.users` identity exists, then link or convert safely after signup/sign-in. Authorization must remain identity-based after acceptance. |
 | 2026-06-02 | Use `owner`, `editor`, and `viewer` as the long-term shared-meeting roles; allow an Owner/Editor-only Team Beta first. | Everyone with access may edit in the first beta. Viewer behavior can remain unexposed until read-only UX and enforcement are ready. The existing schema constraint `owner`/`admin`/`member` is a known mismatch to align explicitly in PR 1A. |
