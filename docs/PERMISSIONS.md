@@ -193,3 +193,7 @@ PR 3B adds explicit invite RPCs without broadening meeting RLS:
 - `accept_meeting_invitation(target_invitation_id)` requires a matching signed-in email and atomically creates/reactivates editor membership before marking the invitation accepted.
 
 Pending invitations are not access grants. Runtime access remains based on `meetings`/meeting-scoped RLS and active `meeting_members` rows. Editors can edit shared meetings after acceptance but cannot create, list, or revoke invitations.
+
+## PR 3B follow-up meeting creation permission
+
+`create_owned_meeting(meeting_name)` restores authenticated meeting creation without broadening shared-editor authority. The function creates only a meeting owned by the caller's `auth.uid()`, does not accept an owner override, and relies on the existing owner-membership trigger for owner membership setup. Shared editors still cannot manage lifecycle or access for meetings they do not own.

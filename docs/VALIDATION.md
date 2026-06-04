@@ -144,3 +144,19 @@ Manual validation:
 - Revoked and accepted invitations cannot be accepted again.
 - Pending invitations alone do not allow direct meeting access before acceptance.
 - Shared/editor users cannot manage invitations, non-owners cannot revoke invitations, non-members cannot access meetings, and existing meeting RLS remains intact.
+
+## PR 3B follow-up validation
+
+Automated validation:
+
+- Run `npm run lint`.
+- Run `npx tsc --noEmit`.
+- Run `npm run build`.
+
+Manual validation:
+
+- Authenticated owner can create a new meeting from the dashboard.
+- Created meeting has `owner_id = auth.uid()` and an active owner membership row.
+- Owner can still invite a user, the invitee sees and accepts the pending invite, and the meeting appears under `Shared with Me`.
+- Shared editor cannot access invite controls or manage another owner's meeting lifecycle/access.
+- The pending-invitations dashboard section is hidden when the signed-in user has no pending invitations and shown only while loading or when invitations exist.

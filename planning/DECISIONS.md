@@ -57,3 +57,7 @@
 - Pending invitations are not access grants. Acceptance creates or reactivates an active `meeting_members` row with `role = 'editor'` and only then the shared meeting becomes visible through existing RLS/dashboard listing.
 - Revoked and accepted invitation rows remain historical records. Re-invite creates a new pending row when there is no active pending invitation and no active member for that meeting/email.
 - PR 3B uses narrow security-definer RPCs for owner create/list/revoke and invitee list/accept operations instead of broadening client access to access-management tables.
+
+## PR 3B follow-up create-meeting RLS decision
+
+- Cloud meeting creation now uses a narrow `create_owned_meeting(meeting_name)` RPC. The function sets `owner_id` from `auth.uid()` and does not accept an owner override, avoiding client-supplied ownership authority while preserving the existing owner-membership trigger behavior.

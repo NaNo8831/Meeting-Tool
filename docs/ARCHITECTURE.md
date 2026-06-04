@@ -148,3 +148,9 @@ The database currently has an owner-only `meetings.owner_id` authority path and 
 - Invitee-facing acceptance UI is placed in a dashboard `Pending invitations` section. It lists only pending invitations that match the signed-in user's normalized auth email.
 - Invite acceptance is explicit. Signing in does not auto-accept invitations, pending invitations do not grant meeting access, and `/meeting/[id]` access still depends on meeting RLS resolving an active membership row.
 - Tokenized invite links, automated email delivery, Local Mode changes, autosave behavior changes, Viewer UX, member management/removal, role editing, ownership transfer, multiple owners, organizations, and realtime collaboration remain deferred.
+
+## PR 3B follow-up create-meeting RLS fix
+
+- New cloud meeting creation now uses `create_owned_meeting(meeting_name)` instead of a direct dashboard REST insert into `meetings` with a client-supplied `owner_id`.
+- The RPC sets `owner_id = auth.uid()` server-side and lets the existing owner-membership trigger create/preserve the owner's `meeting_members` row.
+- This keeps shared editors from creating or managing meetings on behalf of another owner while avoiding the fragile direct insert/return path against membership-aware `meetings` RLS.

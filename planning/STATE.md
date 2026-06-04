@@ -88,3 +88,8 @@
 - Dashboard owner UI is intentionally minimal and lives behind an `Access` button on active owned meeting cards.
 - Dashboard invitee UI is a pending-invitations section above Cloud Meetings with an explicit Accept action.
 - Tokenized links, automated email delivery, member management/removal, role editing, Viewer UX, ownership transfer, multiple owners, organizations, realtime collaboration, Local Mode changes, and autosave behavior changes remain deferred.
+
+## PR 3B follow-up create-meeting fix
+
+- Fixed the PR 3B create-meeting RLS regression by moving dashboard/selector meeting creation from direct `meetings` REST insert to `create_owned_meeting(meeting_name)`, which creates only meetings owned by the signed-in user and preserves owner membership setup through the existing trigger.
+- Cleaned up dashboard invite UX so the Pending Invitations section is hidden for normal dashboards with zero pending invites and appears only while loading or when matching pending invitations exist.

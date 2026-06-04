@@ -163,7 +163,9 @@ export function MeetingSelector({
         setWorkspaces(nextWorkspaces);
         setWorkspaceOwnerId(session.user.id);
         const restoredWorkspace = storedWorkspaceBelongsToUser
-          ? nextWorkspaces.find((workspace) => workspace.id === storedWorkspaceId)
+          ? nextWorkspaces.find(
+              (workspace) => workspace.id === storedWorkspaceId,
+            )
           : null;
         onSelectedCloudWorkspaceIdChange(restoredWorkspace?.id ?? "");
         onSelectedCloudWorkspaceNameChange(restoredWorkspace?.name ?? "");
@@ -221,7 +223,10 @@ export function MeetingSelector({
 
     const trimmedName = newWorkspaceName.trim();
     if (!trimmedName) {
-      setWorkspaceMessage({ type: "error", text: "Name the cloud meeting first." });
+      setWorkspaceMessage({
+        type: "error",
+        text: "Name the cloud meeting first.",
+      });
       return;
     }
 
@@ -231,7 +236,6 @@ export function MeetingSelector({
     try {
       const workspace = await supabaseMeetingClient.createWorkspace({
         accessToken: session.accessToken,
-        ownerId: session.user.id,
         name: trimmedName,
       });
 
@@ -269,7 +273,10 @@ export function MeetingSelector({
               : "Local Workspace"}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            Mode: {effectiveWorkspaceMode === "cloud" ? "Cloud Meeting" : "Local only"}
+            Mode:{" "}
+            {effectiveWorkspaceMode === "cloud"
+              ? "Cloud Meeting"
+              : "Local only"}
           </p>
         </div>
         <span
@@ -282,9 +289,9 @@ export function MeetingSelector({
       </div>
 
       <p className="mt-3 text-xs leading-relaxed text-slate-500">
-        Local Workspace keeps this browser&apos;s localStorage data. Cloud Meeting
-        saves and loads the selected workspace in Supabase without auto-migrating
-        local data.
+        Local Workspace keeps this browser&apos;s localStorage data. Cloud
+        Meeting saves and loads the selected workspace in Supabase without
+        auto-migrating local data.
       </p>
 
       {!session ? (

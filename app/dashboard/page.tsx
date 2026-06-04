@@ -275,7 +275,6 @@ export default function DashboardPage() {
     try {
       const meeting = await supabaseMeetingClient.createWorkspace({
         accessToken: session.accessToken,
-        ownerId: session.user.id,
         name: trimmedName,
       });
 
@@ -925,58 +924,56 @@ export default function DashboardPage() {
           </p>
         ) : null}
 
-        <section
-          className="space-y-3 rounded-3xl border border-blue-100 bg-blue-50 p-5 shadow-sm"
-          aria-labelledby="pending-invitations-heading"
-        >
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-              Pending invitations
-            </p>
-            <h2
-              id="pending-invitations-heading"
-              className="mt-1 text-xl font-semibold text-slate-900"
-            >
-              Meetings shared with your email
-            </h2>
-          </div>
-
-          {isLoadingInvitations ? (
-            <p className="text-sm text-slate-600">Checking invitations…</p>
-          ) : pendingInvitations.length > 0 ? (
-            <div className="space-y-2">
-              {pendingInvitations.map((invitation) => (
-                <article
-                  key={invitation.id}
-                  className="flex flex-col gap-3 rounded-2xl border border-blue-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <h3 className="font-semibold text-slate-900">
-                      {invitation.meeting_name}
-                    </h3>
-                    <p className="mt-1 text-sm text-slate-600">
-                      Invited by {invitation.owner_display_name} as an editor.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void handleAcceptInvitation(invitation.id)}
-                    disabled={Boolean(isAcceptingInvitation)}
-                    className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isAcceptingInvitation === invitation.id
-                      ? "Accepting…"
-                      : "Accept"}
-                  </button>
-                </article>
-              ))}
+        {isLoadingInvitations || pendingInvitations.length > 0 ? (
+          <section
+            className="space-y-3 rounded-3xl border border-blue-100 bg-blue-50 p-5 shadow-sm"
+            aria-labelledby="pending-invitations-heading"
+          >
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                Pending invitations
+              </p>
+              <h2
+                id="pending-invitations-heading"
+                className="mt-1 text-xl font-semibold text-slate-900"
+              >
+                Meetings shared with your email
+              </h2>
             </div>
-          ) : (
-            <p className="text-sm text-slate-600">
-              No pending invitations match your signed-in email.
-            </p>
-          )}
-        </section>
+
+            {isLoadingInvitations ? (
+              <p className="text-sm text-slate-600">Checking invitations…</p>
+            ) : (
+              <div className="space-y-2">
+                {pendingInvitations.map((invitation) => (
+                  <article
+                    key={invitation.id}
+                    className="flex flex-col gap-3 rounded-2xl border border-blue-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <h3 className="font-semibold text-slate-900">
+                        {invitation.meeting_name}
+                      </h3>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Invited by {invitation.owner_display_name} as an editor.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleAcceptInvitation(invitation.id)}
+                      disabled={Boolean(isAcceptingInvitation)}
+                      className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isAcceptingInvitation === invitation.id
+                        ? "Accepting…"
+                        : "Accept"}
+                    </button>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        ) : null}
 
         <section className="space-y-6" aria-labelledby="cloud-meetings-heading">
           <h2

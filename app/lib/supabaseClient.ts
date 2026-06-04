@@ -611,38 +611,22 @@ export const supabaseMeetingClient = {
 
   async createWorkspace({
     accessToken,
-    ownerId,
     name,
   }: {
     accessToken: string;
-    ownerId: string;
     name: string;
   }) {
-    const response = await fetch(getRestUrl("meetings"), {
+    const response = await fetch(getRestUrl("rpc/create_owned_meeting"), {
       method: "POST",
-      headers: {
-        ...getSupabaseHeaders(accessToken),
-        Prefer: "return=representation",
-      },
-      body: JSON.stringify({
-        owner_id: ownerId,
-        name,
-        metadata_json: null,
-        meeting_data: null,
-      }),
+      headers: getSupabaseHeaders(accessToken),
+      body: JSON.stringify({ meeting_name: name }),
     });
 
     if (!response.ok) {
       throw new Error(await getRestErrorMessage(response, "Workspace create"));
     }
 
-    const meetings = (await response.json()) as SupabaseMeeting[];
-    const meeting = meetings[0];
-    if (!meeting) {
-      throw new Error("Supabase did not return the created meeting.");
-    }
-
-    return meeting;
+    return (await response.json()) as SupabaseMeeting;
   },
 
   async getWorkspace({
