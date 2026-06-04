@@ -192,13 +192,10 @@ export default function DashboardPage() {
     };
   }, [showDashboardMenu]);
 
-  const profileDisplayName =
-    profile?.display_name?.trim() ||
-    profile?.email.trim() ||
-    session?.user.email;
-  const teamName = profileDisplayName
-    ? `${profileDisplayName.split("@")[0]}'s Team`
-    : "Your Team";
+  const profileDisplayName = profile?.display_name?.trim();
+  const dashboardTitle = profileDisplayName
+    ? `${profileDisplayName}'s Meetings`
+    : "Your Meetings";
   const currentOwnerProfile = profile
     ? { display_name: profile.display_name, email: profile.email }
     : null;
@@ -379,6 +376,14 @@ export default function DashboardPage() {
 
   const handleSaveProfile = async () => {
     if (!session || isSavingProfile) return;
+
+    const trimmedFirstName = profileFirstName.trim();
+    const trimmedLastName = profileLastName.trim();
+    if (!trimmedFirstName || !trimmedLastName) {
+      setProfileMessage("First and last name are required.");
+      return;
+    }
+
     setIsSavingProfile(true);
     setProfileMessage("");
 
@@ -387,8 +392,8 @@ export default function DashboardPage() {
         accessToken: session.accessToken,
         userId: session.user.id,
         profile: {
-          first_name: profileFirstName,
-          last_name: profileLastName,
+          first_name: trimmedFirstName,
+          last_name: trimmedLastName,
         },
       });
       setProfile(updatedProfile);
@@ -407,6 +412,7 @@ export default function DashboardPage() {
         ),
       );
       setProfileMessage("Profile saved.");
+      setShowProfileEditor(false);
     } catch (error) {
       setProfileMessage(
         error instanceof Error ? error.message : "Could not save your profile.",
@@ -508,12 +514,7 @@ export default function DashboardPage() {
       className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
     >
       <div>
-        <p className="text-xs uppercase tracking-wide text-slate-500">
-          Team {teamName}
-        </p>
-        <h3 className="mt-1 text-lg font-semibold text-slate-900">
-          {meeting.name}
-        </h3>
+        <h3 className="text-lg font-semibold text-slate-900">{meeting.name}</h3>
         <p className="mt-1 text-sm font-semibold text-slate-700">
           Owner: {meeting.ownerDisplayName}
         </p>
@@ -581,8 +582,9 @@ export default function DashboardPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
             Dashboard
           </p>
-          <h1 className="mt-2 text-3xl font-semibold text-slate-900">Team</h1>
-          <p className="mt-1 text-base text-slate-600">{teamName}</p>
+          <h1 className="mt-2 text-3xl font-semibold text-slate-900">
+            {dashboardTitle}
+          </h1>
 
           <div className="mt-5 space-y-3">
             <div
