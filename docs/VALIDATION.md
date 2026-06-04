@@ -45,6 +45,13 @@ Validation performed for `20260603090000_align_shared_access_schema.sql`:
 - Viewer enforcement is validated before Viewer is exposed in the UI.
 - Local Mode remains browser-only and unexpanded. Backup export/import and Manual Save continue to work.
 
+
+### PR 2A — Dashboard query/access abstraction
+- `/dashboard` now loads cloud meeting cards through `listDashboardMeetings`, which reuses the existing `meetings` query and Supabase RLS instead of adding migrations, RLS changes, auth changes, Local Mode changes, invite UI, member-management UI, Viewer UX, autosave expansion, or realtime collaboration.
+- `DashboardMeeting` classifies visible rows as owned when `owner_id` matches the signed-in user and shared otherwise; shared role lookup remains intentionally minimal because `meeting_members` is access-management data.
+- Dashboard duplicate, archive, restore, and soft-delete controls are gated by `canManageMeetingLifecycle`, which is true only for owned meetings; shared meetings returned by RLS remain Open-only until PR 2B renders the final Shared with Me section.
+- Owner account, shared/editor account, and non-member checks should be repeated on a Supabase-configured preview because local CI does not exercise deployed RLS.
+
 ### Explicit non-goals for validation
 Do not add realtime collaboration test requirements for Phase 3 Team Beta: presence, cursors, websockets, CRDTs, and custom conflict resolution remain out of scope.
 

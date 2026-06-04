@@ -8,8 +8,12 @@ import { useSupabaseAuth } from "@/app/hooks/useSupabaseAuth";
 import {
   isSupabaseConfigured,
   supabaseMeetingClient,
-  type SupabaseMeeting,
 } from "@/app/lib/supabaseClient";
+import {
+  listDashboardMeetings,
+  toDashboardMeeting,
+  type DashboardMeeting,
+} from "@/app/lib/dashboardMeetings";
 import { validateWorkspaceBackup } from "@/app/lib/workspaceBackup";
 
 const formatRelativeTimestamp = (timestamp: string) => {
@@ -38,15 +42,21 @@ const formatRelativeTimestamp = (timestamp: string) => {
 export default function DashboardPage() {
   const router = useRouter();
   const { session, isLoading, signOut } = useSupabaseAuth();
-  const [meetings, setMeetings] = useState<SupabaseMeeting[]>([]);
+  const [meetings, setMeetings] = useState<DashboardMeeting[]>([]);
   const [isLoadingMeetings, setIsLoadingMeetings] = useState(false);
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState<string | null>(null);
   const [isArchiving, setIsArchiving] = useState<string | null>(null);
-  const [isRestoringArchived, setIsRestoringArchived] = useState<string | null>(null);
-  const [isDeletingArchived, setIsDeletingArchived] = useState<string | null>(null);
-  const [meetingPendingDuplicate, setMeetingPendingDuplicate] = useState<SupabaseMeeting | null>(null);
-  const [meetingPendingDelete, setMeetingPendingDelete] = useState<SupabaseMeeting | null>(null);
+  const [isRestoringArchived, setIsRestoringArchived] = useState<string | null>(
+    null,
+  );
+  const [isDeletingArchived, setIsDeletingArchived] = useState<string | null>(
+    null,
+  );
+  const [meetingPendingDuplicate, setMeetingPendingDuplicate] =
+    useState<DashboardMeeting | null>(null);
+  const [meetingPendingDelete, setMeetingPendingDelete] =
+    useState<DashboardMeeting | null>(null);
   const [newMeetingName, setNewMeetingName] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [showDashboardMenu, setShowDashboardMenu] = useState(false);
@@ -75,9 +85,10 @@ export default function DashboardPage() {
       setMessage("");
 
       try {
-        const nextMeetings = await supabaseMeetingClient.listWorkspaces(
-          session.accessToken,
-        );
+        const nextMeetings = await listDashboardMeetings({
+          accessToken: session.accessToken,
+          currentUserId: session.user.id,
+        });
         if (!isMounted) return;
         setMeetings(nextMeetings);
       } catch (error) {
@@ -141,7 +152,10 @@ export default function DashboardPage() {
         name: trimmedName,
       });
 
-      setMeetings((currentMeetings) => [meeting, ...currentMeetings]);
+      setMeetings((currentMeetings) => [
+        toDashboardMeeting({ meeting, currentUserId: session.user.id }),
+        ...currentMeetings,
+      ]);
       setNewMeetingName("");
       router.push(`/meeting/${meeting.id}`);
     } catch (error) {
@@ -158,7 +172,9 @@ export default function DashboardPage() {
   const getNextDuplicateMeetingName = (sourceName: string) => {
     const trimmedSourceName = sourceName.trim();
     const baseName = `${trimmedSourceName} Copy`;
-    const existingNames = new Set(meetings.map((meeting) => meeting.name.trim()));
+    const existingNames = new Set(
+      meetings.map((meeting) => meeting.name.trim()),
+    );
 
     if (!existingNames.has(baseName)) {
       return baseName;
@@ -172,8 +188,9 @@ export default function DashboardPage() {
     return `${baseName} ${copyNumber}`;
   };
 
-  const handleDuplicateMeeting = async (sourceMeeting: SupabaseMeeting) => {
-    if (!session || isDuplicating) return;
+  const handleDuplicateMeeting = async (sourceMeeting: DashboardMeeting) => {
+    if (!session || isDuplicating || !sourceMeeting.canManageMeetingLifecycle)
+      return;
 
     setIsDuplicating(sourceMeeting.id);
     setMessage("");
@@ -186,7 +203,13 @@ export default function DashboardPage() {
         sourceMeeting,
         duplicateName,
       });
-      setMeetings((currentMeetings) => [duplicated, ...currentMeetings]);
+      setMeetings((currentMeetings) => [
+        toDashboardMeeting({
+          meeting: duplicated,
+          currentUserId: session.user.id,
+        }),
+        ...currentMeetings,
+      ]);
       setMessage(`Created ${duplicated.name}.`);
     } catch (error) {
       setMessage(
@@ -200,8 +223,8 @@ export default function DashboardPage() {
     }
   };
 
-  const handleArchiveMeeting = async (meeting: SupabaseMeeting) => {
-    if (!session || isArchiving) return;
+  const handleArchiveMeeting = async (meeting: DashboardMeeting) => {
+    if (!session || isArchiving || !meeting.canManageMeetingLifecycle) return;
 
     const confirmed = window.confirm(
       `Archive \"${meeting.name}\"? You can still show archived meetings later.`,
@@ -220,7 +243,10 @@ export default function DashboardPage() {
       setMeetings((currentMeetings) =>
         currentMeetings.map((currentMeeting) =>
           currentMeeting.id === archivedMeeting.id
-            ? archivedMeeting
+            ? toDashboardMeeting({
+                meeting: archivedMeeting,
+                currentUserId: session.user.id,
+              })
             : currentMeeting,
         ),
       );
@@ -234,21 +260,26 @@ export default function DashboardPage() {
     }
   };
 
-  const handleRestoreArchivedMeeting = async (meeting: SupabaseMeeting) => {
-    if (!session || isRestoringArchived) return;
+  const handleRestoreArchivedMeeting = async (meeting: DashboardMeeting) => {
+    if (!session || isRestoringArchived || !meeting.canManageMeetingLifecycle)
+      return;
     setIsRestoringArchived(meeting.id);
     setMessage("");
 
     try {
-      const restoredMeeting = await supabaseMeetingClient.restoreArchivedWorkspace({
-        accessToken: session.accessToken,
-        workspaceId: meeting.id,
-      });
+      const restoredMeeting =
+        await supabaseMeetingClient.restoreArchivedWorkspace({
+          accessToken: session.accessToken,
+          workspaceId: meeting.id,
+        });
 
       setMeetings((currentMeetings) =>
         currentMeetings.map((currentMeeting) =>
           currentMeeting.id === restoredMeeting.id
-            ? restoredMeeting
+            ? toDashboardMeeting({
+                meeting: restoredMeeting,
+                currentUserId: session.user.id,
+              })
             : currentMeeting,
         ),
       );
@@ -287,8 +318,9 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDeleteArchivedMeeting = async (meeting: SupabaseMeeting) => {
-    if (!session || isDeletingArchived) return;
+  const handleDeleteArchivedMeeting = async (meeting: DashboardMeeting) => {
+    if (!session || isDeletingArchived || !meeting.canManageMeetingLifecycle)
+      return;
     setIsDeletingArchived(meeting.id);
     setMessage("");
 
@@ -299,7 +331,9 @@ export default function DashboardPage() {
       });
 
       setMeetings((currentMeetings) =>
-        currentMeetings.filter((currentMeeting) => currentMeeting.id !== meeting.id),
+        currentMeetings.filter(
+          (currentMeeting) => currentMeeting.id !== meeting.id,
+        ),
       );
       setMessage(`${meeting.name} is now hidden from the dashboard.`);
     } catch (error) {
@@ -315,7 +349,9 @@ export default function DashboardPage() {
   };
 
   const activeMeetings = meetings.filter((meeting) => !meeting.archived_at);
-  const archivedMeetings = meetings.filter((meeting) => Boolean(meeting.archived_at));
+  const archivedMeetings = meetings.filter((meeting) =>
+    Boolean(meeting.archived_at),
+  );
   const visibleMeetings = showArchived ? meetings : activeMeetings;
 
   return (
@@ -329,7 +365,10 @@ export default function DashboardPage() {
           <p className="mt-1 text-base text-slate-600">{teamName}</p>
 
           <div className="mt-5 space-y-3">
-            <div className="flex items-center justify-end gap-2" ref={dashboardMenuRef}>
+            <div
+              className="flex items-center justify-end gap-2"
+              ref={dashboardMenuRef}
+            >
               <button
                 type="button"
                 onClick={() => setShowArchived((current) => !current)}
@@ -417,7 +456,9 @@ export default function DashboardPage() {
                   type="file"
                   accept="application/json"
                   className="hidden"
-                  onChange={(event) => void handleImportBackupPlaceholder(event)}
+                  onChange={(event) =>
+                    void handleImportBackupPlaceholder(event)
+                  }
                 />
 
                 <button
@@ -431,7 +472,9 @@ export default function DashboardPage() {
               </div>
             </div>
             {createMeetingError ? (
-              <p className="pl-1 text-xs text-amber-800">{createMeetingError}</p>
+              <p className="pl-1 text-xs text-amber-800">
+                {createMeetingError}
+              </p>
             ) : null}
           </div>
         </header>
@@ -473,37 +516,57 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
-                  {!meeting.archived_at ? (
-                    <div className="flex flex-col items-stretch gap-2 sm:items-end">
-                      <button type="button" onClick={() => setMeetingPendingDuplicate(meeting)} className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100" disabled={Boolean(isDuplicating)}>
-                        {isDuplicating === meeting.id ? "Duplicating…" : "Duplicate"}
-                      </button>
-                      <button type="button" onClick={() => void handleArchiveMeeting(meeting)} className="rounded-xl border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50" disabled={isArchiving === meeting.id}>
-                        {isArchiving === meeting.id ? "Archiving…" : "Archive"}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-stretch gap-2 sm:items-end">
-                      <button
-                        type="button"
-                        onClick={() => void handleRestoreArchivedMeeting(meeting)}
-                        className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={Boolean(isRestoringArchived)}
-                      >
-                        {isRestoringArchived === meeting.id
-                          ? "Restoring…"
-                          : "Restore"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setMeetingPendingDelete(meeting)}
-                        className="rounded-xl border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
-                        disabled={Boolean(isDeletingArchived)}
-                      >
-                        {isDeletingArchived === meeting.id ? "Deleting…" : "Delete"}
-                      </button>
-                    </div>
-                  )}
+                  {meeting.canManageMeetingLifecycle ? (
+                    !meeting.archived_at ? (
+                      <div className="flex flex-col items-stretch gap-2 sm:items-end">
+                        <button
+                          type="button"
+                          onClick={() => setMeetingPendingDuplicate(meeting)}
+                          className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                          disabled={Boolean(isDuplicating)}
+                        >
+                          {isDuplicating === meeting.id
+                            ? "Duplicating…"
+                            : "Duplicate"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleArchiveMeeting(meeting)}
+                          className="rounded-xl border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50"
+                          disabled={isArchiving === meeting.id}
+                        >
+                          {isArchiving === meeting.id
+                            ? "Archiving…"
+                            : "Archive"}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-stretch gap-2 sm:items-end">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleRestoreArchivedMeeting(meeting)
+                          }
+                          className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={Boolean(isRestoringArchived)}
+                        >
+                          {isRestoringArchived === meeting.id
+                            ? "Restoring…"
+                            : "Restore"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMeetingPendingDelete(meeting)}
+                          className="rounded-xl border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+                          disabled={Boolean(isDeletingArchived)}
+                        >
+                          {isDeletingArchived === meeting.id
+                            ? "Deleting…"
+                            : "Delete"}
+                        </button>
+                      </div>
+                    )
+                  ) : null}
                   <Link
                     href={`/meeting/${meeting.id}`}
                     className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
@@ -520,9 +583,12 @@ export default function DashboardPage() {
       {meetingPendingDuplicate ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
-            <h2 className="text-lg font-semibold text-slate-900">Duplicate meeting?</h2>
+            <h2 className="text-lg font-semibold text-slate-900">
+              Duplicate meeting?
+            </h2>
             <p className="mt-3 text-sm text-slate-700">
-              Duplicating copies the current meeting workspace, but Tactical and Strategic history records are not copied yet.
+              Duplicating copies the current meeting workspace, but Tactical and
+              Strategic history records are not copied yet.
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button
@@ -535,7 +601,9 @@ export default function DashboardPage() {
               </button>
               <button
                 type="button"
-                onClick={() => void handleDuplicateMeeting(meetingPendingDuplicate)}
+                onClick={() =>
+                  void handleDuplicateMeeting(meetingPendingDuplicate)
+                }
                 disabled={Boolean(isDuplicating)}
                 className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -549,9 +617,12 @@ export default function DashboardPage() {
       {meetingPendingDelete ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
-            <h2 className="text-lg font-semibold text-slate-900">Delete meeting?</h2>
+            <h2 className="text-lg font-semibold text-slate-900">
+              Delete meeting?
+            </h2>
             <p className="mt-3 text-sm text-slate-700">
-              This will hide the archived meeting from your dashboard. The record will remain safely stored for recovery.
+              This will hide the archived meeting from your dashboard. The
+              record will remain safely stored for recovery.
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button
@@ -564,7 +635,9 @@ export default function DashboardPage() {
               </button>
               <button
                 type="button"
-                onClick={() => void handleDeleteArchivedMeeting(meetingPendingDelete)}
+                onClick={() =>
+                  void handleDeleteArchivedMeeting(meetingPendingDelete)
+                }
                 disabled={Boolean(isDeletingArchived)}
                 className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
