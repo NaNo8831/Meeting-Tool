@@ -61,6 +61,13 @@ New direction:
 - Report settings autosave status separately from the Manual Save full-workspace backup state so non-pilot edits are never presented as autosaved.
 
 
+
+## Supabase Admin Readability Views
+- Supabase administrative inspection may use read-only views that join meeting-scoped rows to `meetings.name` so operators can identify the relevant meeting without manual ID lookup.
+- These views are inspection helpers only: they add no duplicate storage, no runtime application behavior, no dashboard behavior, no authentication behavior, no meeting access behavior, no autosave behavior, and no audit/change-tracking behavior.
+- Admin readability views should stay selective. Add them only where `meeting_name` materially improves database inspection for high-value meeting-scoped tables, not for every table.
+- Views should use `security_invoker` so they do not intentionally bypass the underlying table permissions or change RLS semantics.
+
 ## Strategic Topic lifecycle (current runtime behavior)
 - Lifecycle state is managed in existing Strategic Topic runtime items with `active`, `completed`, and `archived`.
 - Archive behavior is confirmation-gated and non-destructive; it does not hard delete topic rows/items.
