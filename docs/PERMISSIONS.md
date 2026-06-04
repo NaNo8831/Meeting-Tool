@@ -172,3 +172,12 @@ The first Team Beta may expose only Owner and Editor behavior in UI. Viewer can 
 - Profile triggers keep email and display-name derivation server-side so users cannot spoof another account's email or hand-edit derived display names.
 - Dashboard owner attribution for shared meetings does not open broad profile reads. It uses `get_accessible_meeting_owner_profiles()`, which returns only owner display/email fallback data for meetings the caller can already access through meeting RLS helpers.
 - Future access-management UI should continue to treat meeting ownership and membership IDs as authorization facts; profile data is display metadata only.
+
+
+## Invite permissions direction
+
+- Owners are the only users who should create or revoke pending invitations for a meeting. Editors and viewers must not manage access.
+- Pending invitations do not grant meeting read or edit access. Access begins only after a pending invitation is accepted and an active `meeting_members` row exists.
+- Invitee pending-invite reads should be scoped to the signed-in user's current normalized auth email. Users must not see invitation rows for other email addresses.
+- Invitation acceptance should require a matching pending invite for the signed-in user's normalized auth email, reject revoked or accepted rows, create/reactivate an editor membership, and stamp `accepted_by`/`accepted_at`.
+- Revocation should only affect pending invitations. Removing accepted members belongs to a later member-management PR.

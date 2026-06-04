@@ -131,3 +131,12 @@ The database currently has an owner-only `meetings.owner_id` authority path and 
 - The dashboard Profile editor is intentionally minimal and updates only first/last name. The database derives `display_name` and mirrors email from `auth.users` so display attribution survives future invite workflows and ownership transfers.
 - Dashboard owner labels are built from profile data when available, with graceful fallback for legacy rows. A narrow owner-profile RPC returns only owner display/email fallback fields for meetings the caller can already access.
 - Invite management, member management, ownership transfer, organizations, avatars, audit history, Viewer UX, and dashboard member lists are outside this foundation PR.
+
+
+## Invite Flow Architecture Direction
+
+- Phase 3 PR 3B should use the existing `meeting_invitations` pending-invite model rather than introducing token infrastructure or email delivery first.
+- Pending invitations are email-address records and must support people who do not yet have an `auth.users` row. Runtime meeting access still comes only from `meetings.owner_id` or active `meeting_members` rows, never from a pending invitation alone.
+- The recommended acceptance path is explicit signed-in acceptance: match pending invitations to `lower(trim(auth.users.email))`, then atomically create or reactivate an editor `meeting_members` row and mark the invitation `accepted`.
+- Invitation creation, revocation, invitee pending-list reads, and acceptance should be implemented through narrow database-authorized operations, preferably security-definer RPCs with explicit owner/email/status checks.
+- PR 3B should not add tokenized invite links, automated email delivery, automatic acceptance on sign-in, Viewer UX, role editing, active member management, ownership transfer, multiple owners, realtime collaboration, Local Mode changes, or dashboard card/count changes.

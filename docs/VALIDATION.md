@@ -106,3 +106,19 @@ Manual validation:
 - Confirm owned/shared dashboard cards show `Owner: <display_name>` when profile data exists.
 - Confirm legacy users with no first/last name fall back to email, then `Owner` if no display data is available.
 - Confirm direct profile editing is limited to the signed-in user's own row.
+
+
+## PR 3B invite flow validation plan
+
+Manual validation for the invite implementation PR should cover:
+
+- Owner invites an existing user by email.
+- Existing user signs in, sees a matching pending invite, accepts it, and the meeting appears under `Shared with Me` after refresh.
+- Accepted invitation records `status = accepted`, `accepted_by`, and `accepted_at`; accepted membership is an active editor row.
+- Owner revokes a pending invite, and the revoked invite cannot be accepted.
+- Invite to a non-existing email remains pending until a user signs up/signs in with that same email, if allowed by the auth flow.
+- Non-owner cannot create or revoke invites.
+- Unrelated signed-in user cannot see or accept another email's invite.
+- Existing active member cannot receive a duplicate pending invite.
+- Pending invite alone does not allow direct meeting access before acceptance.
+- Local Mode, existing dashboard card actions, Supabase schema outside the invite implementation, and RLS boundaries remain unchanged except where PR 3B explicitly adds invite RPC/policy support.
