@@ -36,6 +36,8 @@ as $$
   );
 $$;
 
+revoke all on function public.derive_profile_display_name(text, text) from public;
+
 create or replace function public.set_profile_fields()
 returns trigger
 language plpgsql
@@ -75,6 +77,8 @@ create trigger set_profiles_updated_at
   for each row
   execute function public.set_entity_updated_at();
 
+revoke all on function public.set_profile_fields() from public;
+
 create or replace function public.handle_new_auth_user_profile()
 returns trigger
 language plpgsql
@@ -97,6 +101,8 @@ create trigger sync_profile_for_auth_user
   after insert or update of email on auth.users
   for each row
   execute function public.handle_new_auth_user_profile();
+
+revoke all on function public.handle_new_auth_user_profile() from public;
 
 create or replace function public.ensure_own_profile()
 returns public.profiles
@@ -130,6 +136,9 @@ begin
 end;
 $$;
 
+revoke all on function public.ensure_own_profile() from public;
+grant execute on function public.ensure_own_profile() to authenticated;
+
 create or replace function public.get_accessible_meeting_owner_profiles()
 returns table (
   meeting_id uuid,
@@ -152,6 +161,9 @@ as $$
   where m.deleted_at is null
     and public.user_can_access_meeting(m.id);
 $$;
+
+revoke all on function public.get_accessible_meeting_owner_profiles() from public;
+grant execute on function public.get_accessible_meeting_owner_profiles() to authenticated;
 
 alter table public.profiles enable row level security;
 
