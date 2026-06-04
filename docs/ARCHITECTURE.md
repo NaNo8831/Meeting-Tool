@@ -62,9 +62,9 @@ New direction:
 
 
 ## Dashboard Shared Access Planning Context
-- Current `/dashboard` meeting listing is a client-side dashboard flow backed by `supabaseMeetingClient.listWorkspaces`; database RLS determines which non-deleted `meetings` rows are returned, while the dashboard currently keeps a flat meeting array and does not classify owned versus shared access.
-- Phase 3 PR 2 should introduce a dashboard-facing access/listing abstraction before user-visible section changes so ownership assumptions and card action permissions are centralized rather than scattered through dashboard component state.
-- The target PR 2 dashboard shape is separate `Owned by Me` and `Shared with Me` sections, search across both sections, alphabetical sorting within each section, no counts yet, and owner-only dashboard lifecycle actions withheld from shared-editor cards.
+- Current `/dashboard` meeting listing is a client-side dashboard flow backed by `listDashboardMeetings` in `app/lib/dashboardMeetings.ts`; the helper delegates visible-row loading to `supabaseMeetingClient.listWorkspaces`, so database RLS determines which non-deleted `meetings` rows are returned.
+- The dashboard-facing access/listing abstraction maps each visible row to a `DashboardMeeting`, classifies ownership with `meeting.owner_id === auth.user.id`, treats non-owned visible rows as shared, and centralizes `canManageMeetingLifecycle` so duplicate/archive/restore/soft-delete remain owner-only dashboard actions.
+- The target PR 2B dashboard shape is separate `Owned by Me` and `Shared with Me` sections, search across both sections, alphabetical sorting within each section, no counts yet, and owner-only dashboard lifecycle actions withheld from shared-editor cards.
 - `/meeting/[id]` should continue to rely on signed-in Supabase requests and membership-aware RLS for route access; PR 2 should not change auth, RLS, migrations, Viewer read-only UX, invite/member management, autosave scope, or Local Mode.
 
 
