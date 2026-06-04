@@ -80,10 +80,16 @@ Phase 3 starts from the stable Phase 2 Single-User Cloud Beta and adds shared me
 ### Shared-access boundaries
 - Pending invites must support invited people who do not have an `auth.users` row yet.
 - The durable role direction is `owner`, `editor`, `viewer`; Team Beta may expose only Owner and Editor behavior first, with everyone who has access able to edit.
-- Last Save Wins is acceptable for Team Beta. Realtime collaboration, presence, cursors, websockets, CRDTs, and custom conflict resolution are out of scope.
+- Last Save Wins is acceptable for Team Beta. Realtime collaboration, presence, cursors, websockets, CRDTs, custom conflict resolution, detailed audit logging, per-field edit history, activity feeds, and attribution-heavy collaboration features are out of scope.
 - Manual Save remains the full-workspace cloud backup through `meetings.meeting_data`. Do not reintroduce full-workspace JSONB autosave.
 - Structured autosave continues surface-by-surface only after shared access is stable.
 - Local Mode remains a browser-only fallback. Do not expand or remove it in the Phase 3 foundation PRs; evaluate hiding or demotion later.
+
+### Audit and attribution posture
+- Detailed audit logging and per-user edit attribution are deferred. Do not add audit tables, edit history, activity feeds, or per-field attribution unless a future product decision explicitly prioritizes them.
+- The product prioritizes current meeting state, simple shared access, owner control, meeting lifecycle protection, read-only protection for ended/past meetings, and backup/manual-save protection.
+- Teams are expected to be small, most meetings will have only one or two editors, and most members are usually present in the same in-person meeting; detailed “who changed this?” logging is therefore lower priority than reliable current-state persistence and access protection.
+- Lightweight `updated_at` timestamps remain useful for freshness and ordering. Future `updated_by` may be considered only on major structured tables if it becomes valuable during structured autosave expansion; it is not part of PR 1B.
 
 ### Current-to-target authorization transition
 The database currently has an owner-only `meetings.owner_id` authority path and owner-check RLS for structured tables. `meeting_members` exists, but its current constraint uses `owner`, `admin`, and `member`, and its rows do not grant runtime access. Phase 3 must align this schema explicitly to the planned `owner`, `editor`, and `viewer` model before membership-based RLS is enabled. Do not silently reinterpret existing role strings in client code.

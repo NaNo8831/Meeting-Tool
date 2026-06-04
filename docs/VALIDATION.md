@@ -47,3 +47,16 @@ Validation performed for `20260603090000_align_shared_access_schema.sql`:
 
 ### Explicit non-goals for validation
 Do not add realtime collaboration test requirements for Phase 3 Team Beta: presence, cursors, websockets, CRDTs, and custom conflict resolution remain out of scope.
+
+### PR 1B — Membership RLS foundation
+Validation performed for `20260604090000_add_membership_rls_foundation.sql`:
+- Migration SQL reviewed for coherent PostgreSQL/Supabase ordering: preserve `user_owns_meeting`, add membership-aware helper functions, add a new-meeting owner-membership trigger and an owner-id update guard, replace inherited `Workspace owners ...` `meetings` policies, keep access-management tables owner/manage-only, then replace owner-only structured-table policies with select/edit splits.
+- Helper behavior is explicit: owners can access/edit/manage; active `owner` and `editor` membership rows can access/edit; active `viewer` membership rows can access/read; all membership checks require `removed_at is null`; pending invitation email text is never consulted for runtime access.
+- `meetings.meeting_data` remains in place and is still loaded/saved through the `meetings` table, now protected by the membership-aware `meetings` select/update RLS policies rather than a separate API-only authorization helper.
+- Meeting-scoped structured tables covered by PR 1B are `meeting_settings`, `objectives`, `tasks`, `standard_operating_objectives`, `strategic_topics`, `tactical_sessions`, `tactical_items`, `strategic_sessions`, and `strategic_session_notes`.
+- Access-management tables covered by owner-only management policies are `meeting_members` and `meeting_invitations`; editors and viewers cannot manage members or invitations.
+- The repository migrations do not currently create `strategic_topic_notes`, so PR 1B intentionally does not invent that table or add policies for it.
+- No dashboard sharing UI, invite UI, member-management UI, ownership transfer, multiple owners, Viewer UI/read-only enforcement, autosave expansion, realtime collaboration, Local Mode removal, or `meetings.meeting_data` rewrite is included.
+- PR #77 manual validation passed for owner access, editor direct-URL access to the shared cloud meeting, removed-member blocking, pending invitations not granting access, and shared dashboard visibility remaining deferred to PR 2.
+- Documentation now records the decision to defer detailed audit logging and per-user edit attribution.
+- Full migration application and broader role-matrix validation should still be repeated in a Supabase-linked preview before deployed-environment merge when practical.
