@@ -15,6 +15,28 @@ export type SupabaseAuthSession = {
   user: SupabaseAuthUser;
 };
 
+export type SupabaseProfile = {
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  display_name: string | null;
+  email: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupabaseMeetingOwnerProfile = Pick<
+  SupabaseProfile,
+  "user_id" | "display_name" | "email"
+> & {
+  meeting_id: string;
+};
+
+export type SupabaseProfileUpdate = Pick<
+  SupabaseProfile,
+  "first_name" | "last_name"
+>;
+
 export type SupabaseMeeting = {
   id: string;
   created_at: string;
@@ -300,6 +322,75 @@ const getRestErrorMessage = async (response: Response, fallback: string) => {
   } catch {
     return `${fallback} Request failed with status ${response.status}.`;
   }
+};
+
+export const supabaseProfileClient = {
+  async ensureOwnProfile(accessToken: string) {
+    const response = await fetch(getRestUrl("rpc/ensure_own_profile"), {
+      method: "POST",
+      headers: getSupabaseHeaders(accessToken),
+      body: JSON.stringify({}),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Profile bootstrap"));
+    }
+
+    return (await response.json()) as SupabaseProfile;
+  },
+
+  async updateOwnProfile({
+    accessToken,
+    userId,
+    profile,
+  }: {
+    accessToken: string;
+    userId: string;
+    profile: SupabaseProfileUpdate;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("profiles")}?user_id=eq.${encodeURIComponent(userId)}`,
+      {
+        method: "PATCH",
+        headers: {
+          ...getSupabaseHeaders(accessToken),
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify(profile),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Profile update"));
+    }
+
+    const profiles = (await response.json()) as SupabaseProfile[];
+    const updatedProfile = profiles[0];
+    if (!updatedProfile) {
+      throw new Error("Supabase did not return the updated profile.");
+    }
+
+    return updatedProfile;
+  },
+
+  async listAccessibleMeetingOwnerProfiles(accessToken: string) {
+    const response = await fetch(
+      getRestUrl("rpc/get_accessible_meeting_owner_profiles"),
+      {
+        method: "POST",
+        headers: getSupabaseHeaders(accessToken),
+        body: JSON.stringify({}),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Meeting owner profile list"),
+      );
+    }
+
+    return (await response.json()) as SupabaseMeetingOwnerProfile[];
+  },
 };
 
 export const supabaseFeedbackClient = {

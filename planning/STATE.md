@@ -71,3 +71,11 @@
 - Validate the `meeting_settings` hydrate/autosave pilot and its separate Manual Save backup signaling on a Supabase-configured Phase 2 preview.
 - Validate Cloud Meeting Persistence on a Supabase-configured preview, including signed-out local mode, signed-in local mode staying browser-only, signed-in create/select/switch behavior from the dashboard, no auto-load or auto-migration from local mode, manual full-workspace save/load only on valid Cloud Meeting routes, soft-deleted meetings staying hidden/inaccessible, optional Local Workspace migration into empty and populated cloud meetings from a valid cloud route, migration cancel behavior, duplicate-prompt suppression, import while Cloud Meeting is selected, overwrite confirmation, user-scoped workspace selection, owner-only RLS, existing localStorage data, export/import, and Feedback Widget behavior.
 - Keep realtime collaboration and broader ownership models separate from Phase 3 Team Beta. Resolve shared-access schema alignment before expanding membership RLS or structured autosave surfaces.
+
+## PR 3A — User Profile Foundation
+
+- Phase 3 PR 3A adds a minimal `profiles` foundation for durable user attribution across shared access. The table stores `user_id`, first/last name, derived `display_name`, mirrored auth email, and timestamps.
+- Profile creation is database-backed for new auth users and bootstrapped by the app at sign-in for legacy users. The dashboard exposes a small Profile editor for first and last name only.
+- Dashboard owner attribution now uses profile display data when available and falls back gracefully to email/legacy metadata/`Owner` without requiring existing users to update immediately.
+- Direct profile table access remains own-row only. A narrow accessible-meeting owner profile RPC supports safe dashboard display for meetings visible through existing meeting RLS.
+- Deferred from PR 3A: invite UI, member management UI, ownership transfer, multiple owners, audit history, member card display, avatar system, organizations, Viewer UX, and Local Mode changes.

@@ -16,3 +16,10 @@
 | Is realtime collaboration required after basic cloud persistence?                                                                                                 | Collaboration                  | Open                                                                                                                                                                                                                                                                              |
 | How should archived/completed Strategic Topics be surfaced?                                                                                                       | Product UX                     | Answered: use a Strategic Topic History modal with Completed and Archived tabs.                                                                                                                                                                                                   |
 | What refinements, if any, should the merged Meeting Setup flow receive after team testing?                                                                        | Product UX                     | Open                                                                                                                                                                                                                                                                              |
+
+## PR 3A follow-up questions
+
+- Should dashboard header copy change from the current Team framing to `Mariano's Teams` when member lists are introduced?
+- When member management lands, which profile fields may other meeting members see beyond `display_name` and email fallback, if any?
+- Should invite acceptance reconcile pending invitation email to a profile row immediately, or only after explicit accepted membership creation?
+- What audit events need user attribution first: content edits, meeting setup changes, access-management changes, or ownership transfer?
