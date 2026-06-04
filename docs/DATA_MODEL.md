@@ -201,7 +201,9 @@ Email text is suitable for pending invitation matching and onboarding, but it is
 
 
 ## Supabase Admin Readability Views
-- `meeting_members_with_meeting` exposes membership rows with `meeting_name`, `meeting_id`, `user_id`, `role`, removal state, and timestamps for easier access inspection.
-- `meeting_invitations_with_meeting` exposes invitation rows with `meeting_name`, invite email fields, role/status, inviter/accepter IDs, and creation time.
+- No existing public profile/user metadata table is present in the current migrations, so admin readability views use `auth.users.email` as display metadata where user lookup helps inspection.
+- `meeting_members_with_meeting` exposes membership rows with `meeting_name`, `meeting_id`, `member_email`, `user_id`, `role`, removal state, and timestamps for easier access inspection; `user_id` remains the authorization authority.
+- `meeting_invitations_with_meeting` exposes invitation rows with `meeting_name`, invite email fields, `invited_by_email`, `accepted_by_email`, role/status, and lifecycle timestamps.
 - `meeting_settings_with_meeting`, `strategic_topics_with_meeting`, and `tactical_sessions_with_meeting` expose compact meeting-name context for high-value structured tables that administrators are likely to inspect.
-- These are read-only inspection views over existing tables. They do not add columns, duplicate storage, runtime read/write paths, RLS policies, or audit/change-event storage.
+- These are read-only inspection views over existing tables. They do not add columns, duplicate storage, runtime read/write paths, RLS policies, source-of-truth user metadata in `meeting_members`, or audit/change-event storage.
+- Email display fields in these views are for Supabase inspection only and must not be used for access checks.

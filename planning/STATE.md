@@ -7,7 +7,7 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate plus autosave only the narrow `meeting_settings` structured pilot after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: Phase 3 **Shared Meeting Access Foundation** PR 1C admin-readability cleanup is implemented as Supabase inspection views plus documentation updates. This slice adds meeting-name context for selected Supabase tables and records the audit/change-attribution posture while keeping runtime app behavior, dashboard behavior, authentication, RLS behavior, meeting access permissions, autosave, Local Mode, audit logging, and change-tracking infrastructure unchanged.
+- Current focus: Phase 3 **Shared Meeting Access Foundation** admin-readability cleanup is implemented as Supabase inspection views plus documentation updates. This slice adds meeting-name and auth email display context for selected Supabase tables while keeping `user_id` as the authorization authority and keeping runtime app behavior, dashboard behavior, authentication flow, RLS policies, meeting access permissions, autosave, Local Mode, audit logging, source-of-truth membership columns, and change-tracking infrastructure unchanged.
 - Current branch note: Phase 3 work targets `phase-3-shared-access`. This local checkout is named `work` and is based on merge commit `cac3380` (`Merge pull request #74 from NaNo8831/phase-2-cloud`); no git remote is configured in this container.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
 
@@ -63,7 +63,7 @@
 
 ## Next Actions
 
-- Review and apply **PR 1C — Supabase Admin Readability + Attribution Documentation Cleanup** from `phase-3-shared-access`: migration `20260604100000_add_admin_readability_views.sql` adds read-only inspection views while preserving runtime behavior and existing access policies.
+- Review and apply the Supabase admin-readability cleanup from `phase-3-shared-access`: migrations `20260604100000_add_admin_readability_views.sql` and `20260604110000_add_user_metadata_to_admin_readability_views.sql` add read-only inspection views with meeting-name and auth email display context while preserving runtime behavior and existing access policies.
 - Next recommended action: **PR 2 — Shared Dashboard Access** should add dashboard visibility/entry for meetings shared through active membership without adding invite/member-management UI beyond its scope.
 - Use the planning files as the source of truth before future changes.
 - Validate the `meeting_settings` hydrate/autosave pilot and its separate Manual Save backup signaling on a Supabase-configured Phase 2 preview.

@@ -122,8 +122,10 @@ The first Team Beta may expose only Owner and Editor behavior in UI. Viewer can 
 
 ### Admin readability views
 - Admin readability views join selected meeting-scoped tables to `meetings.name` for easier Supabase inspection.
-- These views do not grant new meeting access, change dashboard visibility, alter authentication, modify meeting membership permissions, or change any RLS policy.
-- The views use invoker security so inspection follows the underlying table privileges/RLS posture instead of creating a new runtime access path.
+- Membership and invitation readability views also expose `auth.users.email` as display metadata because the current migrations do not define a public profile/user metadata table.
+- `user_id` remains the authorization authority. Email display fields such as `member_email`, `invited_by_email`, and `accepted_by_email` are inspection-only and must not be used for access checks.
+- These views do not grant new meeting access, change dashboard visibility, alter authentication, modify meeting membership permissions, add stored name/email columns to `meeting_members`, or change any RLS policy.
+- The views use invoker security so inspection follows the underlying table privileges/RLS posture instead of creating a new runtime access path or broadening access to auth user data.
 
 ### Audit and attribution posture
 - Detailed audit logging and per-user edit attribution are deferred. Do not add audit tables, edit history, activity feeds, or per-field attribution unless a future product decision explicitly prioritizes them.
