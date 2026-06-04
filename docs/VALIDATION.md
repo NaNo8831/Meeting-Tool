@@ -50,6 +50,8 @@ Validation performed for `20260603090000_align_shared_access_schema.sql`:
 - `/dashboard` now loads cloud meeting cards through `listDashboardMeetings`, which reuses the existing `meetings` query and Supabase RLS instead of adding migrations, RLS changes, auth changes, Local Mode changes, invite UI, member-management UI, Viewer UX, autosave expansion, or realtime collaboration.
 - `DashboardMeeting` classifies visible rows as owned when `owner_id` matches the signed-in user and shared otherwise; shared role lookup remains intentionally minimal because `meeting_members` is access-management data.
 - Dashboard duplicate, archive, restore, and soft-delete controls are gated by `canManageMeetingLifecycle`, which is true only for owned meetings; shared meetings returned by RLS remain Open-only until PR 2B renders the final Shared with Me section.
+- Duplicate inserts use an owner-only source guard, an explicit client-side meeting id, `return=minimal`, and a follow-up owner-visible fetch so insert success is not coupled to PostgREST representation reads under membership-aware RLS.
+- Archived soft-delete filters by owner and uses `return=minimal` because the updated row is intentionally excluded by the dashboard select policy once `deleted_at` is set.
 - Owner account, shared/editor account, and non-member checks should be repeated on a Supabase-configured preview because local CI does not exercise deployed RLS.
 
 ### Explicit non-goals for validation

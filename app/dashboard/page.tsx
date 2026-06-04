@@ -328,6 +328,7 @@ export default function DashboardPage() {
       await supabaseMeetingClient.softDeleteArchivedWorkspace({
         accessToken: session.accessToken,
         workspaceId: meeting.id,
+        ownerId: session.user.id,
       });
 
       setMeetings((currentMeetings) =>
