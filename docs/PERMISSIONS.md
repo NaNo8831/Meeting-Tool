@@ -119,6 +119,11 @@ PR 1B adds the membership-aware RLS foundation. It does not add dashboard sharin
 
 The first Team Beta may expose only Owner and Editor behavior in UI. Viewer can read at the database policy layer after PR 1B, but read-only workspace UX/enforcement remains deferred until Viewer is intentionally exposed.
 
+### Audit and attribution posture
+- Detailed audit logging and per-user edit attribution are deferred. Do not add audit tables, edit history, activity feeds, or per-field attribution unless a future product decision explicitly prioritizes them.
+- Lightweight `updated_at` remains useful for freshness, ordering, and operational debugging. Future `updated_by` may be considered only on major structured tables if it becomes valuable during structured autosave expansion; it is not part of PR 1B.
+- The current safety model relies on database access control, owner-only access management, meeting lifecycle state, read-only past/ended meetings, and backup/manual-save protection rather than attribution-heavy collaboration features.
+
 ### Deferred ownership models
 - Keep one active owner authority for the initial rollout.
 - Add explicit ownership transfer later.

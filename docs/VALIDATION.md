@@ -57,4 +57,6 @@ Validation performed for `20260604090000_add_membership_rls_foundation.sql`:
 - Access-management tables covered by owner-only management policies are `meeting_members` and `meeting_invitations`; editors and viewers cannot manage members or invitations.
 - The repository migrations do not currently create `strategic_topic_notes`, so PR 1B intentionally does not invent that table or add policies for it.
 - No dashboard sharing UI, invite UI, member-management UI, ownership transfer, multiple owners, Viewer UI/read-only enforcement, autosave expansion, realtime collaboration, Local Mode removal, or `meetings.meeting_data` rewrite is included.
-- Full validation still requires a Supabase-linked preview or database environment to apply the migration and run the manual owner/editor/viewer/removed-member/pending-invite/non-member matrix.
+- PR #77 manual validation passed for owner access, editor direct-URL access to the shared cloud meeting, removed-member blocking, pending invitations not granting access, and shared dashboard visibility remaining deferred to PR 2.
+- Documentation now records the decision to defer detailed audit logging and per-user edit attribution.
+- Full migration application and broader role-matrix validation should still be repeated in a Supabase-linked preview before deployed-environment merge when practical.
