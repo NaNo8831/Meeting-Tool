@@ -1,6 +1,7 @@
 # Architecture
 
 ## Current Stable Architecture
+
 - Next.js + TypeScript + Tailwind app deployed on Vercel.
 - Local Workspace remains browser `localStorage` based.
 - Cloud Meeting full-workspace persistence uses manual save/load to `meetings.meeting_data` JSONB.
@@ -11,16 +12,20 @@
 - Tactical session history capture is available as an archival flow via `tactical_sessions` + `snapshot_json`, separate from runtime operational persistence.
 
 ## Persistence Direction Decision
+
 Stop treating full-workspace JSONB autosave as the long-term architecture.
 
 Reason:
+
 - It is operationally fragile (change detection, race conditions, and large write payloads).
 - It is a poor foundation for members, permissions, and realtime collaboration.
 
 New direction:
+
 - Structured persistence by section/item, with incremental rollout and strict backward safety via `meeting_data` backup.
 
 ## Manual Save During Autosave Migration
+
 - Manual Save remains visible, available, and required during the structured autosave migration.
 - PR #72 autosaves only `meeting_settings`; it does **not** autosave objectives, tasks, agenda items, Strategic Topics, meeting notes, Standard Operating Objectives, Defining Objectives, or other operational runtime state.
 - Manual Save writes the full workspace backup to `meetings.meeting_data` and remains the cloud safety net until structured autosave reliably covers all important meeting data.
@@ -28,13 +33,16 @@ New direction:
 - Once structured autosave handles the core operational workspace reliably, evaluate retiring Manual Save from the primary workflow or moving it into a secondary backup/export utility role. Do not remove or demote Manual Save in PR #72.
 
 ## Local Workspace Support and Future Evaluation
+
 - Local Workspace remains supported and browser-only during the current cloud persistence and shared-access stabilization work.
 - Local Workspace must not autosave to cloud. Do not remove it in Phase 2.5; it remains a fallback path while structured cloud persistence and shared access are being stabilized.
 - After structured cloud autosave protects all valuable meeting data and Phase 3 shared meeting access is stable, evaluate retiring Local Workspace or demoting it to a developer/testing-only mode.
 - Maintaining local and cloud as parallel meeting systems creates code duplication, testing burden, and user confusion. The product's team value depends on shared cloud meeting access, which Local Workspace cannot provide, but that transition is a future decision rather than Phase 2.5 scope.
 
 ## Target Persistence Architecture
+
 ### Data ownership layers
+
 1. **Meeting container layer** (`meetings`)
 2. **Membership/authorization layer** (`meeting_members`)
 3. **Domain section/item layer** (`objectives`, `tasks`, `strategic_topics`, etc.)
@@ -42,6 +50,7 @@ New direction:
 5. **Safety snapshot layer** (`meetings.meeting_data` backup/export format)
 
 ### Recommended PR sequence (structured persistence)
+
 1. **Planning + schema design PRs (docs only).**
 2. **Table introduction PR(s) (non-breaking, no app read switch).**
 3. **Scoped write-path PRs by feature area** (`meeting_settings` is the first narrow pilot; later surfaces remain separate).
@@ -50,6 +59,7 @@ New direction:
 6. **Permissions + member expansion PRs** after structured model is stable.
 
 ## Guardrails During Migration
+
 - Do not break manual Save/Load behavior.
 - Do not break export/import backup behavior.
 - Do not remove `meeting_data` yet.
@@ -60,27 +70,31 @@ New direction:
 - Keep `meetings.name` as the cloud container/dashboard name and `meeting_settings.dashboard_title` as the distinct in-workspace/playbook title; they may initially match but should not be collapsed during this pilot.
 - Report settings autosave status separately from the Manual Save full-workspace backup state so non-pilot edits are never presented as autosaved.
 
-
 ## Dashboard Shared Access Planning Context
+
 - Current `/dashboard` meeting listing is a client-side dashboard flow backed by `listDashboardMeetings` in `app/lib/dashboardMeetings.ts`; the helper delegates visible-row loading to `supabaseMeetingClient.listWorkspaces`, so database RLS determines which non-deleted `meetings` rows are returned.
 - The dashboard-facing access/listing abstraction maps each visible row to a `DashboardMeeting`, classifies ownership with `meeting.owner_id === auth.user.id`, treats non-owned visible rows as shared, and centralizes `canManageMeetingLifecycle` so duplicate/archive/restore/soft-delete remain owner-only dashboard actions.
-- The target PR 2B dashboard shape is separate `Owned by Me` and `Shared with Me` sections, search across both sections, alphabetical sorting within each section, no counts yet, and owner-only dashboard lifecycle actions withheld from shared-editor cards.
+- PR 2B renders `Cloud Meetings` with separate `Owned by Me` and `Shared with Me` sections. Search applies once across both sections, the existing Show Archived toggle filters both owned and shared archived rows, and each section sorts alphabetically by meeting name after filtering.
+- Shared meeting cards display the meeting name plus `Owner: <display name>` and expose only Open. Owner display uses existing meeting metadata display-name/email fields when present, the current user email for owned rows, and `Owner` as the fallback because there is no public profile table in the current runtime model.
+- Invite workflow and access management remain deferred to PR 3; PR 2B does not add migrations, RLS policy changes, auth changes, Local Mode changes, member management, ownership transfer, Viewer UX, autosave changes, or realtime collaboration.
 - `/meeting/[id]` should continue to rely on signed-in Supabase requests and membership-aware RLS for route access; PR 2 should not change auth, RLS, migrations, Viewer read-only UX, invite/member management, autosave scope, or Local Mode.
 
-
 ## Supabase Admin Readability Views
+
 - Supabase administrative inspection may use read-only views that join meeting-scoped rows to `meetings.name` so operators can identify the relevant meeting without manual ID lookup.
 - These views are inspection helpers only: they add no duplicate storage, no runtime application behavior, no dashboard behavior, no authentication behavior, no meeting access behavior, no autosave behavior, and no audit/change-tracking behavior.
 - Admin readability views should stay selective. Add them only where `meeting_name` materially improves database inspection for high-value meeting-scoped tables, not for every table.
 - Views should use `security_invoker` so they do not intentionally bypass the underlying table permissions or change RLS semantics.
 
 ## Strategic Topic lifecycle (current runtime behavior)
+
 - Lifecycle state is managed in existing Strategic Topic runtime items with `active`, `completed`, and `archived`.
 - Archive behavior is confirmation-gated and non-destructive; it does not hard delete topic rows/items.
 - Topic-attached Notes remain queryable via `strategic_topic_notes` because topic identity is preserved.
 - No realtime/collaborative editing was introduced in this lifecycle slice.
 
 ## Phase 3 Shared Meeting Access Direction (Planned)
+
 Phase 3 starts from the stable Phase 2 Single-User Cloud Beta and adds shared meeting access without changing the lightweight meeting model. The implementation sequence is intentionally incremental:
 
 1. **PR 1A — Shared Access Schema Alignment**: align membership roles and add pending-invite storage.
@@ -91,6 +105,7 @@ Phase 3 starts from the stable Phase 2 Single-User Cloud Beta and adds shared me
 6. **PR 5+ — Structured Autosave Expansion**: continue structured persistence one surface at a time after shared access is stable.
 
 ### Shared-access boundaries
+
 - Pending invites must support invited people who do not have an `auth.users` row yet.
 - The durable role direction is `owner`, `editor`, `viewer`; Team Beta may expose only Owner and Editor behavior first, with everyone who has access able to edit.
 - Last Save Wins is acceptable for Team Beta. Realtime collaboration, presence, cursors, websockets, CRDTs, custom conflict resolution, detailed audit logging, per-field edit history, activity feeds, and attribution-heavy collaboration features are out of scope.
@@ -99,10 +114,12 @@ Phase 3 starts from the stable Phase 2 Single-User Cloud Beta and adds shared me
 - Local Mode remains a browser-only fallback. Do not expand or remove it in the Phase 3 foundation PRs; evaluate hiding or demotion later.
 
 ### Audit and attribution posture
+
 - Detailed audit logging and per-user edit attribution are deferred. Do not add audit tables, edit history, activity feeds, or per-field attribution unless a future product decision explicitly prioritizes them.
 - The product prioritizes current meeting state, simple shared access, owner control, meeting lifecycle protection, read-only protection for ended/past meetings, and backup/manual-save protection.
 - Teams are expected to be small, most meetings will have only one or two editors, and most members are usually present in the same in-person meeting; detailed “who changed this?” logging is therefore lower priority than reliable current-state persistence and access protection.
 - Lightweight `updated_at` timestamps remain useful for freshness and ordering. Future `updated_by` may be considered only on major structured tables if it becomes valuable during structured autosave expansion; it is not part of PR 1B.
 
 ### Current-to-target authorization transition
+
 The database currently has an owner-only `meetings.owner_id` authority path and owner-check RLS for structured tables. `meeting_members` exists, but its current constraint uses `owner`, `admin`, and `member`, and its rows do not grant runtime access. Phase 3 must align this schema explicitly to the planned `owner`, `editor`, and `viewer` model before membership-based RLS is enabled. Do not silently reinterpret existing role strings in client code.
