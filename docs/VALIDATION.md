@@ -369,3 +369,50 @@ Manual validation should cover:
 - Local Mode, Manual Save, Strategic Topics autosave, Topic Notes backup/import, Agenda Items, and Decisions/Actions remain unchanged.
 
 Remaining before-main autosave dependencies: Defining Objectives, Tasks, and Standard Operating Objectives are intentionally deferred to PR 4D. Agenda/Decision structured schema and workflow redesign remain deferred.
+
+## Phase 4 PR 4D Objectives / Tasks / SOOs Autosave Review Validation
+
+This PR is documentation/review only.
+
+Document validation:
+
+- Confirm the diff is limited to `planning/` and `docs/`.
+- Confirm there are no `app/` code changes.
+- Confirm there are no `supabase/migrations/` changes.
+- Confirm there are no runtime behavior, RLS, Local Mode, Manual Save, or UI redesign changes.
+
+Future implementation validation:
+
+Owner:
+
+- Edit Top Priority / Thematic Goal if applicable and confirm it remains settings/playbook state, not Defining Objective storage.
+- Create, edit, reorder, complete, color, and delete Defining Objectives.
+- Create, edit, complete, and delete Tasks.
+- Edit Task details: rich description, assignee, due date, subtasks, comments, and activity history.
+- Create, edit, reorder, recolor, and delete Standard Operating Objectives.
+- Refresh the same browser and confirm DO/task/SOO changes persist.
+- Open a private window/new browser as owner and confirm DO/task/SOO state hydrates from cloud.
+- Manual Save, export, import, and confirm DO/task/SOO state and nested Task details survive.
+
+Editor:
+
+- Edit DOs, Tasks, nested Task details, and SOOs.
+- Refresh and confirm edits persist.
+- Confirm owner sees editor changes after refresh/load.
+- Open a private window/new browser and confirm cloud-hydrated state.
+
+Security:
+
+- Confirm a non-member cannot open the meeting or directly select/mutate DO/task/SOO rows.
+- Confirm a removed editor loses access after refresh/reload and cannot directly select/mutate DO/task/SOO rows.
+
+Regression:
+
+- Confirm `meeting_settings` autosave still works.
+- Confirm Strategic Topics autosave still works.
+- Confirm Topic Notes autosave still works.
+- Confirm Strategic Topic ordering autosave still works.
+- Confirm Meeting Notes autosave still works.
+- Confirm Cascading Communications autosave still works.
+- Confirm Local Mode remains browser-only.
+- Confirm Manual Save remains the full workspace backup.

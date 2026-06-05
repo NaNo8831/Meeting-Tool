@@ -110,3 +110,12 @@
 - Manual Save/export/import compatibility must remain intact through `leadership-meetings`, `leadership-active-meeting-id`, and `meetings.meeting_data` while structured autosave expands.
 - Last Save Wins remains the conflict model; realtime, merge, presence, and locking stay deferred.
 
+
+## Phase 4 PR 4D Objectives / Tasks / SOOs Autosave Review Decisions
+
+- Recommendation: implement Defining Objectives, embedded Tasks, and Standard Operating Objectives in one structured autosave slice before main/team beta.
+- Defining Objectives remain distinct from Standard Operating Objectives: DOs are temporary qualitative components of the Top Priority / Thematic Goal, while SOOs are ongoing operating priorities.
+- Tasks should use the existing `tasks` table as separate task rows linked to Defining Objectives; do not embed all tasks in an objective JSONB field for the PR 4D implementation.
+- Standard Operating Objectives should use `standard_operating_objectives`; do not collapse SOOs into the Defining Objectives table.
+- Existing `objectives`, `tasks`, and `standard_operating_objectives` foundation tables require schema reconciliation before runtime use, especially numeric client IDs, order, rich descriptions, color/status fields, and nested task detail compatibility.
+- Keep Last Save Wins for this autosave slice and defer realtime, merge, presence, locking, and conflict-resolution behavior.

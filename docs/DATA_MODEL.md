@@ -370,3 +370,44 @@ PR 4B also uses `strategic_topics` and `strategic_topic_notes` for live Strategi
 The runtime `MeetingRecord.id` is preserved as `client_meeting_id` so backup/import and localStorage identity remain stable across cloud upserts. `cascadeItems` are stored in `cascade_items` as part of the first-class PR 4C autosave scope. `agendaItems`, `topicItems`, and `decisionItems` are preserved in `notes_json` only to maintain existing `MeetingRecord` compatibility; this pass-through does not make Agenda Items or Decisions/Actions first-class structured autosave surfaces. Agenda/Decision structured schema and workflow redesign remain deferred until their product design is decided.
 
 `meetings.meeting_data` continues to store the full backup object for Manual Save/export/import. Existing Cloud Meetings without `meeting_notes` rows fall back to `meeting_data` during load.
+
+## Phase 4 PR 4D Objectives / Tasks / SOOs Autosave Data Model Review
+
+This review is documentation-only and does not add migrations.
+
+### Current runtime and backup keys
+
+- Defining Objectives use `leadership-objectives` and are stored as an `Objective[]`.
+- Tasks are embedded under each Defining Objective as `Objective.tasks` and are therefore backed up inside `leadership-objectives`.
+- Standard Operating Objectives use `leadership-standard-operating-objectives` and are stored as a separate `StandardOperatingObjective[]`.
+- Manual Save/export/import must continue to preserve both keys while structured autosave expands.
+
+### Current shapes
+
+`Objective` currently contains numeric `id`, `title`, rich `description`, `status`, `priority`, `dueDate`, `color`, and embedded `tasks`.
+
+`Task` currently contains numeric `id`, `title`, rich `description`, `dueDate`, `assignedTo`, `status`, `subtasks`, `comments`, and `activityHistory`. Task completion is represented by `status === 'completed'`; task order is array order under the parent objective.
+
+`StandardOperatingObjective` currently contains numeric `id`, `title`, rich `description`, and optional `color`. SOO order is array order, and there is no active runtime SOO status or separate notes field.
+
+### Existing table findings
+
+- `public.objectives` exists but is not active runtime storage for Defining Objectives.
+- `public.tasks` exists but is not active runtime storage for Tasks.
+- `public.standard_operating_objectives` exists but is not active runtime storage for SOOs.
+- These tables are covered by membership-aware RLS policies, but runtime client methods and hydration/autosave paths are not wired.
+- The foundation tables need schema reconciliation before implementation because current app identity is numeric client IDs and current descriptions are rich-text compatible values.
+
+### Recommended schema direction
+
+- Use `public.objectives` for Defining Objectives and add/confirm client identity with `client_objective_id` plus a unique meeting/client key.
+- Use `public.tasks` for Tasks instead of embedding all tasks in an objective JSONB column. Keep a UUID objective relationship and client-ID compatibility for import/hydration.
+- Use `public.standard_operating_objectives` for SOOs instead of sharing the Defining Objectives table.
+- Preserve order through `sort_order` on objectives, tasks, and SOOs.
+- Preserve color/status fields as explicit columns where the current UI depends on them, or document any metadata fallback before implementation.
+- Preserve rich descriptions with explicit JSON/text columns or a clearly documented `metadata_json` shape.
+- Keep nested task subtasks, comments, and activity history as JSONB for the first implementation unless a later product decision requires first-class nested tables.
+
+### Import and fallback direction
+
+Future cloud import should restore backup-compatible local state and then upsert/replace structured DO/task/SOO rows from the restored backup for authenticated valid Cloud Meeting routes. Existing Cloud Meetings should fall back to `meetings.meeting_data.localStorage` and scoped localStorage when structured rows are absent.

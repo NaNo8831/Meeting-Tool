@@ -258,3 +258,16 @@ Cloud Meeting routes now keep the existing localStorage/browser runtime model an
 - Backup import into a Cloud Meeting applies the backup to local state and upserts restored Meeting Notes rows into `meeting_notes` so a later refresh/new browser can see Meeting Notes and Cascading Communications without relying on Manual Save alone.
 - Agenda Items and Decisions/Actions are not redesigned and are not split into first-class tables in this slice; they are only carried through as compatibility JSON inside the Meeting Notes row because the current runtime stores them in the same `MeetingRecord`.
 - The concurrency model remains Last Save Wins. Realtime collaboration, merge/conflict UX, Viewer UI, Local Mode changes, and Manual Save demotion remain out of scope.
+
+## Phase 4 PR 4D Objectives / Tasks / SOOs Autosave Architecture Review
+
+This review does not change runtime behavior. It records the target architecture for the next autosave implementation slice.
+
+- Defining Objectives currently remain runtime workspace state under `leadership-objectives`; Tasks are embedded in that same objective tree.
+- Standard Operating Objectives currently remain separate runtime workspace state under `leadership-standard-operating-objectives`.
+- The recommended structured autosave slice is Defining Objectives + Tasks + SOOs together because Tasks are operationally inseparable from Defining Objectives today, and SOOs are a before-main critical surface in the same leadership-review workflow.
+- Future cloud hydration should continue the established order: load `meetings.meeting_data` / scoped local workspace fallback first, then overlay active structured rows when present.
+- Future autosave should run only for authenticated valid Cloud Meeting routes after route bootstrap, preserve backup-compatible React/localStorage state, and leave `/meeting/local` browser-only.
+- `meeting_settings` remains the settings/playbook table and should not absorb DOs, Tasks, or SOOs.
+- `meeting_notes` remains the dated Meeting Notes / Cascading Communications table and should not absorb DOs, Tasks, or SOOs.
+- Manual Save remains the full workspace backup/export safety net during and after this implementation slice.
