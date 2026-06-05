@@ -211,3 +211,12 @@ Current cloud persistence has three separate layers:
 Tactical History is a fourth explicit persistence path: End Meeting inserts a `tactical_sessions` snapshot, but it is archival and does not continuously save or restore the active workspace.
 
 Do not treat objectives/DOs, tasks, SOOs, Strategic Topics list/lifecycle, Agenda Items, Decisions/Actions, Cascading Communications, meeting date records, or active meeting id as structured-autosaved surfaces until follow-up implementation PRs add explicit load/save paths and validation. Manual Save remains visible and required as the full-workspace safety net.
+
+
+## Phase 4 Strategic Topics Autosave Target
+
+- Strategic Topics are the recommended first non-settings structured autosave expansion because they are persistent cross-meeting leadership work and currently depend on browser localStorage plus Manual Save backup for the list/lifecycle.
+- Reuse `strategic_topics` as the active structured table for topic title/text, lifecycle state, completion/archive timestamps, captured meeting/date context, legacy client-ID mapping, and `sort_order`.
+- Topic Notes need schema reconciliation before implementation: current app code calls `strategic_topic_notes`, but reviewed migrations create `strategic_session_notes` and `strategic_topics.notes`, not `strategic_topic_notes`.
+- `strategic_sessions` and `strategic_session_notes` should remain session/history tables rather than being repurposed for persistent topic-attached notes.
+- The recommended implementation path is schema reconciliation, structured topic/note writes, structured hydration with `meeting_data` fallback, and a dual-write period where Manual Save/export backup remain intact.

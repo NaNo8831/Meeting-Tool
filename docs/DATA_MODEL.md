@@ -315,3 +315,11 @@ The currently active structured autosave payload is `meeting_settings` only:
 The repository already has structured tables for several future persistence slices (`objectives`, `tasks`, `standard_operating_objectives`, `strategic_topics`, `tactical_sessions`, `tactical_items`, `strategic_sessions`, and `strategic_session_notes`), but current runtime autosave does not use those tables for live objectives, tasks, SOOs, Strategic Topics list/lifecycle, meeting notes, agenda, decisions, cascading communications, or active meeting selection.
 
 `strategic_topic_notes` is referenced by the current client for topic-attached notes, but the reviewed repository migrations do not create that table or RLS policies. Treat topic notes as a schema-reconciliation prerequisite before expanding Strategic Topic autosave.
+
+
+## Phase 4 Strategic Topics Autosave Data Model Recommendation
+
+- Current runtime Strategic Topics are `MeetingItem[]` records keyed by numeric client IDs and stored under `leadership-strategic-topic-items`; Manual Save includes this array in `meetings.meeting_data`.
+- `public.strategic_topics` should become the active structured autosave table for Strategic Topic rows, using `title`, `status`, `archived_at`, `completed_at`, `sort_order`, and `metadata_json` for current captured-date/meeting context and legacy client-ID compatibility.
+- Current Topic Notes are rich text records loaded/saved separately through app calls to `strategic_topic_notes` by `meeting_id` plus numeric `strategic_topic_item_id`; they are not included in Manual Save/export backup.
+- Reviewed migrations do not create `strategic_topic_notes`; `strategic_session_notes` is session-scoped and should not be reused for persistent topic-attached notes. A future migration should formalize topic notes before autosave relies on them.

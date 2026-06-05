@@ -78,3 +78,11 @@
 - Objectives/DOs, tasks, SOOs, Strategic Topics list/lifecycle, meeting date records, Agenda Items, Decisions/Actions, and Cascading Communications must not be described as cloud-autosaved until implementation PRs add explicit structured persistence for them.
 - Owners and active editors may continue writing `meetings.meeting_data` through Manual Save while structured autosave is incomplete; this is an accepted temporary Team Beta safety net with Last Save Wins risk.
 - Strategic Topic notes require schema reconciliation before they are treated as a reliable structured autosave foundation because the reviewed repo migrations do not create `strategic_topic_notes`.
+
+
+## Phase 4 PR 4B Strategic Topics Autosave Scope Recommendation
+
+- Recommended first Strategic Topic autosave implementation scope is Strategic Topics + Topic Notes + Ordering, not topics-only, and only after repository schema reconciliation for the topic-notes table.
+- Reuse `public.strategic_topics` as the active autosave table for topic title/text, lifecycle, timestamps, captured context, and `sort_order`; do not repurpose `strategic_sessions` or `strategic_session_notes` for persistent topic-attached notes.
+- Continue Last Save Wins for PR 4B structured topic/note writes; realtime merge, presence, and richer conflict handling remain deferred.
+- Preserve Manual Save, Local Mode, export/import backup, and `meetings.meeting_data` fallback through a dual-write/read-migration period.

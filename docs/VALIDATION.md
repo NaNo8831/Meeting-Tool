@@ -279,3 +279,23 @@ Recommended validation for the next implementation PRs:
 - Session-expiry testing confirms structured autosave failures and Manual Save failures surface clearly while browser-local data remains available in the same browser.
 - Import/restore still applies only to the current browser view until Manual Save writes the backup to `meetings.meeting_data`.
 - Direct REST/RPC negative tests continue to confirm editors cannot mutate owner-only meeting container/lifecycle fields.
+
+
+## Phase 4 PR 4B Strategic Topics Autosave Review Validation
+
+This PR is documentation/review only.
+
+Automated/document validation:
+
+- Confirm the diff is limited to `planning/` and `docs/`.
+- Confirm no `app/` code changes.
+- Confirm no `supabase/migrations/` changes.
+- Confirm no schema, RLS, authentication, Local Mode, Manual Save, autosave implementation, UI, or runtime behavior changes.
+
+Recommended validation for a future implementation PR:
+
+- Owner can create, edit, complete, restore, archive, unarchive, and order Strategic Topics, then refresh and see structured cloud data without Manual Save.
+- Owner can edit Topic Notes, refresh, and open a new browser/profile with notes intact.
+- Editor can edit Strategic Topics and Topic Notes, refresh, and open a new browser/profile with changes intact.
+- Non-member and pending invitee cannot access topic/note rows; removed editor loses access after refresh/reload.
+- Manual Save still backs up the full workspace, and Local Mode remains browser-only.
