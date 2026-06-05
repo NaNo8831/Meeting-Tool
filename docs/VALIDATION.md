@@ -160,3 +160,39 @@ Manual validation:
 - Owner can still invite a user, the invitee sees and accepts the pending invite, and the meeting appears under `Shared with Me`.
 - Shared editor cannot access invite controls or manage another owner's meeting lifecycle/access.
 - The pending-invitations dashboard section is hidden when the signed-in user has no pending invitations and shown only while loading or when invitations exist.
+
+## Phase 3 PR 3C Member Management Validation Plan
+
+Use this plan when the member-management implementation PR is created.
+
+### Owner validation
+
+- Owner sees an Owner row and active Editor rows in the Access panel.
+- Owner can remove an active editor.
+- Owner cannot remove themselves.
+- Owner sees dashboard `Members: #` update after removal/refresh.
+- Owner can re-invite a removed editor through the normal invite flow.
+- Removed editor regains shared access only after accepting the new pending invitation.
+
+### Editor validation
+
+- Editor sees the active member list with Owner and Editor labels.
+- Editor does not see member-removal controls.
+- Editor cannot remove members by calling the removal API directly.
+- Editor can view Tactical History.
+- Editor loses meeting access after owner removal and refresh/reload.
+
+### Non-member validation
+
+- Non-member cannot open the meeting.
+- Non-member cannot list members.
+- Non-member cannot remove members.
+- Non-member cannot view pending invitations for the meeting.
+
+### Dashboard validation
+
+- Member count includes the owner plus active editors.
+- Member count excludes pending invitations.
+- Member count excludes removed members.
+- Member count excludes viewers.
+- Removed editor no longer sees the meeting under `Shared with Me` after refresh/reload.
