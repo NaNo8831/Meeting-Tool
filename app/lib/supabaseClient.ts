@@ -650,43 +650,6 @@ export const supabaseFeedbackClient = {
   },
 };
 
-const getBrowserUuid = () => {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-
-  throw new Error(
-    "A secure browser UUID generator is required for this action.",
-  );
-};
-
-const getMeetingById = async ({
-  accessToken,
-  workspaceId,
-  fallback,
-}: {
-  accessToken: string;
-  workspaceId: string;
-  fallback: string;
-}) => {
-  const response = await fetch(
-    `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(
-      workspaceId,
-    )}&select=*&deleted_at=is.null&limit=1`,
-    {
-      method: "GET",
-      headers: getSupabaseHeaders(accessToken),
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(await getRestErrorMessage(response, fallback));
-  }
-
-  const meetings = (await response.json()) as SupabaseMeeting[];
-  return meetings[0] ?? null;
-};
-
 export const supabaseMeetingClient = {
   async listWorkspaces(accessToken: string) {
     const response = await fetch(
@@ -769,24 +732,12 @@ export const supabaseMeetingClient = {
       );
     }
 
-    const workspaceId = getBrowserUuid();
-
-    const response = await fetch(getRestUrl("meetings"), {
+    const response = await fetch(getRestUrl("rpc/duplicate_owned_meeting"), {
       method: "POST",
-      headers: {
-        ...getSupabaseHeaders(accessToken),
-        Prefer: "return=minimal",
-      },
+      headers: getSupabaseHeaders(accessToken),
       body: JSON.stringify({
-        id: workspaceId,
-        owner_id: ownerId,
-        name:
-          duplicateName ??
-          (sourceMeeting.name.trim().endsWith("Copy")
-            ? `${sourceMeeting.name.trim()} 2`
-            : `${sourceMeeting.name.trim()} Copy`),
-        metadata_json: sourceMeeting.metadata_json,
-        meeting_data: sourceMeeting.meeting_data,
+        source_meeting_id: sourceMeeting.id,
+        duplicate_name: duplicateName,
       }),
     });
 
@@ -796,16 +747,7 @@ export const supabaseMeetingClient = {
       );
     }
 
-    const meeting = await getMeetingById({
-      accessToken,
-      workspaceId,
-      fallback: "Workspace duplicate fetch",
-    });
-    if (!meeting) {
-      throw new Error("Supabase did not return the duplicated meeting.");
-    }
-
-    return meeting;
+    return (await response.json()) as SupabaseMeeting;
   },
 
   async archiveWorkspace({
@@ -815,29 +757,17 @@ export const supabaseMeetingClient = {
     accessToken: string;
     workspaceId: string;
   }) {
-    const response = await fetch(
-      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}&deleted_at=is.null`,
-      {
-        method: "PATCH",
-        headers: {
-          ...getSupabaseHeaders(accessToken),
-          Prefer: "return=representation",
-        },
-        body: JSON.stringify({ archived_at: new Date().toISOString() }),
-      },
-    );
+    const response = await fetch(getRestUrl("rpc/archive_owned_meeting"), {
+      method: "POST",
+      headers: getSupabaseHeaders(accessToken),
+      body: JSON.stringify({ target_meeting_id: workspaceId }),
+    });
 
     if (!response.ok) {
       throw new Error(await getRestErrorMessage(response, "Workspace archive"));
     }
 
-    const meetings = (await response.json()) as SupabaseMeeting[];
-    const meeting = meetings[0];
-    if (!meeting) {
-      throw new Error("Cloud meeting was not found or is not accessible.");
-    }
-
-    return meeting;
+    return (await response.json()) as SupabaseMeeting;
   },
 
   async restoreArchivedWorkspace({
@@ -848,14 +778,11 @@ export const supabaseMeetingClient = {
     workspaceId: string;
   }) {
     const response = await fetch(
-      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}&archived_at=not.is.null&deleted_at=is.null`,
+      getRestUrl("rpc/restore_owned_archived_meeting"),
       {
-        method: "PATCH",
-        headers: {
-          ...getSupabaseHeaders(accessToken),
-          Prefer: "return=representation",
-        },
-        body: JSON.stringify({ archived_at: null }),
+        method: "POST",
+        headers: getSupabaseHeaders(accessToken),
+        body: JSON.stringify({ target_meeting_id: workspaceId }),
       },
     );
 
@@ -863,15 +790,7 @@ export const supabaseMeetingClient = {
       throw new Error(await getRestErrorMessage(response, "Workspace restore"));
     }
 
-    const meetings = (await response.json()) as SupabaseMeeting[];
-    const meeting = meetings[0];
-    if (!meeting) {
-      throw new Error(
-        "Only archived meetings can be restored, or this meeting is no longer accessible.",
-      );
-    }
-
-    return meeting;
+    return (await response.json()) as SupabaseMeeting;
   },
 
   async softDeleteArchivedWorkspace({

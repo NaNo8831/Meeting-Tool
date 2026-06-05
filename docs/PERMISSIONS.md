@@ -231,3 +231,11 @@ Phase 3 permission intent after PR 3D review:
 | Tactical History | Yes | Yes | Deferred | No | No | No |
 
 Hardening note: dashboard UI already hides owner-only lifecycle controls from shared/editor cards, and access-management RPCs are owner-guarded. The remaining closeout requirement is to ensure direct database/API updates cannot use the broad editor `meetings` update path to mutate owner-only lifecycle/container fields.
+
+## Phase 3 PR 3D Meeting Mutation Boundary
+
+- Owners can create, open, edit, Manual Save, duplicate owned meetings through the dashboard, archive owned meetings, restore owned archived meetings, soft-delete owned archived meetings, manage invitations, remove active editors, list members, and view Tactical History.
+- Editors can open shared meetings, edit meeting content, use Manual Save to update `meetings.meeting_data`, view the read-only member list, and view Tactical History.
+- Editors must not mutate meeting lifecycle/container fields. Direct REST/table attempts to change `meetings.name`, `owner_id`, `metadata_json`, `archived_at`, or `deleted_at` should fail through column privileges and the non-owner container-update trigger.
+- Owner-only lifecycle/container RPCs are `duplicate_owned_meeting(source_meeting_id, duplicate_name)`, `archive_owned_meeting(target_meeting_id)`, `restore_owned_archived_meeting(target_meeting_id)`, `soft_delete_owned_archived_meeting(target_meeting_id)`, and `rename_owned_meeting(target_meeting_id, meeting_name)`.
+- Non-members cannot open meetings, list members, view Tactical History, update `meeting_data`, or call owner-only lifecycle/access RPCs successfully.

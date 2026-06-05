@@ -288,3 +288,10 @@ Rules:
 - `meeting_invitations` preserves pending, accepted, and revoked history; pending rows do not grant access.
 - Member removal is soft removal through `meeting_members.removed_at`, preserving membership and invite history.
 - Dashboard member counts mean owner plus active editors; pending invites, removed members, and viewers are excluded for Phase 3.
+
+## Phase 3 PR 3D Meeting Lifecycle/Content Boundary
+
+- `meetings.meeting_data` remains the full-workspace Manual Save payload. Owners and active editors may update this field so shared meetings stay usable while structured autosave is incomplete.
+- `meetings.name`, `meetings.owner_id`, `meetings.metadata_json`, `meetings.archived_at`, and `meetings.deleted_at` are meeting container/lifecycle fields, not editor content fields.
+- Dashboard lifecycle state is owner-controlled: archive sets `archived_at`, restore clears `archived_at`, and archived soft-delete sets `deleted_at`. These mutations are performed through owner-only RPCs rather than editor-capable table updates.
+- `owner_id` remains immutable because ownership transfer is not implemented. Owner membership rows remain supportive access rows and do not replace `meetings.owner_id` as the owner authority.

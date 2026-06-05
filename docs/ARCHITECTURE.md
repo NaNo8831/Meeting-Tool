@@ -191,3 +191,11 @@ Current architecture confirmations:
 Hardening requirement before Phase 3 closeout:
 
 - Separate owner-only meeting lifecycle/container mutations from editor content/full-backup mutations at the database/API boundary. Editors need content editing and Manual Save while structured autosave remains incomplete, but direct archive, restore, soft-delete, duplicate-source lifecycle, and rename/title container mutations should remain owner-only beyond UI gating.
+
+## Phase 3 PR 3D Lifecycle Mutation Hardening Implementation
+
+- The broad editor-capable `meetings` update path existed to preserve Manual Save to `meetings.meeting_data` while structured autosave remains incomplete; it must not be used for lifecycle/container fields.
+- Direct REST updates to `public.meetings` are now narrowed to the `meeting_data` column for authenticated callers, with existing RLS still requiring owner/editor edit access and active, non-deleted meeting visibility.
+- A defense-in-depth trigger, `prevent_non_owner_meeting_container_update()`, rejects non-owner changes to `id`, `created_at`, `owner_id`, `name`, `metadata_json`, `archived_at`, and `deleted_at` even if table privileges are accidentally broadened later.
+- Owner-only lifecycle/container mutations use narrow RPCs: `duplicate_owned_meeting(source_meeting_id, duplicate_name)`, `archive_owned_meeting(target_meeting_id)`, `restore_owned_archived_meeting(target_meeting_id)`, `soft_delete_owned_archived_meeting(target_meeting_id)`, and `rename_owned_meeting(target_meeting_id, meeting_name)`.
+- The dashboard archive and restore actions call owner-only RPCs instead of broad `meetings` PATCH requests. Soft-delete already used an owner-only RPC. No autosave expansion, ownership transfer, Viewer UX, role editing, or Local Mode change is included.
