@@ -296,6 +296,9 @@ const mergeSavedStrategicTopicIds = (
   });
 };
 
+// Agenda Items and Decisions/Actions currently live inside the same
+// MeetingRecord as Meeting Notes. PR 4C carries them through notes_json only
+// for compatibility; they are not first-class structured autosave surfaces.
 const getMeetingNotePassThroughJson = (
   meeting: MeetingRecord,
 ): Record<string, unknown> => ({
@@ -928,8 +931,8 @@ export default function MeetingWorkspace() {
     ready: "Meeting Notes autosave ready",
     pending: "Meeting Notes autosave pending…",
     saving: "Saving Meeting Notes…",
-    saved: "Meeting Notes saved to cloud",
-    error: "Meeting Notes save failed",
+    saved: "Meeting Notes and Cascading Communications saved to cloud",
+    error: "Meeting Notes autosave failed",
   };
   const [cloudMeetingMessage, setCloudMeetingMessage] = useState("");
   const [hasUnsavedFullWorkspaceChanges, setHasUnsavedFullWorkspaceChanges] =
@@ -3576,6 +3579,9 @@ export default function MeetingWorkspace() {
                   {settingsAutosaveStatusLabel[settingsAutosaveStatus]}
                 </span>
                 <span className="font-semibold text-blue-700">
+                  {strategicTopicsAutosaveStatusLabel[strategicTopicsAutosaveStatus]}
+                </span>
+                <span className="font-semibold text-blue-700">
                   {meetingNotesAutosaveStatusLabel[meetingNotesAutosaveStatus]}
                 </span>
                 <span
@@ -3671,6 +3677,9 @@ export default function MeetingWorkspace() {
                 </p>
                 <p className="mt-1 text-xs font-semibold text-blue-700">
                   {strategicTopicsAutosaveStatusLabel[strategicTopicsAutosaveStatus]}
+                </p>
+                <p className="mt-1 text-xs font-semibold text-blue-700">
+                  {meetingNotesAutosaveStatusLabel[meetingNotesAutosaveStatus]}
                 </p>
                 <p className="mt-2 text-xs text-slate-500">{cloudMeetingMessage}</p>
                 <p className={`mt-2 text-xs font-semibold ${

@@ -367,6 +367,6 @@ PR 4B also uses `strategic_topics` and `strategic_topic_notes` for live Strategi
 - `created_at` / `updated_at`
 - unique constraint on `(meeting_id, client_meeting_id)`
 
-The runtime `MeetingRecord.id` is preserved as `client_meeting_id` so backup/import and localStorage identity remain stable across cloud upserts. `cascadeItems` are stored in `cascade_items`; `agendaItems`, `topicItems`, and `decisionItems` are preserved in `notes_json` only to maintain existing `MeetingRecord` compatibility. Agenda Items and Decisions/Actions remain deferred until their product redesign is decided.
+The runtime `MeetingRecord.id` is preserved as `client_meeting_id` so backup/import and localStorage identity remain stable across cloud upserts. `cascadeItems` are stored in `cascade_items` as part of the first-class PR 4C autosave scope. `agendaItems`, `topicItems`, and `decisionItems` are preserved in `notes_json` only to maintain existing `MeetingRecord` compatibility; this pass-through does not make Agenda Items or Decisions/Actions first-class structured autosave surfaces. Agenda/Decision structured schema and workflow redesign remain deferred until their product design is decided.
 
 `meetings.meeting_data` continues to store the full backup object for Manual Save/export/import. Existing Cloud Meetings without `meeting_notes` rows fall back to `meeting_data` during load.

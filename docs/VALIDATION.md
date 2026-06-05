@@ -364,6 +364,8 @@ Manual validation should cover:
 - Editor opens a shared meeting, edits Meeting Notes and Cascading Communications, refreshes, and confirms the owner sees the editor changes after refresh.
 - Non-member cannot open the meeting or read/write `meeting_notes` rows.
 - Removed editor loses access after refresh/reload.
+- First-class autosaved surfaces in PR 4C are limited to Meeting Notes and Cascading Communications.
+- Agenda Items and Decisions/Actions remain compatibility pass-through fields inside the current `MeetingRecord`/`notes_json` shape; their UI behavior is unchanged and they are not validated as first-class structured autosave surfaces.
 - Local Mode, Manual Save, Strategic Topics autosave, Topic Notes backup/import, Agenda Items, and Decisions/Actions remain unchanged.
 
-Remaining before-main autosave dependencies: Defining Objectives, Tasks, and Standard Operating Objectives are intentionally deferred to PR 4D.
+Remaining before-main autosave dependencies: Defining Objectives, Tasks, and Standard Operating Objectives are intentionally deferred to PR 4D. Agenda/Decision structured schema and workflow redesign remain deferred.

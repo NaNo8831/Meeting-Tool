@@ -170,5 +170,6 @@
 - Cloud Meeting load hydrates Meeting Notes and Cascading Communications from `meeting_notes` when rows exist, with `meetings.meeting_data` remaining the fallback for existing meetings.
 - Owner/editor changes to Meeting Notes records and Cascading Communications autosave with debounce and Last Save Wins. Manual Save remains the full-workspace backup path.
 - Backup export/import still includes `leadership-meetings` and `leadership-active-meeting-id`; cloud imports also upsert restored Meeting Notes rows into `meeting_notes` while preserving numeric client meeting IDs.
-- Agenda Items and Decisions/Actions remain pass-through compatibility JSON inside `notes_json`; their first-class redesign/autosave remains deferred.
+- Agenda Items and Decisions/Actions remain pass-through compatibility JSON inside `notes_json` because they currently live in the same `MeetingRecord`; their first-class structured schema and workflow redesign remain deferred.
+- Autosave status summaries now explicitly show Settings, Strategic Topics, and Meeting Notes/Cascading Communications statuses in cloud status clusters without adding a sticky header redesign.
 - Before `main`, Defining Objectives, Tasks, and SOOs remain the next required autosave dependencies for PR 4D.
