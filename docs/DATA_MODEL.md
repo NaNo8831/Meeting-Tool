@@ -295,3 +295,23 @@ Rules:
 - `meetings.name`, `meetings.owner_id`, `meetings.metadata_json`, `meetings.archived_at`, and `meetings.deleted_at` are meeting container/lifecycle fields, not editor content fields.
 - Dashboard lifecycle state is owner-controlled: archive sets `archived_at`, restore clears `archived_at`, and archived soft-delete sets `deleted_at`. These mutations are performed through owner-only RPCs rather than editor-capable table updates.
 - `owner_id` remains immutable because ownership transfer is not implemented. Owner membership rows remain supportive access rows and do not replace `meetings.owner_id` as the owner authority.
+
+## Phase 4 PR 4A Autosave Data Model Clarification
+
+`meetings.meeting_data` stores the full workspace backup object used by Manual Save and Local Workspace migration:
+
+- `app`
+- `backupVersion`
+- `exportedAt`
+- `localStorage`, containing validated `leadership-*` workspace keys
+
+The currently active structured autosave payload is `meeting_settings` only:
+
+- `dashboard_title`
+- `organization_info`
+- `meeting_section_order`
+- `setup_completed`
+
+The repository already has structured tables for several future persistence slices (`objectives`, `tasks`, `standard_operating_objectives`, `strategic_topics`, `tactical_sessions`, `tactical_items`, `strategic_sessions`, and `strategic_session_notes`), but current runtime autosave does not use those tables for live objectives, tasks, SOOs, Strategic Topics list/lifecycle, meeting notes, agenda, decisions, cascading communications, or active meeting selection.
+
+`strategic_topic_notes` is referenced by the current client for topic-attached notes, but the reviewed repository migrations do not create that table or RLS policies. Treat topic notes as a schema-reconciliation prerequisite before expanding Strategic Topic autosave.

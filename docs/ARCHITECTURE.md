@@ -199,3 +199,15 @@ Hardening requirement before Phase 3 closeout:
 - A defense-in-depth trigger, `prevent_non_owner_meeting_container_update()`, rejects non-owner changes to `id`, `created_at`, `owner_id`, `name`, `metadata_json`, `archived_at`, and `deleted_at` even if table privileges are accidentally broadened later.
 - Owner-only lifecycle/container mutations use narrow RPCs: `duplicate_owned_meeting(source_meeting_id, duplicate_name)`, `archive_owned_meeting(target_meeting_id)`, `restore_owned_archived_meeting(target_meeting_id)`, `soft_delete_owned_archived_meeting(target_meeting_id)`, and `rename_owned_meeting(target_meeting_id, meeting_name)`.
 - The dashboard archive and restore actions call owner-only RPCs instead of broad `meetings` PATCH requests. Soft-delete already used an owner-only RPC. No autosave expansion, ownership transfer, Viewer UX, role editing, or Local Mode change is included.
+
+## Phase 4 PR 4A Autosave Architecture Clarification
+
+Current cloud persistence has three separate layers:
+
+1. **Browser workspace cache**: `leadership-*` keys are written through `useLocalStorage`; Cloud Meeting routes scope these keys under `meeting-tool-cloud-workspace:{meetingId}:...`. This is same-browser refresh-safe but not a team/device cloud save.
+2. **Manual full-workspace backup**: Manual Save writes a `WorkspaceBackupFile` into `meetings.meeting_data`. Owners and active editors can update that field while structured autosave remains incomplete.
+3. **Structured settings autosave pilot**: `meeting_settings` loads after the full backup and autosaves only dashboard title, organization/playbook setup info, meeting section order, and setup completed state.
+
+Tactical History is a fourth explicit persistence path: End Meeting inserts a `tactical_sessions` snapshot, but it is archival and does not continuously save or restore the active workspace.
+
+Do not treat objectives/DOs, tasks, SOOs, Strategic Topics list/lifecycle, Agenda Items, Decisions/Actions, Cascading Communications, meeting date records, or active meeting id as structured-autosaved surfaces until follow-up implementation PRs add explicit load/save paths and validation. Manual Save remains visible and required as the full-workspace safety net.

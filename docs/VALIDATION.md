@@ -259,3 +259,23 @@ Manual validation:
 - Editor/Test Two direct REST/RPC attempts to mutate protected meeting container/lifecycle fields (`name`, `owner_id`, `metadata_json`, `archived_at`, `deleted_at`) fail.
 - Removed editor access is lost after refresh/reload.
 - Non-member/Test Three cannot open the meeting, list members, mutate the meeting, or view Tactical History.
+
+## Phase 4 PR 4A Autosave Audit Validation
+
+This PR is documentation/review only.
+
+Automated/document validation:
+
+- Confirm the diff is limited to `planning/` and `docs/`.
+- Confirm no `app/` code changes.
+- Confirm no `supabase/migrations/` changes.
+- Confirm no RLS, schema, authentication, Local Mode, autosave, Manual Save, UI, or runtime behavior changes.
+
+Recommended validation for the next implementation PRs:
+
+- Owner and editor can refresh a Cloud Meeting after editing a newly structured surface and see the saved structured data without Manual Save.
+- Owner and editor can still use Manual Save as full-workspace backup while structured autosave expands.
+- Stale owner/editor Last Save Wins scenarios are explicitly tested and documented.
+- Session-expiry testing confirms structured autosave failures and Manual Save failures surface clearly while browser-local data remains available in the same browser.
+- Import/restore still applies only to the current browser view until Manual Save writes the backup to `meetings.meeting_data`.
+- Direct REST/RPC negative tests continue to confirm editors cannot mutate owner-only meeting container/lifecycle fields.

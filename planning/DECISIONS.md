@@ -70,3 +70,11 @@
 - Treat meeting container/lifecycle columns as owner-only at the database/API boundary: `name`, `owner_id`, `metadata_json`, `archived_at`, and `deleted_at` are not editor-editable content fields.
 - Use narrow owner-only lifecycle/container RPCs for duplicate, archive, restore, archived soft-delete, and rename/title changes, with a database trigger as defense in depth against accidental broad update privileges.
 - Do not expand autosave, add ownership transfer, role editing, Viewer UX, organizations, audit history, realtime collaboration, or Local Mode changes as part of lifecycle hardening.
+
+## Phase 4 PR 4A Autosave Boundary Clarification
+
+- Manual Save remains the authoritative full-workspace cloud backup until structured persistence covers all meeting-critical runtime surfaces.
+- The current structured autosave pilot is limited to `meeting_settings`: dashboard title, organization/playbook setup info, meeting section order, and setup completed state.
+- Objectives/DOs, tasks, SOOs, Strategic Topics list/lifecycle, meeting date records, Agenda Items, Decisions/Actions, and Cascading Communications must not be described as cloud-autosaved until implementation PRs add explicit structured persistence for them.
+- Owners and active editors may continue writing `meetings.meeting_data` through Manual Save while structured autosave is incomplete; this is an accepted temporary Team Beta safety net with Last Save Wins risk.
+- Strategic Topic notes require schema reconciliation before they are treated as a reliable structured autosave foundation because the reviewed repo migrations do not create `strategic_topic_notes`.
