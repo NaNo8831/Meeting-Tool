@@ -7,7 +7,7 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate plus autosave only the narrow `meeting_settings` structured pilot after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: Phase 3 **PR 3B Invite User Flow** implements the first user-facing pending-invitation workflow. Owners can invite editors by email from active owned dashboard cards, list/revoke pending invites, and invitees can explicitly accept pending invitations matching their signed-in auth email so an active editor membership is created and the meeting appears under `Shared with Me`.
+- Current focus: Phase 3 **PR 3C Architecture Review — Member Management** plans the next access-management slice after the invite flow. Current shared access supports owner-created meetings, profiles/owner attribution, owned/shared dashboard sections, pending invitations, invite acceptance, accepted editor memberships, and shared editor access.
 - Current branch note: Phase 3 work targets `phase-3-shared-access`. This local checkout is named `work` and is based on merge commit `cac3380` (`Merge pull request #74 from NaNo8831/phase-2-cloud`); no git remote is configured in this container.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
 
@@ -30,7 +30,7 @@
 - Keep membership architecture and long-term role direction (`owner`/`editor`/`viewer`) explicit. PR 1A migration `20260603090000_align_shared_access_schema.sql` aligns `meeting_members.role` to `owner`/`editor`/`viewer`, maps existing `admin` and `member` values to `editor`, and backfills owner membership rows while preserving `meetings.owner_id` as the runtime owner authority.
 - Support pending invitations for people who have not signed up yet. For the first Team Beta, expose only Owner and Editor behavior if needed and allow everyone with access to edit; defer Viewer enforcement until the permission surface is ready.
 - Keep Last Save Wins as the Team Beta concurrency model. Realtime collaboration, presence, cursors, websockets, CRDTs, and conflict resolution remain out of scope.
-- Next recommended action: validate PR 3B on a Supabase-configured preview with owner, invitee, unrelated user, shared/editor, and non-member accounts. Member management/removal, role editing, ownership transfer, Viewer UX, tokenized invite links, automated email delivery, Local Mode changes, autosave expansion, and realtime collaboration remain deferred.
+- Next recommended action: implement a narrow PR 3C member-management slice from `planning/reviews/phase-3-member-management-review.md`: Access panel member list, owner-only active-editor removal, editor member visibility, and dashboard `Members: #`. Role editing, ownership transfer, owner self-removal, Viewer UX, organizations, Local Mode changes, autosave expansion, and realtime collaboration remain deferred.
 
 ## Sprint Status
 
@@ -59,14 +59,14 @@
 - Manual Save remains part of the primary workflow during migration because PR #72 autosaves only `meeting_settings`. After structured autosave reliably covers the core operational workspace, evaluate retiring Manual Save from the primary workflow or moving it into a secondary backup/export utility role.
 - Broader responsive/layout polish remains deferred; do not turn Phase 2.5 into a responsive redesign or sticky-header redesign.
 - Additional structured autosave surfaces remain deferred and should be sequenced independently after the existing pilot is validated.
-- Phase 3 shared meeting access is active implementation work. PR 1A schema alignment is complete, PR 1B adds the membership-aware RLS foundation, PR 2A adds the dashboard access abstraction, PR 2B adds visible owned/shared dashboard discovery, PR 3A adds the user profile foundation, and the PR 3B invite flow review recommends a narrow pending-invite implementation. Active member management remains deferred to PR 3C.
+- Phase 3 shared meeting access is active implementation work. PR 1A schema alignment is complete, PR 1B adds the membership-aware RLS foundation, PR 2A adds the dashboard access abstraction, PR 2B adds visible owned/shared dashboard discovery, PR 3A adds the user profile foundation, PR 3B adds the invite flow, and the PR 3C member-management architecture review recommends a narrow member-list/removal/count implementation.
 - Documentation/user guide work remains deferred until the shared access foundation is established.
 - Deferred ideas are now tracked in `planning/FUTURE_PHASES.md` to prevent scope creep in active delivery work.
 
 ## Next Actions
 
-- Use `planning/reviews/phase-3-invite-flow-review.md` as the PR 3B planning baseline for invite flow implementation.
-- Next recommended action: implement **PR 3B — Pending Invite Flow** with owner create/list/revoke pending invites and signed-in matching-email acceptance, while keeping active member management for PR 3C and leaving ownership transfer, multiple owners, Viewer UX, Local Mode, automated email delivery, autosave, and realtime collaboration out of scope.
+- Use `planning/reviews/phase-3-member-management-review.md` as the PR 3C planning baseline for member-management implementation.
+- Next recommended action: implement **PR 3C — Member Management** with an Access panel active member list, owner-only active-editor removal, and dashboard member counts, while keeping role editing, ownership transfer, owner self-removal, Viewer UX, organizations, Local Mode, autosave, and realtime collaboration out of scope.
 - Use the planning files as the source of truth before future changes.
 - Validate the `meeting_settings` hydrate/autosave pilot and its separate Manual Save backup signaling on a Supabase-configured Phase 2 preview.
 - Validate Cloud Meeting Persistence on a Supabase-configured preview, including signed-out local mode, signed-in local mode staying browser-only, signed-in create/select/switch behavior from the dashboard, no auto-load or auto-migration from local mode, manual full-workspace save/load only on valid Cloud Meeting routes, soft-deleted meetings staying hidden/inaccessible, optional Local Workspace migration into empty and populated cloud meetings from a valid cloud route, migration cancel behavior, duplicate-prompt suppression, import while Cloud Meeting is selected, overwrite confirmation, user-scoped workspace selection, owner-only RLS, existing localStorage data, export/import, and Feedback Widget behavior.
@@ -93,3 +93,11 @@
 
 - Fixed the PR 3B create-meeting RLS regression by moving dashboard/selector meeting creation from direct `meetings` REST insert to `create_owned_meeting(meeting_name)`, which creates only meetings owned by the signed-in user and preserves owner membership setup through the existing trigger.
 - Cleaned up dashboard invite UX so the Pending Invitations section is hidden for normal dashboards with zero pending invites and appears only while loading or when matching pending invitations exist.
+
+
+## Phase 3 PR 3C Member Management Architecture Review
+
+- Added a docs-only review at `planning/reviews/phase-3-member-management-review.md`.
+- Recommendation: no new member table for Phase 3C; use `meetings.owner_id`, active `meeting_members` rows, `meeting_invitations` history, and `profiles` display metadata.
+- Recommended implementation scope: Access panel member list for owners/editors, owner-only active-editor removal via narrow RPC, dashboard member count loaded with/alongside dashboard meetings, and Tactical History visible to owners/editors.
+- Deferred: role editing, ownership transfer, owner self-removal, Viewer UX, organizations, multiple owners, avatars, Local Mode changes, autosave behavior changes, and realtime collaboration.

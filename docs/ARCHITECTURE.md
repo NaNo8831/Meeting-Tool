@@ -154,3 +154,12 @@ The database currently has an owner-only `meetings.owner_id` authority path and 
 - New cloud meeting creation now uses `create_owned_meeting(meeting_name)` instead of a direct dashboard REST insert into `meetings` with a client-supplied `owner_id`.
 - The RPC sets `owner_id = auth.uid()` server-side and lets the existing owner-membership trigger create/preserve the owner's `meeting_members` row.
 - This keeps shared editors from creating or managing meetings on behalf of another owner while avoiding the fragile direct insert/return path against membership-aware `meetings` RLS.
+
+## Phase 3 Member Management Architecture Direction
+
+- PR 3C should use the existing Phase 3 shared-access model rather than introducing a new member table. `meetings.owner_id` remains the owner authority; `meeting_members` represents accepted identity-linked access; `meeting_invitations` preserves pending/accepted/revoked invite history; and `profiles` supplies minimal display metadata.
+- The Access panel should evolve from invite-only management into an access overview with Owner, Members, Pending invitations, Invite email, and owner-only Remove editor controls. Editors may view active owner/editor members but must not manage invitations or removals.
+- Runtime member display should use a narrow member-list RPC or equivalent runtime API, not the admin readability views. The response should expose only meeting member identity, display-name/email fallback, and role label for active owner/editor rows visible to the caller.
+- Member removal should be an owner-only RPC that marks an active editor membership with `removed_at = now()`. It must not delete membership or invitation history, must not remove the owner, and must not support owner self-removal before ownership transfer exists.
+- Dashboard member counts should be loaded with or alongside dashboard meetings through a narrow count RPC/view that returns counts only for accessible meetings. Counts should include the owner plus active editors and exclude pending invites, removed members, and viewers.
+- Tactical History remains visible to owners and editors in Phase 3. Do not add an owner-only Tactical History restriction; Viewer behavior remains deferred.

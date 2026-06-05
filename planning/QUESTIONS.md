@@ -20,7 +20,7 @@
 ## PR 3A follow-up questions
 
 - Should dashboard header copy change from the current Team framing to `Mariano's Teams` when member lists are introduced?
-- When member management lands, which profile fields may other meeting members see beyond `display_name` and email fallback, if any?
+- Answered for PR 3C: member display should use only `display_name`, email fallback, and role label; do not add avatars or broader profile data.
 - Should invite acceptance reconcile pending invitation email to a profile row immediately, or only after explicit accepted membership creation?
 - What audit events need user attribution first: content edits, meeting setup changes, access-management changes, or ownership transfer?
 
@@ -35,3 +35,12 @@
 
 - Resolved for PR 3B: former removed members are reactivated through explicit invite acceptance when a matching pending invitation is accepted.
 - Deferred: tokenized invite links, token expiration policy, automated email provider/sender domain, automatic invite expiration, member removal, role editing, Viewer UX, ownership transfer, multiple owners, organizations, and realtime collaboration.
+
+
+## PR 3C member-management resolved/deferred notes
+
+- Resolved for PR 3C: no new member table is needed; use active `meeting_members` plus `meetings.owner_id`, `meeting_invitations` history, and `profiles` display metadata.
+- Resolved for PR 3C: owners and editors can view active owner/editor members; owners can remove active editors; editors cannot remove members; owners cannot remove themselves in Phase 3.
+- Resolved for PR 3C: dashboard member count means owner plus active editors, excluding pending invitations, removed members, and viewers.
+- Resolved for PR 3C: Tactical History remains visible to owners and editors; no owner-only Tactical History restriction should be added in Phase 3.
+- Open/deferred: exact RPC/view names and return shapes for member listing, member count, and owner-only removal; role editing, ownership transfer, Viewer UX, organizations, multiple owners, avatars, Local Mode changes, autosave changes, and realtime collaboration.
