@@ -261,3 +261,11 @@ Hardening note: dashboard UI already hides owner-only lifecycle controls from sh
 - Strategic Topic autosave uses existing `strategic_topics` membership policies: owners and active editors can create/edit/archive/complete/reorder; active members can read; non-members cannot access rows.
 - Topic Notes use `strategic_topic_notes` RLS with the same meeting membership helpers. Owner/editor users can edit notes; active members can read; removed editors lose access once membership RLS no longer matches after refresh/reload.
 - The client does not implement Viewer UX in PR 4B; database policies remain the enforcement boundary.
+
+## Phase 4 PR 4C Meeting Notes / Cascading Communications Permission Expectations
+
+- This review does not change permissions or RLS.
+- A future active `meeting_notes` table should follow existing meeting-scoped access helpers: active members can read, and owners plus active editors can insert/update/delete.
+- Non-members, pending invitees without accepted membership, and removed editors must not be able to read or write Meeting Notes or Cascading Communications rows.
+- Removed editors should lose access through the existing `removed_at is null` active-member helper behavior after refresh/reload.
+- Viewer UI/read-only enforcement remains deferred and should not be expanded by the PR 4C implementation unless a separate Viewer decision is made.

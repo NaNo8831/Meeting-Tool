@@ -338,3 +338,17 @@ PR 4B also uses `strategic_topics` and `strategic_topic_notes` for live Strategi
 - Workspace backups include `leadership-strategic-topic-notes` as an object keyed by numeric Strategic Topic item ID. Each value stores `strategic_topic_item_id`, `content_json`, `content_text`, and optional `updated_at`.
 - The backup intentionally uses the numeric client item ID rather than `strategic_topics.id` so notes remain attached when a backup is imported into a different cloud meeting and new structured topic UUIDs are generated.
 - On cloud import, restored notes are upserted into `strategic_topic_notes` with the restored item ID; later topic-note opens can also link the note to the new `strategic_topics.id`.
+
+## Phase 4 PR 4C Meeting Notes / Cascading Communications Data Model Recommendation
+
+- Current Meeting Notes are `MeetingRecord[]` records in `leadership-meetings`; the active record is selected by `leadership-active-meeting-id`.
+- Each `MeetingRecord` uses a numeric client `id`, `date`, optional `isTestMeeting`, and item arrays for `agendaItems`, `topicItems`, `decisionItems`, and `cascadeItems`.
+- Current Cascading Communications are `MeetingItem[]` records in `activeMeeting.cascadeItems`, not a separate localStorage key except for legacy fallback import from `leadership-cascade-items`.
+- Manual Save/export remains backup-compatible because it stores `leadership-meetings` and `leadership-active-meeting-id` inside `meetings.meeting_data`.
+- Meeting Notes and Cascading Communications are not currently structured persisted.
+- `tactical_sessions` stores ended-meeting snapshots and is archival. `tactical_items` is session-linked and should not be used for mutable active notes.
+- `strategic_sessions` and `strategic_session_notes` are strategic-session scoped and should not be used for tactical Meeting Notes or Cascading Communications.
+- Recommended active table: `meeting_notes`, unique by `(meeting_id, client_meeting_id)`, indexed by `(meeting_id, meeting_date)`, and storing `meeting_date`, `is_test_meeting`, `cascade_items`, and compatibility/pass-through JSON for existing agenda/decision arrays if needed.
+- Meeting Notes and Cascading Communications should share the active `meeting_notes` table because the runtime and backup format store them on the same dated meeting-note record.
+- Agenda Items and Decisions/Actions should not be treated as first-class PR 4C autosave surfaces; any `agenda_items` or `decision_items` columns should be compatibility/pass-through only until the redesign is decided.
+- Import/restore should preserve numeric client meeting IDs where possible and upsert structured rows by `(meeting_id, client_meeting_id)` when authenticated in a valid Cloud Meeting route.

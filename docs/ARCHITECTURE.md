@@ -236,3 +236,13 @@ Do not treat objectives/DOs, tasks, SOOs, Strategic Topics list/lifecycle, Agend
 - Manual Save and JSON export include Topic Notes in the workspace backup under `leadership-strategic-topic-notes`, keyed by legacy numeric Strategic Topic item IDs.
 - Import/restore rehydrates those note backups into local workspace state and, in cloud meetings, writes them back to `strategic_topic_notes` using the restored numeric item IDs. This lets notes follow restored Strategic Topics even when structured topic UUIDs differ in a newly created meeting.
 - Structured autosave remains the primary cloud edit path; `meeting_data` and JSON backup remain the safety net for backup/import parity.
+
+## Phase 4 PR 4C Meeting Notes / Cascading Communications Architecture Review
+
+- This review is documentation-only and does not implement autosave, change app code, add migrations, change RLS, change Local Mode, remove Manual Save, or redesign Agenda/Decisions/Actions.
+- Current Meeting Notes and Cascading Communications live inside the `leadership-meetings` workspace payload. Cloud routes scope that browser key as `meeting-tool-cloud-workspace:{meetingId}:leadership-meetings`; Local Mode keeps the unscoped key.
+- Manual Save/export includes Meeting Notes and Cascading Communications through the full `leadership-meetings` array in `meetings.meeting_data`.
+- Meeting Notes and Cascading Communications are not yet structured autosaved. They become shared/device-safe only through explicit Manual Save/load today.
+- Recommended next implementation scope is Meeting Notes + Cascading Communications only. Do not make Agenda Items or Decisions/Actions a first-class autosave scope before the future agenda-discussion-decision-action workflow is decided.
+- Recommended active architecture is a new mutable `meeting_notes` table keyed by `meeting_id` plus the current numeric client meeting-note ID, with Cascading Communications stored on the same active row. Existing tactical/strategic session tables should remain archival/history tables and should not be reused for active autosave.
+- Conflict handling should remain Last Save Wins; do not add realtime, merge, presence, or locking in this autosave slice.

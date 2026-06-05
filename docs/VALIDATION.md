@@ -323,3 +323,26 @@ Manual validation:
 - Create a Strategic Topic, add a Topic Note, Manual Save, export a backup, create a new meeting, import/restore the backup, open the Strategic Topic Note, and confirm the note content is restored.
 - Confirm Strategic Topic creation/edit/order autosave still persists after refresh and in a private window.
 - Confirm editor topic/note/order autosave still works, Local Mode still works, and Manual Save still works.
+
+## Phase 4 PR 4C Meeting Notes / Cascading Communications Autosave Review Validation
+
+This PR is documentation/review only.
+
+Automated/document validation:
+
+- Confirm the diff is limited to `planning/` and `docs/`.
+- Confirm no `app/` code changes.
+- Confirm no `supabase/migrations/` changes.
+- Confirm no schema, RLS, authentication, Local Mode, Manual Save, autosave implementation, UI redesign, or runtime behavior changes.
+
+Recommended validation for a future implementation PR:
+
+- Owner edits Meeting Notes, refreshes, and sees the changes without Manual Save.
+- Owner edits Cascading Communications, refreshes, and sees the changes without Manual Save.
+- Owner opens the Cloud Meeting in a new browser/profile/private window and sees Meeting Notes and Cascading Communications.
+- Owner uses Manual Save, exports a backup, imports/restores it, and confirms Meeting Notes and Cascading Communications remain backup-compatible.
+- Editor edits Meeting Notes and Cascading Communications; owner refreshes and sees the editor changes.
+- Editor refreshes or opens a new browser/profile/private window and sees the shared changes.
+- Non-member is blocked from the meeting and structured rows.
+- Removed editor loses access after refresh/reload.
+- Local Mode remains browser-only, Manual Save remains available, and Agenda Items / Decisions / Actions behavior is unchanged.
