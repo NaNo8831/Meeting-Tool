@@ -242,7 +242,19 @@ Do not treat objectives/DOs, tasks, SOOs, Strategic Topics list/lifecycle, Agend
 - This review is documentation-only and does not implement autosave, change app code, add migrations, change RLS, change Local Mode, remove Manual Save, or redesign Agenda/Decisions/Actions.
 - Current Meeting Notes and Cascading Communications live inside the `leadership-meetings` workspace payload. Cloud routes scope that browser key as `meeting-tool-cloud-workspace:{meetingId}:leadership-meetings`; Local Mode keeps the unscoped key.
 - Manual Save/export includes Meeting Notes and Cascading Communications through the full `leadership-meetings` array in `meetings.meeting_data`.
-- Meeting Notes and Cascading Communications are not yet structured autosaved. They become shared/device-safe only through explicit Manual Save/load today.
-- Recommended next implementation scope is Meeting Notes + Cascading Communications only. Do not make Agenda Items or Decisions/Actions a first-class autosave scope before the future agenda-discussion-decision-action workflow is decided.
-- Recommended active architecture is a new mutable `meeting_notes` table keyed by `meeting_id` plus the current numeric client meeting-note ID, with Cascading Communications stored on the same active row. Existing tactical/strategic session tables should remain archival/history tables and should not be reused for active autosave.
+- PR 4C adds structured autosave for Meeting Notes and Cascading Communications while keeping Manual Save/load as the full-workspace backup path.
+- Implementation scope is Meeting Notes + Cascading Communications only. Do not make Agenda Items or Decisions/Actions a first-class autosave scope before the future agenda-discussion-decision-action workflow is decided.
+- Active architecture is the mutable `meeting_notes` table keyed by `meeting_id` plus the current numeric client meeting-note ID, with Cascading Communications stored on the same active row. Existing tactical/strategic session tables remain archival/history tables and should not be reused for active autosave.
 - Conflict handling should remain Last Save Wins; do not add realtime, merge, presence, or locking in this autosave slice.
+
+## Phase 4 PR 4C Meeting Notes / Cascading Communications Autosave
+
+Cloud Meeting routes now keep the existing localStorage/browser runtime model and add a narrow structured autosave path for dated Meeting Notes records:
+
+- `leadership-meetings` and `leadership-active-meeting-id` remain the browser state and full-workspace backup shape.
+- `public.meeting_notes` is the active cloud autosave table for Meeting Notes records and `cascadeItems`.
+- Cloud load reads `meetings.meeting_data`, `meeting_settings`, `strategic_topics`, and `meeting_notes` together. Structured `meeting_notes` rows override/augment backup Meeting Notes when rows exist; older meetings without rows continue to load from `meetings.meeting_data`.
+- Owner/editor changes debounce into `meeting_notes` after route bootstrap. Manual Save is still visible and saves the full workspace backup object to `meetings.meeting_data`.
+- Backup import into a Cloud Meeting applies the backup to local state and upserts restored Meeting Notes rows into `meeting_notes` so a later refresh/new browser can see Meeting Notes and Cascading Communications without relying on Manual Save alone.
+- Agenda Items and Decisions/Actions are not redesigned and are not split into first-class tables in this slice; they are only preserved as compatibility JSON inside the Meeting Notes row.
+- The concurrency model remains Last Save Wins. Realtime collaboration, merge/conflict UX, Viewer UI, Local Mode changes, and Manual Save demotion remain out of scope.

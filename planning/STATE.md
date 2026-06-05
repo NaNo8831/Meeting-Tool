@@ -5,10 +5,10 @@
 - Product: Meeting Tool by LyArk in the `Meeting-Tool` repo.
 - Status: live/deployed operational beta.
 - Deployment: Vercel.
-- Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings` plus structured Strategic Topics, Topic Notes, and topic ordering after route bootstrap.
+- Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings`, structured Strategic Topics, Topic Notes, topic ordering, Meeting Notes, and Cascading Communications after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: Phase 4 **PR 4C Architecture Review — Meeting Notes / Cascading Communications Autosave** is documentation-only and recommends the next safe autosave scope after Strategic Topics, Topic Notes, and Strategic Topic ordering.
-- Current branch note: Phase 4 autosave work targets `phase-4-autosave`; this local worktree is preparing the PR 4C documentation/review slice.
+- Current focus: Phase 4 **PR 4C Implementation — Meeting Notes / Cascading Communications Autosave** adds the active `meeting_notes` structured table and cloud-route hydration/autosave for dated Meeting Notes records and Cascading Communications.
+- Current branch note: Phase 4 autosave work targets `phase-4-autosave`; this local worktree is preparing the PR 4C implementation slice.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
 
 ## Production State
@@ -163,3 +163,12 @@
 - Recommendation: implement Meeting Notes + Cascading Communications together next, using a new active `meeting_notes` table, while leaving Agenda Items and Decisions/Actions out of first-class autosave until the future combined workflow redesign is decided.
 - Existing tactical and strategic session tables remain archival/history tables and should not be reused for active autosave.
 - Remaining before-main Manual Save dependency risk after this slice: Defining Objectives, Tasks, Standard Operating Objectives, then Agenda/Decision redesign-dependent surfaces.
+
+## Phase 4 PR 4C Meeting Notes / Cascading Communications implementation
+
+- Added active structured `public.meeting_notes` storage for dated `MeetingRecord` rows keyed by `(meeting_id, client_meeting_id)`.
+- Cloud Meeting load hydrates Meeting Notes and Cascading Communications from `meeting_notes` when rows exist, with `meetings.meeting_data` remaining the fallback for existing meetings.
+- Owner/editor changes to Meeting Notes records and Cascading Communications autosave with debounce and Last Save Wins. Manual Save remains the full-workspace backup path.
+- Backup export/import still includes `leadership-meetings` and `leadership-active-meeting-id`; cloud imports also upsert restored Meeting Notes rows into `meeting_notes` while preserving numeric client meeting IDs.
+- Agenda Items and Decisions/Actions remain pass-through compatibility JSON inside `notes_json`; their first-class redesign/autosave remains deferred.
+- Before `main`, Defining Objectives, Tasks, and SOOs remain the next required autosave dependencies for PR 4D.

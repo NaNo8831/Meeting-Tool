@@ -120,6 +120,28 @@ export type SupabaseMeetingSettingsUpsert = Pick<
   | "setup_completed"
 >;
 
+
+export type SupabaseMeetingNote = {
+  id: string;
+  meeting_id: string;
+  client_meeting_id: number;
+  meeting_date: string;
+  is_test_meeting: boolean;
+  notes_json: Record<string, unknown> | null;
+  cascade_items: Record<string, unknown>[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupabaseMeetingNoteUpsert = {
+  meeting_id: string;
+  client_meeting_id: number;
+  meeting_date: string;
+  is_test_meeting: boolean;
+  notes_json: Record<string, unknown> | null;
+  cascade_items: Record<string, unknown>[];
+};
+
 export type SupabaseTacticalSession = {
   id: string;
   meeting_id: string;
@@ -989,6 +1011,96 @@ export const supabaseMeetingClient = {
     }
 
     return saved;
+  },
+
+  async loadMeetingNotes({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("meeting_notes")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}&select=*&order=meeting_date.asc,client_meeting_id.asc`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Meeting notes load"));
+    }
+
+    return (await response.json()) as SupabaseMeetingNote[];
+  },
+
+  async saveMeetingNotes({
+    accessToken,
+    workspaceId,
+    notes,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    notes: SupabaseMeetingNoteUpsert[];
+  }) {
+    if (notes.length === 0) return [];
+
+    const response = await fetch(
+      `${getRestUrl("meeting_notes")}?on_conflict=meeting_id,client_meeting_id`,
+      {
+        method: "POST",
+        headers: {
+          ...getSupabaseHeaders(accessToken),
+          Prefer: "resolution=merge-duplicates,return=representation",
+        },
+        body: JSON.stringify(
+          notes.map((note) => ({
+            ...note,
+            meeting_id: workspaceId,
+          })),
+        ),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Meeting notes autosave"),
+      );
+    }
+
+    return (await response.json()) as SupabaseMeetingNote[];
+  },
+
+  async deleteMissingMeetingNotes({
+    accessToken,
+    workspaceId,
+    retainedClientMeetingIds,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    retainedClientMeetingIds: number[];
+  }) {
+    const retainedFilter = retainedClientMeetingIds.length
+      ? `&client_meeting_id=not.in.(${retainedClientMeetingIds.join(",")})`
+      : "";
+    const response = await fetch(
+      `${getRestUrl("meeting_notes")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}${retainedFilter}`,
+      {
+        method: "DELETE",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Meeting notes cleanup"),
+      );
+    }
   },
 
   async listTacticalSessions({

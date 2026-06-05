@@ -269,3 +269,14 @@ Hardening note: dashboard UI already hides owner-only lifecycle controls from sh
 - Non-members, pending invitees without accepted membership, and removed editors must not be able to read or write Meeting Notes or Cascading Communications rows.
 - Removed editors should lose access through the existing `removed_at is null` active-member helper behavior after refresh/reload.
 - Viewer UI/read-only enforcement remains deferred and should not be expanded by the PR 4C implementation unless a separate Viewer decision is made.
+
+## Phase 4 PR 4C Meeting Notes RLS
+
+`public.meeting_notes` follows the existing shared-access helper model for meeting-scoped content:
+
+- active meeting members can select rows through `public.user_can_access_meeting(meeting_id)`;
+- owners and active editors can insert, update, and delete rows through `public.user_can_edit_meeting(meeting_id)`;
+- non-members cannot read or write rows;
+- removed editors lose access after refresh/reload because the helpers exclude removed membership rows.
+
+No Viewer UX is added in this PR. Last Save Wins remains the editing model for owners/editors.

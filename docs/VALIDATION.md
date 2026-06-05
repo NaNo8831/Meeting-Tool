@@ -346,3 +346,24 @@ Recommended validation for a future implementation PR:
 - Non-member is blocked from the meeting and structured rows.
 - Removed editor loses access after refresh/reload.
 - Local Mode remains browser-only, Manual Save remains available, and Agenda Items / Decisions / Actions behavior is unchanged.
+
+## Phase 4 PR 4C Meeting Notes / Cascading Communications Validation
+
+Automated checks for the implementation PR:
+
+- Run `npm run lint`.
+- Run `npx tsc --noEmit`.
+- Run `npm run build`.
+
+Manual validation should cover:
+
+- Owner edits Meeting Notes, refreshes, and confirms the notes persist without Manual Save.
+- Owner edits Cascading Communications, refreshes, and confirms the cascade items persist without Manual Save.
+- Owner opens the same Cloud Meeting in a private window/new browser and confirms Meeting Notes and Cascading Communications appear.
+- Owner runs Manual Save, exports a backup, creates/opens another Cloud Meeting, imports the backup, and confirms Meeting Notes and Cascading Communications restore.
+- Editor opens a shared meeting, edits Meeting Notes and Cascading Communications, refreshes, and confirms the owner sees the editor changes after refresh.
+- Non-member cannot open the meeting or read/write `meeting_notes` rows.
+- Removed editor loses access after refresh/reload.
+- Local Mode, Manual Save, Strategic Topics autosave, Topic Notes backup/import, Agenda Items, and Decisions/Actions remain unchanged.
+
+Remaining before-main autosave dependencies: Defining Objectives, Tasks, and Standard Operating Objectives are intentionally deferred to PR 4D.
