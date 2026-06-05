@@ -40,7 +40,9 @@ const meetingMatchesSearch = (meeting: DashboardMeeting, query: string) => {
 };
 
 const getMemberDisplayName = (member: SupabaseMeetingMember) =>
-  member.display_name?.trim() || member.email?.trim() || "Team member";
+  member.display_name?.trim() ||
+  member.email?.trim() ||
+  (member.role === "owner" ? "Owner" : "Team member");
 
 const getRoleLabel = (role: SupabaseMeetingMember["role"]) =>
   role === "owner" ? "Owner" : "Editor";
@@ -191,7 +193,21 @@ export default function DashboardPage() {
           currentUserEmail: session.user.email,
         });
         if (!isMounted) return;
-        setMeetings(nextMeetings);
+        setMeetings(
+          profile
+            ? nextMeetings.map((meeting) =>
+                meeting.owner_id === session.user.id
+                  ? toDashboardMeeting({
+                      meeting,
+                      currentUserId: session.user.id,
+                      currentUserEmail: session.user.email,
+                      ownerProfile: profile,
+                      memberCount: meeting.memberCount,
+                    })
+                  : meeting,
+              )
+            : nextMeetings,
+        );
       } catch (error) {
         if (!isMounted) return;
         setMessage(
@@ -211,7 +227,7 @@ export default function DashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [session]);
+  }, [profile, session]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1221,9 +1237,8 @@ export default function DashboardPage() {
                   : `Members for ${meetingPendingAccess.name}`}
               </h2>
               <p className="mt-2 text-sm text-slate-600">
-                Members can see active owner and editor access. Pending invites
-                do not grant access until the matching signed-in email accepts
-                them.
+                Owners manage access here. Editors see the same owner/editor
+                overview without invite or removal controls.
               </p>
             </div>
 
@@ -1261,9 +1276,9 @@ export default function DashboardPage() {
                 )}
               </section>
 
-              <section className="space-y-2" aria-label="Members">
+              <section className="space-y-2" aria-label="Editors">
                 <h3 className="text-sm font-semibold text-slate-900">
-                  Members
+                  Editors
                 </h3>
                 {isLoadingMeetingMembers ? (
                   <p className="text-sm text-slate-500">Loading members…</p>

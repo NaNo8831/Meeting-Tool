@@ -35,8 +35,8 @@
 ## Phase 3 PR 3C member management implementation
 
 - Added narrow member-management RPCs: `list_meeting_members(target_meeting_id)`, `remove_meeting_editor(target_meeting_id, target_user_id)`, and `get_accessible_meeting_member_counts()`.
-- The dashboard Access/Members modal now lists the owner row, active editor rows, pending invitations for owners, and owner-only remove controls for active editors.
-- Dashboard cards show `Members: #` when counts are available; the count is owner plus active editors and excludes pending invitations, removed members, and viewers.
+- The dashboard Access/Members modal now lists the owner row separately from an `Editors` section, pending invitations for owners, and owner-only remove controls for active editors.
+- Dashboard cards show `Members: #` when counts are available; the count is owner plus active editors and excludes pending invitations, removed members, and viewers. Access/member UI prefers profile display name, then profile email, then auth email fallback.
 - Removal is soft removal through `meeting_members.removed_at`; invite history is preserved, and removed editors can regain access only by accepting a new pending invite.
 - Tactical History remains visible to owners and editors; owner-only Tactical History restrictions and Viewer behavior remain deferred.
 
