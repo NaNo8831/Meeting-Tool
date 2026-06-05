@@ -98,11 +98,19 @@
 
 - What should the later Agenda/Decision/Action redesign do with the pass-through `notes_json` arrays currently preserved by `meeting_notes`?
 - Should historical Meeting Notes rows receive an explicit archival/ended flag after Tactical History is created, or is current read-only UI plus `tactical_sessions.snapshot_json` sufficient for Team Beta?
-- After PR 4D review, implementation still needs to finalize the exact migration details for Defining Objectives, Tasks, and SOOs before runtime autosave is added.
+- PR 4D implementation now finalizes the first runtime migration details for Defining Objectives, Tasks, and SOOs; Supabase preview validation remains before main readiness.
 
-## Phase 4 PR 4D Objectives / Tasks / SOOs Follow-up Questions
+## Phase 4 PR 4D Objectives / Tasks / SOOs Resolved Schema Questions
 
-- Should rich descriptions for Defining Objectives, Tasks, and SOOs use explicit `description_json` / `description_text` columns, or should the implementation store rich text in documented `metadata_json` fields?
-- Should `tasks` use uniqueness by `(meeting_id, client_task_id)` or `(meeting_id, client_objective_id, client_task_id)` during import and row reconciliation?
-- Should nested task subtasks, comments, and activity history remain JSONB columns for the first autosave implementation, or should any of them become first-class tables later for reporting/audit needs?
-- What exact deletion reconciliation should cloud import use for DO/task/SOO rows so stale structured rows do not survive a restored backup?
+- Resolved: rich descriptions use explicit `description_json` plus text-compatible description fields rather than undocumented metadata-only storage.
+- Resolved: `tasks` use uniqueness by `(meeting_id, client_task_id)` while retaining `client_objective_id` for grouping/import compatibility.
+- Resolved for this slice: nested task subtasks, comments, and activity history remain JSONB arrays on task rows; first-class nested-detail tables remain deferred unless reporting/audit needs justify them later.
+- Resolved: cloud import/upsert preserves restored numeric client IDs and deletes structured rows missing from the restored Objective/Task/SOO backup payload.
+
+## Phase 4 PR 4D Objectives / Tasks / SOOs Autosave Resolved/Deferred Notes
+
+- Resolved: PR 4D uses the existing `objectives`, `tasks`, and `standard_operating_objectives` tables after schema reconciliation instead of creating replacement tables.
+- Resolved: numeric client IDs remain the compatibility bridge for Defining Objectives, Tasks, SOOs, localStorage, Manual Save, and JSON backup/import.
+- Resolved: nested task details stay embedded on each structured task row as JSON arrays for subtasks, comments, and activity history.
+- Resolved: Cloud hydration loads `meetings.meeting_data` first and overlays structured rows only when present, preserving existing meetings and fallback behavior.
+- Deferred: first-class Agenda Items autosave, first-class Decisions/Actions autosave, realtime collaboration, conflict/merge UI beyond Last Save Wins, Viewer UX, ownership transfer, Local Mode changes, Manual Save retirement, forgot password, UX polish, and the documentation refresh/main-readiness review.

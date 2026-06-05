@@ -1,11 +1,18 @@
 # Architecture
 
+## Phase 4 PR 4D structured autosave architecture
+
+- Cloud Meeting hydration still loads `meetings.meeting_data` / scoped browser fallback first, then overlays structured rows for Defining Objectives, embedded Tasks, and Standard Operating Objectives when rows exist.
+- Runtime Local Mode remains browser-only. Manual Save still writes the full workspace backup to `meetings.meeting_data` for rollback/export compatibility.
+- PR 4D adds narrow Supabase REST helpers for loading, upserting, and deleting missing `objectives`, `tasks`, and `standard_operating_objectives` rows. These helpers are meeting-scoped and rely on RLS for authorization.
+- Autosave is debounced and Last Save Wins. No realtime collaboration, locks, merge UI, presence, or Viewer UX is introduced.
+
 ## Current Stable Architecture
 
 - Next.js + TypeScript + Tailwind app deployed on Vercel.
 - Local Workspace remains browser `localStorage` based.
 - Cloud Meeting full-workspace persistence uses manual save/load to `meetings.meeting_data` JSONB.
-- Valid `/meeting/[id]` cloud routes hydrate the full-workspace backup, overlay structured `meeting_settings`, then overlay structured Strategic Topics when `strategic_topics` rows exist. Settings and Strategic Topics debounce structured autosave separately; `/meeting/local` never reads or writes these cloud autosave paths.
+- Valid `/meeting/[id]` cloud routes hydrate the full-workspace backup, overlay structured `meeting_settings`, Strategic Topics, Meeting Notes/Cascading Communications, and PR 4D Objective/Task/SOO rows when those structured rows exist. Each structured surface debounces autosave separately; `/meeting/local` never reads or writes these cloud autosave paths.
 - Backup/Restore JSON export/import remains operational and must stay intact.
 - Feedback remains separate from meeting persistence.
 - Auth sign out returns to `/`.
@@ -27,7 +34,7 @@ New direction:
 ## Manual Save During Autosave Migration
 
 - Manual Save remains visible, available, and required during the structured autosave migration.
-- PR #72 autosaved only `meeting_settings`. PR 4B adds structured autosave for Strategic Topics, Topic Notes, and Strategic Topic ordering. Objectives, tasks, agenda items, meeting notes, Standard Operating Objectives, Defining Objectives, decisions/actions, cascading communication, and other runtime state still depend on Manual Save or future structured autosave PRs.
+- PR #72 autosaved only `meeting_settings`. PR 4B adds structured autosave for Strategic Topics, Topic Notes, and Strategic Topic ordering. PR 4C adds Meeting Notes and Cascading Communications. PR 4D adds Defining Objectives, embedded Tasks, nested task details, and Standard Operating Objectives. Agenda Items, Decisions/Actions, and other non-structured runtime state still depend on Manual Save or future structured autosave PRs.
 - Manual Save writes the full workspace backup to `meetings.meeting_data` and remains the cloud safety net until structured autosave reliably covers all important meeting data.
 - Full-workspace JSONB autosave remains out of scope. Future structured autosave expansion should proceed surface-by-surface in separate PRs.
 - Once structured autosave handles the core operational workspace reliably, evaluate retiring Manual Save from the primary workflow or moving it into a secondary backup/export utility role. Do not remove or demote Manual Save in PR #72.

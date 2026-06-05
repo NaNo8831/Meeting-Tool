@@ -1,11 +1,18 @@
 # Data Model
 
+## Phase 4 PR 4D objectives/tasks/SOOs data model
+
+- `public.objectives` is the structured Cloud Meeting table for Defining Objectives. It keeps `meeting_id`, `client_objective_id`, `title`, rich description JSON/text compatibility, `status`, `priority`, `due_date`, `color`, `sort_order`, timestamps, and a unique `(meeting_id, client_objective_id)` key.
+- `public.tasks` stores embedded Objective Tasks as separate rows keyed by `meeting_id` and `client_task_id`, linked to both `objective_id` where available and `client_objective_id` for import/localStorage compatibility. It stores rich description compatibility, `status`, `due_date`, `assigned_to`/`assignee`, `sort_order`, and JSON arrays for subtasks, comments, and activity history.
+- `public.standard_operating_objectives` stores SOOs separately from Defining Objectives with `meeting_id`, `client_soo_id`, `title`, rich description JSON/text compatibility, `color`, `sort_order`, timestamps, and a unique `(meeting_id, client_soo_id)` key.
+- `leadership-objectives` and `leadership-standard-operating-objectives` remain in Manual Save/export/import backups. Cloud imports upsert structured rows while preserving numeric client IDs where possible.
+
 ## Current Stable State (Phase 2 Cloud Baseline)
 
 - `/dashboard` works for authenticated meeting selection.
 - `/meeting/[id]` loads the selected cloud meeting when explicitly requested.
 - Manual **Save to Cloud** works and remains the full-workspace backup safety net.
-- `meeting_settings` is the only structured persistence pilot: valid loaded `/meeting/[id]` cloud routes hydrate its dashboard/playbook-level fields after the full-workspace backup loads, then debounce changed settings and upsert the one row for that meeting. Local mode never sends this read or write.
+- Structured persistence now covers `meeting_settings`, Strategic Topics/Topic Notes, Meeting Notes/Cascading Communications, and PR 4D Defining Objectives/Tasks/SOOs. Valid loaded `/meeting/[id]` cloud routes hydrate the full-workspace backup first, then overlay structured rows where present. Local mode never sends these cloud reads or writes.
 - Refresh reloads the last manual full-workspace cloud backup, then applies the narrow structured `meeting_settings` pilot fields when present.
 - JSON export/import works.
 - Feedback submission works.
