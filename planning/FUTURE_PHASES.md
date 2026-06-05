@@ -47,6 +47,12 @@ The durable `owner`/`editor`/`viewer` direction is part of Phase 3. Keep later r
 - Define versioning rules when templates evolve over time.
 - Preserve lightweight setup flow so templates reduce, not add, meeting overhead.
 
+## Autosave/status future work
+- Consider a sticky/frozen status or header area after autosave coverage and in-meeting layout needs are clearer.
+- Make refresh return to the currently open/active meeting note when possible.
+- Review multi-session open meeting behavior before adding collaboration or conflict-handling UX.
+- Remove or demote Manual Save only after structured autosave coverage is complete and validated.
+
 ## Meeting recap emails
 - Generate post-meeting recap summaries from decisions/actions and cascading communication.
 - Define delivery timing and audience controls.

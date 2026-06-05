@@ -92,3 +92,10 @@
 - Deferred: exact migration/RLS/client implementation details for `meeting_notes`.
 - Deferred: Agenda Items and Decisions/Actions first-class structured autosave until the future agenda-discussion-decision-action workflow is decided.
 - Deferred: Manual Save removal/demotion, Local Mode changes, Viewer UX/read-only enforcement, and collaboration conflict-resolution features.
+
+
+## Phase 4 PR 4C follow-up questions
+
+- What should the later Agenda/Decision/Action redesign do with the pass-through `notes_json` arrays currently preserved by `meeting_notes`?
+- Should historical Meeting Notes rows receive an explicit archival/ended flag after Tactical History is created, or is current read-only UI plus `tactical_sessions.snapshot_json` sufficient for Team Beta?
+- PR 4D still needs to decide structured autosave shape and migration order for Defining Objectives, Tasks, and SOOs before `main`.

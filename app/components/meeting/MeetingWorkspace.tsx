@@ -51,6 +51,8 @@ import {
 } from "@/app/lib/workspaceBackup";
 import {
   supabaseMeetingClient,
+  type SupabaseMeetingNote,
+  type SupabaseMeetingNoteUpsert,
   type SupabaseMeetingSettings,
   type SupabaseMeetingSettingsUpsert,
   type SupabaseStrategicTopic,
@@ -187,8 +189,16 @@ const meetingSetupCompletedStorageKey = "leadership-meeting-setup-completed";
 
 const strategicTopicsAutosaveDebounceMs = 1200;
 const topicNotesAutosaveDebounceMs = 1000;
+const meetingNotesAutosaveDebounceMs = 1000;
 
 type StrategicTopicsAutosaveStatus =
+  | "ready"
+  | "pending"
+  | "saving"
+  | "saved"
+  | "error";
+
+type MeetingNotesAutosaveStatus =
   | "ready"
   | "pending"
   | "saving"
@@ -284,6 +294,71 @@ const mergeSavedStrategicTopicIds = (
     const strategicTopicId = savedIdsByClientId.get(item.id);
     return strategicTopicId ? { ...item, strategicTopicId } : item;
   });
+};
+
+// Agenda Items and Decisions/Actions currently live inside the same
+// MeetingRecord as Meeting Notes. PR 4C carries them through notes_json only
+// for compatibility; they are not first-class structured autosave surfaces.
+const getMeetingNotePassThroughJson = (
+  meeting: MeetingRecord,
+): Record<string, unknown> => ({
+  agendaItems: meeting.agendaItems,
+  topicItems: meeting.topicItems,
+  decisionItems: meeting.decisionItems,
+});
+
+const mapMeetingRecordToSupabase = (
+  meeting: MeetingRecord,
+  meetingId: string,
+): SupabaseMeetingNoteUpsert => ({
+  meeting_id: meetingId,
+  client_meeting_id: meeting.id,
+  meeting_date: meeting.date,
+  is_test_meeting: meeting.isTestMeeting ?? false,
+  notes_json: getMeetingNotePassThroughJson(meeting),
+  cascade_items: meeting.cascadeItems as unknown as Record<string, unknown>[],
+});
+
+const getMeetingItemsFromJson = (
+  value: unknown,
+  key: "agendaItems" | "topicItems" | "decisionItems" | "cascadeItems",
+): MeetingItem[] => {
+  if (!isRecord(value)) return [];
+  const items = value[key];
+  return Array.isArray(items) ? (items as MeetingItem[]) : [];
+};
+
+const mapMeetingNoteFromSupabase = (note: SupabaseMeetingNote): MeetingRecord => ({
+  id: note.client_meeting_id,
+  date: note.meeting_date,
+  ...(note.is_test_meeting ? { isTestMeeting: true } : {}),
+  agendaItems: getMeetingItemsFromJson(note.notes_json, "agendaItems"),
+  topicItems: getMeetingItemsFromJson(note.notes_json, "topicItems"),
+  decisionItems: getMeetingItemsFromJson(note.notes_json, "decisionItems"),
+  cascadeItems: Array.isArray(note.cascade_items)
+    ? (note.cascade_items as unknown as MeetingItem[])
+    : getMeetingItemsFromJson(note.notes_json, "cascadeItems"),
+});
+
+const mergeStructuredMeetingNotes = (
+  currentMeetings: MeetingRecord[],
+  structuredNotes: SupabaseMeetingNote[],
+): MeetingRecord[] => {
+  if (structuredNotes.length === 0) return currentMeetings;
+
+  const structuredMeetings = structuredNotes.map(mapMeetingNoteFromSupabase);
+  const structuredByClientId = new Map(
+    structuredMeetings.map((meeting) => [meeting.id, meeting]),
+  );
+  const mergedMeetings = currentMeetings.map(
+    (meeting) => structuredByClientId.get(meeting.id) ?? meeting,
+  );
+  const currentIds = new Set(currentMeetings.map((meeting) => meeting.id));
+
+  return [
+    ...mergedMeetings,
+    ...structuredMeetings.filter((meeting) => !currentIds.has(meeting.id)),
+  ];
 };
 
 type MeetingSpecificSectionKey =
@@ -850,6 +925,15 @@ export default function MeetingWorkspace() {
     saved: "Strategic Topics saved to cloud",
     error: "Strategic Topics save failed",
   };
+  const [meetingNotesAutosaveStatus, setMeetingNotesAutosaveStatus] =
+    useState<MeetingNotesAutosaveStatus>("ready");
+  const meetingNotesAutosaveStatusLabel: Record<MeetingNotesAutosaveStatus, string> = {
+    ready: "Meeting Notes autosave ready",
+    pending: "Meeting Notes autosave pending…",
+    saving: "Saving Meeting Notes…",
+    saved: "Meeting Notes and Cascading Communications saved to cloud",
+    error: "Meeting Notes autosave failed",
+  };
   const [cloudMeetingMessage, setCloudMeetingMessage] = useState("");
   const [hasUnsavedFullWorkspaceChanges, setHasUnsavedFullWorkspaceChanges] =
     useState(false);
@@ -980,6 +1064,10 @@ export default function MeetingWorkspace() {
   const strategicTopicsAutosaveWorkspaceIdRef = useRef("");
   const pendingStrategicTopicsAutosaveSignatureRef = useRef("");
   const isStrategicTopicsAutosaveInFlightRef = useRef(false);
+  const lastMeetingNotesAutosaveSignatureRef = useRef("");
+  const meetingNotesAutosaveWorkspaceIdRef = useRef("");
+  const pendingMeetingNotesAutosaveSignatureRef = useRef("");
+  const isMeetingNotesAutosaveInFlightRef = useRef(false);
   const lastTopicNotesAutosaveSignatureRef = useRef("");
   const topicNotesAutosaveKeyRef = useRef("");
   const lastAutoLoadedCloudMeetingIdRef = useRef("");
@@ -2461,6 +2549,41 @@ export default function MeetingWorkspace() {
     [setStrategicTopicItems],
   );
 
+
+  const applyMeetingNotesToState = useCallback(
+    (notes: SupabaseMeetingNote[]) => {
+      if (notes.length === 0) return;
+
+      setMeetings((currentMeetings) =>
+        mergeStructuredMeetingNotes(currentMeetings, notes),
+      );
+    },
+    [setMeetings],
+  );
+
+  const saveMeetingNotesBackupToCloud = useCallback(
+    async (meetingRecords: MeetingRecord[]) => {
+      if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
+        return;
+      }
+
+      const meetingNotes = meetingRecords.map((meeting) =>
+        mapMeetingRecordToSupabase(meeting, selectedMeetingId),
+      );
+      await supabaseMeetingClient.saveMeetingNotes({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        notes: meetingNotes,
+      });
+      await supabaseMeetingClient.deleteMissingMeetingNotes({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        retainedClientMeetingIds: meetingRecords.map((meeting) => meeting.id),
+      });
+    },
+    [authSession, isCurrentCloudRouteWorkspace, selectedMeetingId],
+  );
+
   const handleLoadCloudMeeting = useCallback(async () => {
     if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
       setCloudSaveStatus(isLocalRoute ? "local" : "error");
@@ -2476,7 +2599,7 @@ export default function MeetingWorkspace() {
     setCloudMeetingMessage("Loading cloud meeting…");
 
     try {
-      const [cloudData, meetingSettings, strategicTopics] = await Promise.all([
+      const [cloudData, meetingSettings, strategicTopics, meetingNotes] = await Promise.all([
         supabaseMeetingClient.loadWorkspaceData({
           accessToken: authSession.accessToken,
           workspaceId: selectedMeetingId,
@@ -2489,17 +2612,22 @@ export default function MeetingWorkspace() {
           accessToken: authSession.accessToken,
           workspaceId: selectedMeetingId,
         }),
+        supabaseMeetingClient.loadMeetingNotes({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+        }),
       ]);
 
       if (!cloudData) {
         applyMeetingSettingsToState(meetingSettings);
         applyStrategicTopicsToState(strategicTopics);
+        applyMeetingNotesToState(meetingNotes);
         setStrategicTopicNotesById({});
         setActiveCloudWorkspaceId(selectedMeetingId);
         setCloudSaveStatus("idle");
         setCloudMeetingMessage(
-          strategicTopics.length > 0
-            ? "Cloud meeting loaded from structured Strategic Topics. Manual Save remains available for full workspace backup."
+          strategicTopics.length > 0 || meetingNotes.length > 0
+            ? "Cloud meeting loaded from structured autosave rows. Manual Save remains available for full workspace backup."
             : "This cloud meeting has no saved data yet. Use Save current workspace to cloud when ready.",
         );
         setIsRouteCloudBootstrapping(false);
@@ -2513,11 +2641,12 @@ export default function MeetingWorkspace() {
       applyWorkspaceBackupToState(backup);
       applyMeetingSettingsToState(meetingSettings);
       applyStrategicTopicsToState(strategicTopics);
+      applyMeetingNotesToState(meetingNotes);
       lastCloudAutosaveSignatureRef.current = signature;
       setHasUnsavedFullWorkspaceChanges(false);
       setCloudSaveStatus("idle");
       setCloudMeetingMessage(
-        "Cloud workspace loaded. Settings and Strategic Topics autosave to structured storage; Manual Save backs up the full workspace.",
+        "Cloud workspace loaded. Settings, Strategic Topics, Meeting Notes, and Cascading Communications autosave to structured storage; Manual Save backs up the full workspace.",
       );
       setIsRouteCloudBootstrapping(false);
     } catch (error) {
@@ -2530,6 +2659,7 @@ export default function MeetingWorkspace() {
       setIsRouteCloudBootstrapping(false);
     }
   }, [
+    applyMeetingNotesToState,
     applyMeetingSettingsToState,
     applyStrategicTopicsToState,
     applyWorkspaceBackupToState,
@@ -2747,11 +2877,15 @@ export default function MeetingWorkspace() {
         lastStrategicTopicsAutosaveSignatureRef.current = "";
         strategicTopicsAutosaveWorkspaceIdRef.current = "";
         pendingStrategicTopicsAutosaveSignatureRef.current = "";
+        lastMeetingNotesAutosaveSignatureRef.current = "";
+        meetingNotesAutosaveWorkspaceIdRef.current = "";
+        pendingMeetingNotesAutosaveSignatureRef.current = "";
         topicNotesAutosaveKeyRef.current = "";
         lastTopicNotesAutosaveSignatureRef.current = "";
         setHasUnsavedFullWorkspaceChanges(false);
         setSettingsAutosaveStatus("ready");
         setStrategicTopicsAutosaveStatus("ready");
+        setMeetingNotesAutosaveStatus("ready");
         setCloudSaveStatus("local");
         setCloudMeetingMessage(
           authSession
@@ -2764,6 +2898,7 @@ export default function MeetingWorkspace() {
 
       setSettingsAutosaveStatus("ready");
       setStrategicTopicsAutosaveStatus("ready");
+      setMeetingNotesAutosaveStatus("ready");
       setCloudSaveStatus("idle");
       setCloudMeetingMessage(
         "Cloud workspace selected. Load cloud data when needed.",
@@ -3066,6 +3201,144 @@ export default function MeetingWorkspace() {
     workspaceMode,
   ]);
 
+  const meetingNotesAutosavePayload = useMemo(
+    () =>
+      meetings.map((meeting) =>
+        mapMeetingRecordToSupabase(meeting, selectedMeetingId),
+      ),
+    [meetings, selectedMeetingId],
+  );
+  const meetingNotesAutosaveSignature = useMemo(
+    () => JSON.stringify(meetingNotesAutosavePayload),
+    [meetingNotesAutosavePayload],
+  );
+
+  useEffect(() => {
+    if (workspaceMode !== "cloud") return;
+    if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace)
+      return;
+    if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
+      return;
+    if (isRouteCloudBootstrapping || !hasLoadedDashboardStorage) return;
+
+    if (meetingNotesAutosaveWorkspaceIdRef.current !== selectedMeetingId) {
+      meetingNotesAutosaveWorkspaceIdRef.current = selectedMeetingId;
+      lastMeetingNotesAutosaveSignatureRef.current =
+        meetingNotesAutosaveSignature;
+      pendingMeetingNotesAutosaveSignatureRef.current = "";
+      return;
+    }
+
+    if (
+      meetingNotesAutosaveSignature ===
+      lastMeetingNotesAutosaveSignatureRef.current
+    ) {
+      if (pendingMeetingNotesAutosaveSignatureRef.current) {
+        pendingMeetingNotesAutosaveSignatureRef.current = "";
+        setMeetingNotesAutosaveStatus("saved");
+        setCloudMeetingMessage(
+          "Meeting Notes and Cascading Communications match the saved cloud version.",
+        );
+      }
+      return;
+    }
+
+    pendingMeetingNotesAutosaveSignatureRef.current =
+      meetingNotesAutosaveSignature;
+    setMeetingNotesAutosaveStatus("pending");
+    setCloudMeetingMessage(
+      "Meeting Notes autosave pending… Manual Save still backs up the full workspace.",
+    );
+
+    let isCancelled = false;
+    let timeoutId: number;
+    const flushPendingMeetingNotes = async () => {
+      if (isCancelled) return;
+      if (isMeetingNotesAutosaveInFlightRef.current) {
+        timeoutId = window.setTimeout(
+          flushPendingMeetingNotes,
+          meetingNotesAutosaveDebounceMs,
+        );
+        return;
+      }
+
+      const pendingSignature = pendingMeetingNotesAutosaveSignatureRef.current;
+      if (
+        !pendingSignature ||
+        pendingSignature === lastMeetingNotesAutosaveSignatureRef.current
+      )
+        return;
+
+      const pendingNotes = JSON.parse(
+        pendingSignature,
+      ) as SupabaseMeetingNoteUpsert[];
+
+      isMeetingNotesAutosaveInFlightRef.current = true;
+      pendingMeetingNotesAutosaveSignatureRef.current = "";
+      setMeetingNotesAutosaveStatus("saving");
+      setCloudMeetingMessage("Saving Meeting Notes to cloud…");
+
+      try {
+        await supabaseMeetingClient.saveMeetingNotes({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+          notes: pendingNotes,
+        });
+        await supabaseMeetingClient.deleteMissingMeetingNotes({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+          retainedClientMeetingIds: pendingNotes.map(
+            (note) => note.client_meeting_id,
+          ),
+        });
+        lastMeetingNotesAutosaveSignatureRef.current = pendingSignature;
+
+        if (!isCancelled && !pendingMeetingNotesAutosaveSignatureRef.current) {
+          setMeetingNotesAutosaveStatus("saved");
+          setCloudMeetingMessage(
+            "Meeting Notes and Cascading Communications saved to cloud. Manual Save still backs up the full workspace.",
+          );
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setMeetingNotesAutosaveStatus("error");
+          setCloudMeetingMessage(
+            error instanceof Error
+              ? error.message
+              : "Meeting Notes could not be saved to cloud.",
+          );
+        }
+      } finally {
+        isMeetingNotesAutosaveInFlightRef.current = false;
+        if (!isCancelled && pendingMeetingNotesAutosaveSignatureRef.current) {
+          timeoutId = window.setTimeout(
+            flushPendingMeetingNotes,
+            meetingNotesAutosaveDebounceMs,
+          );
+        }
+      }
+    };
+
+    timeoutId = window.setTimeout(
+      flushPendingMeetingNotes,
+      meetingNotesAutosaveDebounceMs,
+    );
+
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    activeCloudWorkspaceId,
+    authSession,
+    hasLoadedDashboardStorage,
+    isCurrentCloudRouteWorkspace,
+    isRouteCloudBootstrapping,
+    meetingNotesAutosaveSignature,
+    selectedMeetingId,
+    workspaceMode,
+  ]);
+
   useEffect(() => {
     if (workspaceMode !== "cloud") return;
     if (!selectedMeetingId || !isCurrentCloudRouteWorkspace) return;
@@ -3140,24 +3413,32 @@ export default function MeetingWorkspace() {
       const restoredStrategicTopicNotes = normalizeStrategicTopicNotesBackup(
         readBackupEntry(backup, strategicTopicNotesStorageKey, {}),
       );
+      const restoredMeetings = readBackupEntry(
+        backup,
+        "leadership-meetings",
+        initialMeetings,
+      );
 
       storeWorkspaceBackupInBrowser(backup, activeCloudWorkspaceId);
       applyWorkspaceBackupToState(backup);
       if (workspaceMode === "cloud") {
-        await saveStrategicTopicNotesBackupToCloud(restoredStrategicTopicNotes);
+        await Promise.all([
+          saveStrategicTopicNotesBackupToCloud(restoredStrategicTopicNotes),
+          saveMeetingNotesBackupToCloud(restoredMeetings),
+        ]);
       }
       setHasCompletedMeetingSetup(true);
       setCloudSaveStatus(workspaceMode === "cloud" ? "idle" : "local");
       setCloudMeetingMessage(
         workspaceMode === "cloud"
-          ? "Backup imported into the current view. Strategic Topic Notes were restored; click Save current workspace to cloud for the full workspace backup."
+          ? "Backup imported into the current view. Meeting Notes, Cascading Communications, and Strategic Topic Notes were restored; click Save current workspace to cloud for the full workspace backup."
           : "",
       );
       setBackupFeedback({
         type: "success",
         message:
           workspaceMode === "cloud"
-            ? "Workspace backup imported into the selected Cloud Meeting view. Strategic Topic Notes were restored; use Manual Save for the full workspace backup."
+            ? "Workspace backup imported into the selected Cloud Meeting view. Meeting Notes, Cascading Communications, and Strategic Topic Notes were restored; use Manual Save for the full workspace backup."
             : "Workspace backup imported successfully.",
       });
     } catch (error) {
@@ -3297,6 +3578,12 @@ export default function MeetingWorkspace() {
                 <span className="font-semibold text-blue-700">
                   {settingsAutosaveStatusLabel[settingsAutosaveStatus]}
                 </span>
+                <span className="font-semibold text-blue-700">
+                  {strategicTopicsAutosaveStatusLabel[strategicTopicsAutosaveStatus]}
+                </span>
+                <span className="font-semibold text-blue-700">
+                  {meetingNotesAutosaveStatusLabel[meetingNotesAutosaveStatus]}
+                </span>
                 <span
                   className={
                     hasUnsavedFullWorkspaceChanges
@@ -3390,6 +3677,9 @@ export default function MeetingWorkspace() {
                 </p>
                 <p className="mt-1 text-xs font-semibold text-blue-700">
                   {strategicTopicsAutosaveStatusLabel[strategicTopicsAutosaveStatus]}
+                </p>
+                <p className="mt-1 text-xs font-semibold text-blue-700">
+                  {meetingNotesAutosaveStatusLabel[meetingNotesAutosaveStatus]}
                 </p>
                 <p className="mt-2 text-xs text-slate-500">{cloudMeetingMessage}</p>
                 <p className={`mt-2 text-xs font-semibold ${
