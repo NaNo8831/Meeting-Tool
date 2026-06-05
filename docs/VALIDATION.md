@@ -213,3 +213,32 @@ Manual validation:
 - Editor account sees owner/editor display names from a shared dashboard card, sees the active editor list labeled `Editors`, does not see invite or remove controls, cannot remove members by direct RPC, can view Tactical History, and loses access after owner removal plus refresh/reload.
 - Non-member account cannot see the meeting, list members, remove members, or view Tactical History for the meeting.
 - Re-invite flow works through the normal invitation path: a removed editor receives a new pending invite, accepts it, regains access, and member count updates after refresh/reload.
+
+## PR 3D Shared Access Hardening Review Validation
+
+This PR is documentation/review only.
+
+Automated/document validation:
+
+- Confirm the diff is limited to `planning/` and `docs/`.
+- Confirm no `app/` code changes.
+- Confirm no `supabase/migrations/` changes.
+- Confirm no RLS, schema, authentication, Local Mode, autosave, or runtime behavior changes.
+
+Recommended closeout validation environment:
+
+- Keep one protected live account/meeting out of PR validation.
+- Use `test1@example.test` as the primary owner test account.
+- Use `test2@example.test` as the shared/editor invitee account.
+- Use `test3@example.test` as the unrelated/non-member security account.
+- Keep test meetings owned by the test accounts.
+- Do not require personal email accounts for routine validation.
+
+Recommended validation for the follow-up lifecycle hardening PR:
+
+- Owner can still open, edit, Manual Save, archive, restore, soft-delete archived meetings, invite, revoke, list members, remove active editors, and view Tactical History.
+- Editor can still open shared meetings, edit content, Manual Save while structured autosave is incomplete, list members read-only, and view Tactical History.
+- Editor cannot create/revoke invitations, remove members, archive, restore, soft-delete, rename/title-edit the meeting container, or duplicate a shared meeting through UI or direct API/RPC attempts.
+- Removed editor loses access after refresh/reload and is excluded from dashboard member count.
+- Pending invitee cannot open a meeting before acceptance.
+- Non-member cannot open the meeting, list members, accept another user's invite, or view Tactical History.

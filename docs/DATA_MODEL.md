@@ -278,3 +278,13 @@ Rules:
 - Member removal is a soft removal: `remove_meeting_editor(target_meeting_id, target_user_id)` sets `meeting_members.removed_at = now()` for an active editor and preserves the row for history/re-invite reconciliation.
 - Re-invite uses the existing invitation path. A removed editor can regain access only when an owner creates a new pending invitation and the removed editor accepts it; acceptance may reactivate the existing membership row by clearing `removed_at`.
 - Dashboard member count is calculated as one owner plus active editors for each accessible meeting. Pending invitations, removed members, and viewers are excluded.
+
+## Phase 3 Shared Access Hardening Notes
+
+- `meetings.owner_id` is the authoritative Phase 3 owner field.
+- `meeting_members.role = 'owner'` rows are supporting rows for listing/future expansion and must not be treated as a replacement for `meetings.owner_id` until a future ownership-transfer/multiple-owner design explicitly changes that model.
+- Active editor access is represented by `meeting_members` rows with `role = 'editor'` and `removed_at is null`.
+- Viewer remains a durable schema role value, but Viewer UX/read-only behavior is deferred.
+- `meeting_invitations` preserves pending, accepted, and revoked history; pending rows do not grant access.
+- Member removal is soft removal through `meeting_members.removed_at`, preserving membership and invite history.
+- Dashboard member counts mean owner plus active editors; pending invites, removed members, and viewers are excluded for Phase 3.

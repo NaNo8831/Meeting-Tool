@@ -214,3 +214,20 @@ Pending invitations are not access grants. Runtime access remains based on `meet
 - `get_accessible_meeting_member_counts()` returns counts only for meetings already accessible to the caller. Counts include the owner and active editors and exclude pending invitations, removed members, and viewers.
 - Editors can view the member list but cannot remove members by UI or direct RPC. Shared/editor dashboard cards expose a members-only modal and do not expose invite controls.
 - Tactical History remains visible to owners and editors. Phase 3 PR 3C intentionally does not add owner-only Tactical History restrictions; Viewer behavior remains deferred.
+
+## Phase 3 Shared Access Hardening Summary
+
+Phase 3 permission intent after PR 3D review:
+
+| Capability | Owner | Active editor | Viewer | Pending invitee | Removed member | Non-member |
+| --- | --- | --- | --- | --- | --- | --- |
+| Open cloud meeting | Yes | Yes | Deferred/no UI | No | No after refresh/reload | No |
+| Edit meeting content | Yes | Yes | Deferred | No | No after refresh/reload | No |
+| Manual Save full workspace backup | Yes | Yes while autosave is incomplete | Deferred | No | No after refresh/reload | No |
+| View member list | Yes | Yes | Deferred | No | No | No |
+| Create/revoke invitations | Yes | No | No | No | No | No |
+| Remove active editors | Yes | No | No | No | No | No |
+| Archive/restore/delete/rename lifecycle | Owner-only intent; needs final DB/API hardening before Phase 3 closeout | No | No | No | No | No |
+| Tactical History | Yes | Yes | Deferred | No | No | No |
+
+Hardening note: dashboard UI already hides owner-only lifecycle controls from shared/editor cards, and access-management RPCs are owner-guarded. The remaining closeout requirement is to ensure direct database/API updates cannot use the broad editor `meetings` update path to mutate owner-only lifecycle/container fields.

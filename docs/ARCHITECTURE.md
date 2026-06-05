@@ -174,3 +174,20 @@ The database currently has an owner-only `meetings.owner_id` authority path and 
 - The Access/Members modal shows the Owner row separately from an `Editors` section that lists active editor rows. Owners additionally see pending invitations, invite email controls, revoke pending invite controls, and remove controls for active editors. Editors can open a members-only version from shared dashboard cards and do not see invite or remove controls. The owner-card `Access` button means owner access management; the shared-card `Members` button means editor read-only access overview.
 - Member removal sets `meeting_members.removed_at` and relies on existing membership-aware RLS helpers to remove meeting visibility after refresh/reload. It does not delete membership rows, invitation history, or owner rows.
 - Tactical History remains available to owners and editors through existing meeting access policies; Phase 3 PR 3C does not add owner-only Tactical History restrictions.
+
+## Phase 3 Shared Access Hardening Review
+
+PR 3D reviewed Phase 3 shared access as a documentation/security hardening pass only. The implementation is functionally close, but Phase 3 should close only after a small lifecycle mutation hardening PR.
+
+Current architecture confirmations:
+
+- `meetings.owner_id` remains the authoritative owner reference.
+- Owner membership rows support future expansion and member-list consistency; they do not replace `owner_id` today.
+- Pending invitations are not authorization records. Shared meeting access starts only after explicit acceptance creates or reactivates an active editor membership.
+- Profiles are display metadata only and are not authorization inputs.
+- Local Mode remains browser-only and separate from shared cloud meeting access.
+- Structured autosave is still incomplete. Manual Save remains the full workspace backup safety net and must not be removed or demoted as part of shared-access hardening.
+
+Hardening requirement before Phase 3 closeout:
+
+- Separate owner-only meeting lifecycle/container mutations from editor content/full-backup mutations at the database/API boundary. Editors need content editing and Manual Save while structured autosave remains incomplete, but direct archive, restore, soft-delete, duplicate-source lifecycle, and rename/title container mutations should remain owner-only beyond UI gating.
