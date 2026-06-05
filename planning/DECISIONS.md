@@ -99,3 +99,13 @@
 ## PR 4B Follow-up Strategic Topic Notes Backup Decision
 
 - Strategic Topic Notes must be part of the workspace backup/export/import compatibility layer, not only structured cloud autosave. Backups store notes by legacy numeric Strategic Topic item ID so notes follow restored topics even when a new cloud meeting creates new structured topic UUIDs.
+
+## Phase 4 PR 4C Meeting Notes / Cascading Communications Autosave Review Decisions
+
+- PR 4C is planning/documentation/review only; it does not implement autosave, add schema, change RLS, change runtime behavior, alter Local Mode, remove Manual Save, or redesign Agenda/Decisions/Actions.
+- The recommended next implementation scope is Meeting Notes + Cascading Communications only.
+- Agenda Items and Decisions/Actions should not become a first-class structured autosave scope until the future combined agenda-discussion-decision-action workflow is decided.
+- Meeting Notes and Cascading Communications should share a new active `meeting_notes` table keyed by meeting plus current numeric client meeting-note ID, rather than reusing archival tactical/strategic session tables.
+- `tactical_sessions`, `tactical_items`, `strategic_sessions`, and `strategic_session_notes` remain archival/session-history tables and should not be reused for mutable active autosave.
+- Manual Save/export/import compatibility must remain intact through `leadership-meetings`, `leadership-active-meeting-id`, and `meetings.meeting_data` while structured autosave expands.
+- Last Save Wins remains the conflict model; realtime, merge, presence, and locking stay deferred.

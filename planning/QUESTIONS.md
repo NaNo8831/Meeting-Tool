@@ -82,3 +82,13 @@
 - Resolved: `strategic_topics.notes` remains unused by the runtime rich Topic Notes editor; rich notes live in `strategic_topic_notes`.
 - Deferred: delete semantics remain the existing non-destructive removed-context behavior; broader delete/archive product language can be revisited separately.
 - Deferred: Objectives, tasks, SOOs, meeting notes, agenda items, decisions/actions, and cascading communication autosave remain future PRs.
+
+## Phase 4 PR 4C Meeting Notes / Cascading Communications Autosave Resolved/Deferred Notes
+
+- Resolved recommendation: the next implementation scope should be Meeting Notes + Cascading Communications only.
+- Resolved recommendation: use a new active `meeting_notes` table rather than reusing `tactical_sessions`, `tactical_items`, `strategic_sessions`, or `strategic_session_notes` for mutable active autosave.
+- Resolved recommendation: Meeting Notes and Cascading Communications should share the active table because they currently live in the same dated `MeetingRecord` and backup payload.
+- Resolved recommendation: keep Last Save Wins and do not add realtime, merge, presence, or locking for this slice.
+- Deferred: exact migration/RLS/client implementation details for `meeting_notes`.
+- Deferred: Agenda Items and Decisions/Actions first-class structured autosave until the future agenda-discussion-decision-action workflow is decided.
+- Deferred: Manual Save removal/demotion, Local Mode changes, Viewer UX/read-only enforcement, and collaboration conflict-resolution features.

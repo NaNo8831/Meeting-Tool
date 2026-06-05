@@ -7,8 +7,8 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings` plus structured Strategic Topics, Topic Notes, and topic ordering after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: Phase 4 **PR 4B Implementation — Strategic Topics + Topic Notes Autosave** expands structured autosave to Strategic Topics, Topic Notes, and Strategic Topic ordering while preserving Manual Save, Local Mode, export/import, workspace backup, and Last Save Wins.
-- Current branch note: Phase 4 autosave work targets `phase-4-autosave`; this local worktree is implementing the PR 4B autosave slice.
+- Current focus: Phase 4 **PR 4C Architecture Review — Meeting Notes / Cascading Communications Autosave** is documentation-only and recommends the next safe autosave scope after Strategic Topics, Topic Notes, and Strategic Topic ordering.
+- Current branch note: Phase 4 autosave work targets `phase-4-autosave`; this local worktree is preparing the PR 4C documentation/review slice.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
 
 ## Production State
@@ -154,3 +154,12 @@
 - Manual Save and JSON export collect cloud Topic Notes plus locally cached/open note drafts so topic-attached notes are included in the full-workspace backup safety net.
 - Import/restore reads `leadership-strategic-topic-notes` back into workspace state and, for cloud meetings, immediately restores those notes into `strategic_topic_notes` using the restored topic item IDs. This keeps notes attached when a backup is restored into a new meeting and structured topic UUIDs are recreated.
 - Structured Strategic Topic and Topic Notes autosave remains primary for cloud editing; backup/import compatibility is an additional fallback path and does not change Local Mode, Manual Save, shared editor behavior, or Last Save Wins.
+
+## Phase 4 PR 4C Meeting Notes / Cascading Communications Autosave Review
+
+- Added the documentation-only PR 4C architecture review for Meeting Notes and Cascading Communications autosave.
+- Current model confirmed: Meeting Notes live in the `leadership-meetings` workspace payload, the active record is selected by `leadership-active-meeting-id`, and Cascading Communications live as `activeMeeting.cascadeItems` within the same dated meeting-note record.
+- Current persistence confirmed: both surfaces remain Manual Save/export/import backed through `meetings.meeting_data`; neither surface is structured autosaved today.
+- Recommendation: implement Meeting Notes + Cascading Communications together next, using a new active `meeting_notes` table, while leaving Agenda Items and Decisions/Actions out of first-class autosave until the future combined workflow redesign is decided.
+- Existing tactical and strategic session tables remain archival/history tables and should not be reused for active autosave.
+- Remaining before-main Manual Save dependency risk after this slice: Defining Objectives, Tasks, Standard Operating Objectives, then Agenda/Decision redesign-dependent surfaces.
