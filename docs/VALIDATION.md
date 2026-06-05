@@ -196,3 +196,20 @@ Use this plan when the member-management implementation PR is created.
 - Member count excludes removed members.
 - Member count excludes viewers.
 - Removed editor no longer sees the meeting under `Shared with Me` after refresh/reload.
+
+## Phase 3 PR 3C Member Management Validation
+
+Automated validation:
+
+- Run `npm run lint`.
+- Run `npx tsc --noEmit`.
+- Run `npm run build`.
+
+Manual validation:
+
+- Owner account sees the owner row, active editor rows, pending invitations, invite email input, and active-editor remove controls in the Access modal.
+- Owner account can invite a user, revoke a pending invitation, remove an active editor, and cannot remove the owner/self.
+- Owner dashboard cards show `Members: #` correctly; counts exclude pending invitations, removed members, and viewers.
+- Editor account sees the member list from a shared dashboard card, does not see invite or remove controls, cannot remove members by direct RPC, can view Tactical History, and loses access after owner removal plus refresh/reload.
+- Non-member account cannot see the meeting, list members, remove members, or view Tactical History for the meeting.
+- Re-invite flow works through the normal invitation path: a removed editor receives a new pending invite, accepts it, regains access, and member count updates after refresh/reload.

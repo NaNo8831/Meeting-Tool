@@ -1,5 +1,6 @@
 import {
   supabaseMeetingClient,
+  supabaseMemberClient,
   supabaseProfileClient,
   type SupabaseMeeting,
   type SupabaseMeetingOwnerProfile,
@@ -17,6 +18,7 @@ export type DashboardMeeting = SupabaseMeeting & {
   currentUserRole: DashboardMeetingRole | null;
   isOwnedByCurrentUser: boolean;
   canManageMeetingLifecycle: boolean;
+  memberCount: number | null;
 };
 
 export const isOwnedByCurrentUser = (
@@ -101,6 +103,7 @@ export const toDashboardMeeting = ({
   currentUserId,
   currentUserEmail,
   ownerProfile,
+  memberCount = null,
 }: {
   meeting: SupabaseMeeting;
   currentUserId: string;
@@ -109,6 +112,7 @@ export const toDashboardMeeting = ({
     SupabaseMeetingOwnerProfile,
     "display_name" | "email"
   > | null;
+  memberCount?: number | null;
 }): DashboardMeeting => {
   const ownedByCurrentUser = isOwnedByCurrentUser(meeting, currentUserId);
 
@@ -127,6 +131,7 @@ export const toDashboardMeeting = ({
       meeting,
       currentUserId,
     ),
+    memberCount,
   };
 };
 
@@ -140,10 +145,15 @@ export const listDashboardMeetings = async ({
   currentUserEmail?: string | null;
 }): Promise<DashboardMeeting[]> => {
   const meetings = await supabaseMeetingClient.listWorkspaces(accessToken);
-  const ownerProfiles =
-    await supabaseProfileClient.listAccessibleMeetingOwnerProfiles(accessToken);
+  const [ownerProfiles, memberCounts] = await Promise.all([
+    supabaseProfileClient.listAccessibleMeetingOwnerProfiles(accessToken),
+    supabaseMemberClient.listAccessibleMeetingMemberCounts(accessToken),
+  ]);
   const ownerProfilesByMeetingId = new Map(
     ownerProfiles.map((profile) => [profile.meeting_id, profile]),
+  );
+  const memberCountsByMeetingId = new Map(
+    memberCounts.map((count) => [count.meeting_id, count.member_count]),
   );
 
   return meetings.map((meeting) =>
@@ -152,6 +162,7 @@ export const listDashboardMeetings = async ({
       currentUserId,
       currentUserEmail,
       ownerProfile: ownerProfilesByMeetingId.get(meeting.id) ?? null,
+      memberCount: memberCountsByMeetingId.get(meeting.id) ?? null,
     }),
   );
 };

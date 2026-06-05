@@ -9,8 +9,10 @@ import {
   isSupabaseConfigured,
   supabaseInvitationClient,
   supabaseMeetingClient,
+  supabaseMemberClient,
   supabaseProfileClient,
   type SupabaseMeetingInvitation,
+  type SupabaseMeetingMember,
   type SupabasePendingMeetingInvitation,
   type SupabaseProfile,
 } from "@/app/lib/supabaseClient";
@@ -36,6 +38,12 @@ const meetingMatchesSearch = (meeting: DashboardMeeting, query: string) => {
       meeting.ownerDisplayName.toLocaleLowerCase().includes(normalizedQuery))
   );
 };
+
+const getMemberDisplayName = (member: SupabaseMeetingMember) =>
+  member.display_name?.trim() || member.email?.trim() || "Team member";
+
+const getRoleLabel = (role: SupabaseMeetingMember["role"]) =>
+  role === "owner" ? "Owner" : "Editor";
 
 const formatRelativeTimestamp = (timestamp: string) => {
   const milliseconds = Date.parse(timestamp);
@@ -86,6 +94,9 @@ export default function DashboardPage() {
   const [ownedMeetingInvitations, setOwnedMeetingInvitations] = useState<
     SupabaseMeetingInvitation[]
   >([]);
+  const [meetingMembers, setMeetingMembers] = useState<SupabaseMeetingMember[]>(
+    [],
+  );
   const [inviteEmail, setInviteEmail] = useState("");
   const [isLoadingInvitations, setIsLoadingInvitations] = useState(false);
   const [isAcceptingInvitation, setIsAcceptingInvitation] = useState<
@@ -93,10 +104,12 @@ export default function DashboardPage() {
   >(null);
   const [isLoadingOwnedInvitations, setIsLoadingOwnedInvitations] =
     useState(false);
+  const [isLoadingMeetingMembers, setIsLoadingMeetingMembers] = useState(false);
   const [isCreatingInvitation, setIsCreatingInvitation] = useState(false);
   const [isRevokingInvitation, setIsRevokingInvitation] = useState<
     string | null
   >(null);
+  const [isRemovingMember, setIsRemovingMember] = useState<string | null>(null);
   const [accessMessage, setAccessMessage] = useState("");
   const [newMeetingName, setNewMeetingName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -284,6 +297,7 @@ export default function DashboardPage() {
           currentUserId: session.user.id,
           currentUserEmail: session.user.email,
           ownerProfile: currentOwnerProfile,
+          memberCount: 1,
         }),
         ...currentMeetings,
       ]);
@@ -340,6 +354,7 @@ export default function DashboardPage() {
           currentUserId: session.user.id,
           currentUserEmail: session.user.email,
           ownerProfile: currentOwnerProfile,
+          memberCount: 1,
         }),
         ...currentMeetings,
       ]);
@@ -381,6 +396,7 @@ export default function DashboardPage() {
                 currentUserId: session.user.id,
                 currentUserEmail: session.user.email,
                 ownerProfile: currentOwnerProfile,
+                memberCount: currentMeeting.memberCount,
               })
             : currentMeeting,
         ),
@@ -416,6 +432,7 @@ export default function DashboardPage() {
                 currentUserId: session.user.id,
                 currentUserEmail: session.user.email,
                 ownerProfile: currentOwnerProfile,
+                memberCount: currentMeeting.memberCount,
               })
             : currentMeeting,
         ),
@@ -465,6 +482,7 @@ export default function DashboardPage() {
                 currentUserId: session.user.id,
                 currentUserEmail: session.user.email,
                 ownerProfile: updatedProfile,
+                memberCount: meeting.memberCount,
               })
             : meeting,
         ),
@@ -545,13 +563,31 @@ export default function DashboardPage() {
   };
 
   const handleOpenAccess = async (meeting: DashboardMeeting) => {
-    if (!session || !meeting.canManageMeetingLifecycle) return;
+    if (!session) return;
 
     setMeetingPendingAccess(meeting);
     setInviteEmail("");
     setAccessMessage("");
     setOwnedMeetingInvitations([]);
-    setIsLoadingOwnedInvitations(true);
+    setMeetingMembers([]);
+    setIsLoadingMeetingMembers(true);
+    setIsLoadingOwnedInvitations(meeting.canManageMeetingLifecycle);
+
+    try {
+      const members = await supabaseMemberClient.listMeetingMembers({
+        accessToken: session.accessToken,
+        meetingId: meeting.id,
+      });
+      setMeetingMembers(members);
+    } catch (error) {
+      setAccessMessage(
+        error instanceof Error ? error.message : "Could not load members.",
+      );
+    } finally {
+      setIsLoadingMeetingMembers(false);
+    }
+
+    if (!meeting.canManageMeetingLifecycle) return;
 
     try {
       const invitations =
@@ -603,6 +639,58 @@ export default function DashboardPage() {
       );
     } finally {
       setIsCreatingInvitation(false);
+    }
+  };
+
+  const handleRemoveMember = async (member: SupabaseMeetingMember) => {
+    if (
+      !session ||
+      !meetingPendingAccess ||
+      !meetingPendingAccess.canManageMeetingLifecycle ||
+      isRemovingMember
+    ) {
+      return;
+    }
+
+    const memberName = getMemberDisplayName(member);
+    const confirmed = window.confirm(`Remove ${memberName} from this meeting?`);
+    if (!confirmed) return;
+
+    setIsRemovingMember(member.user_id);
+    setAccessMessage("");
+
+    try {
+      await supabaseMemberClient.removeMeetingEditor({
+        accessToken: session.accessToken,
+        meetingId: meetingPendingAccess.id,
+        userId: member.user_id,
+      });
+      setMeetingMembers((currentMembers) =>
+        currentMembers.filter(
+          (currentMember) => currentMember.user_id !== member.user_id,
+        ),
+      );
+      setMeetings((currentMeetings) =>
+        currentMeetings.map((currentMeeting) =>
+          currentMeeting.id === meetingPendingAccess.id &&
+          currentMeeting.memberCount !== null
+            ? {
+                ...currentMeeting,
+                memberCount: Math.max(1, currentMeeting.memberCount - 1),
+              }
+            : currentMeeting,
+        ),
+      );
+      setAccessMessage(`Removed ${memberName} from this meeting.`);
+      void refreshDashboardMeetings();
+    } catch (error) {
+      setAccessMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not remove this member.",
+      );
+    } finally {
+      setIsRemovingMember(null);
     }
   };
 
@@ -708,60 +796,67 @@ export default function DashboardPage() {
         <p className="mt-1 text-sm font-semibold text-slate-700">
           Owner: {meeting.ownerDisplayName}
         </p>
+        {meeting.memberCount !== null ? (
+          <p className="mt-1 text-sm font-semibold text-slate-700">
+            Members: {meeting.memberCount}
+          </p>
+        ) : null}
         <p className="mt-1 text-sm text-slate-600">
           Last updated {formatRelativeTimestamp(meeting.updated_at)}
         </p>
       </div>
 
       <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
-        {meeting.canManageMeetingLifecycle ? (
-          !meeting.archived_at ? (
-            <div className="flex flex-col items-stretch gap-2 sm:items-end">
-              <button
-                type="button"
-                onClick={() => void handleOpenAccess(meeting)}
-                className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-                disabled={isLoadingOwnedInvitations}
-              >
-                Access
-              </button>
-              <button
-                type="button"
-                onClick={() => setMeetingPendingDuplicate(meeting)}
-                className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                disabled={Boolean(isDuplicating)}
-              >
-                {isDuplicating === meeting.id ? "Duplicating…" : "Duplicate"}
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleArchiveMeeting(meeting)}
-                className="rounded-xl border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50"
-                disabled={isArchiving === meeting.id}
-              >
-                {isArchiving === meeting.id ? "Archiving…" : "Archive"}
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col items-stretch gap-2 sm:items-end">
-              <button
-                type="button"
-                onClick={() => void handleRestoreArchivedMeeting(meeting)}
-                className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={Boolean(isRestoringArchived)}
-              >
-                {isRestoringArchived === meeting.id ? "Restoring…" : "Restore"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setMeetingPendingDelete(meeting)}
-                className="rounded-xl border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
-                disabled={Boolean(isDeletingArchived)}
-              >
-                {isDeletingArchived === meeting.id ? "Deleting…" : "Delete"}
-              </button>
-            </div>
-          )
+        {!meeting.archived_at ? (
+          <div className="flex flex-col items-stretch gap-2 sm:items-end">
+            <button
+              type="button"
+              onClick={() => void handleOpenAccess(meeting)}
+              className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+              disabled={isLoadingOwnedInvitations || isLoadingMeetingMembers}
+            >
+              {meeting.canManageMeetingLifecycle ? "Access" : "Members"}
+            </button>
+            {meeting.canManageMeetingLifecycle ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setMeetingPendingDuplicate(meeting)}
+                  className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                  disabled={Boolean(isDuplicating)}
+                >
+                  {isDuplicating === meeting.id ? "Duplicating…" : "Duplicate"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleArchiveMeeting(meeting)}
+                  className="rounded-xl border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50"
+                  disabled={isArchiving === meeting.id}
+                >
+                  {isArchiving === meeting.id ? "Archiving…" : "Archive"}
+                </button>
+              </>
+            ) : null}
+          </div>
+        ) : meeting.canManageMeetingLifecycle ? (
+          <div className="flex flex-col items-stretch gap-2 sm:items-end">
+            <button
+              type="button"
+              onClick={() => void handleRestoreArchivedMeeting(meeting)}
+              className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={Boolean(isRestoringArchived)}
+            >
+              {isRestoringArchived === meeting.id ? "Restoring…" : "Restore"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMeetingPendingDelete(meeting)}
+              className="rounded-xl border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+              disabled={Boolean(isDeletingArchived)}
+            >
+              {isDeletingArchived === meeting.id ? "Deleting…" : "Delete"}
+            </button>
+          </div>
         ) : null}
         <Link
           href={`/meeting/${meeting.id}`}
@@ -1121,85 +1216,178 @@ export default function DashboardPage() {
                 Meeting access
               </p>
               <h2 className="mt-1 text-lg font-semibold text-slate-900">
-                Invite editors to {meetingPendingAccess.name}
+                {meetingPendingAccess.canManageMeetingLifecycle
+                  ? `Manage access for ${meetingPendingAccess.name}`
+                  : `Members for ${meetingPendingAccess.name}`}
               </h2>
               <p className="mt-2 text-sm text-slate-600">
-                Pending invites do not grant access until the matching signed-in
-                email accepts them.
+                Members can see active owner and editor access. Pending invites
+                do not grant access until the matching signed-in email accepts
+                them.
               </p>
             </div>
 
-            <div className="mt-5 space-y-4">
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(event) => setInviteEmail(event.target.value)}
-                  placeholder="teammate@example.com"
-                  disabled={isCreatingInvitation}
-                  className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
-                />
-                <button
-                  type="button"
-                  onClick={() => void handleCreateInvitation()}
-                  disabled={isCreatingInvitation}
-                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isCreatingInvitation ? "Inviting…" : "Invite"}
-                </button>
-              </div>
-
+            <div className="mt-5 space-y-5">
               {accessMessage ? (
                 <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
                   {accessMessage}
                 </p>
               ) : null}
 
-              <section className="space-y-2" aria-label="Pending invitations">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Pending invitations
-                </h3>
-                {isLoadingOwnedInvitations ? (
-                  <p className="text-sm text-slate-500">Loading invites…</p>
-                ) : ownedMeetingInvitations.length > 0 ? (
-                  ownedMeetingInvitations.map((invitation) => (
-                    <div
-                      key={invitation.id}
-                      className="flex flex-col gap-2 rounded-xl border border-slate-200 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div>
-                        <p className="text-sm font-semibold text-slate-800">
-                          {invitation.email}
-                        </p>
-                        <p className="text-xs text-slate-500">Editor invite</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void handleRevokeInvitation(invitation.id)
-                        }
-                        disabled={Boolean(isRevokingInvitation)}
-                        className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+              <section className="space-y-2" aria-label="Owner">
+                <h3 className="text-sm font-semibold text-slate-900">Owner</h3>
+                {isLoadingMeetingMembers ? (
+                  <p className="text-sm text-slate-500">Loading members…</p>
+                ) : meetingMembers.some((member) => member.role === "owner") ? (
+                  meetingMembers
+                    .filter((member) => member.role === "owner")
+                    .map((member) => (
+                      <div
+                        key={member.user_id}
+                        className="rounded-xl border border-slate-200 px-3 py-2"
                       >
-                        {isRevokingInvitation === invitation.id
-                          ? "Revoking…"
-                          : "Revoke"}
-                      </button>
-                    </div>
-                  ))
+                        <p className="text-sm font-semibold text-slate-800">
+                          {getMemberDisplayName(member)}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {getRoleLabel(member.role)}
+                        </p>
+                      </div>
+                    ))
                 ) : (
                   <p className="rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-600">
-                    No pending invitations for this meeting.
+                    Owner information is not available.
                   </p>
                 )}
               </section>
+
+              <section className="space-y-2" aria-label="Members">
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Members
+                </h3>
+                {isLoadingMeetingMembers ? (
+                  <p className="text-sm text-slate-500">Loading members…</p>
+                ) : meetingMembers.some(
+                    (member) => member.role === "editor",
+                  ) ? (
+                  meetingMembers
+                    .filter((member) => member.role === "editor")
+                    .map((member) => (
+                      <div
+                        key={member.user_id}
+                        className="flex flex-col gap-2 rounded-xl border border-slate-200 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">
+                            {getMemberDisplayName(member)}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {getRoleLabel(member.role)}
+                          </p>
+                        </div>
+                        {meetingPendingAccess.canManageMeetingLifecycle ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleRemoveMember(member)}
+                            disabled={Boolean(isRemovingMember)}
+                            className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {isRemovingMember === member.user_id
+                              ? "Removing…"
+                              : "Remove"}
+                          </button>
+                        ) : null}
+                      </div>
+                    ))
+                ) : (
+                  <p className="rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-600">
+                    No active editors for this meeting.
+                  </p>
+                )}
+              </section>
+
+              {meetingPendingAccess.canManageMeetingLifecycle ? (
+                <>
+                  <section
+                    className="space-y-2"
+                    aria-label="Pending invitations"
+                  >
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      Pending invitations
+                    </h3>
+                    {isLoadingOwnedInvitations ? (
+                      <p className="text-sm text-slate-500">Loading invites…</p>
+                    ) : ownedMeetingInvitations.length > 0 ? (
+                      ownedMeetingInvitations.map((invitation) => (
+                        <div
+                          key={invitation.id}
+                          className="flex flex-col gap-2 rounded-xl border border-slate-200 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div>
+                            <p className="text-sm font-semibold text-slate-800">
+                              {invitation.email}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              Editor invite
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void handleRevokeInvitation(invitation.id)
+                            }
+                            disabled={Boolean(isRevokingInvitation)}
+                            className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {isRevokingInvitation === invitation.id
+                              ? "Revoking…"
+                              : "Revoke"}
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-600">
+                        No pending invitations for this meeting.
+                      </p>
+                    )}
+                  </section>
+
+                  <section className="space-y-2" aria-label="Invite editor">
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      Invite email
+                    </h3>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <input
+                        type="email"
+                        value={inviteEmail}
+                        onChange={(event) => setInviteEmail(event.target.value)}
+                        placeholder="teammate@example.com"
+                        disabled={isCreatingInvitation}
+                        className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleCreateInvitation()}
+                        disabled={isCreatingInvitation}
+                        className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isCreatingInvitation ? "Inviting…" : "Invite"}
+                      </button>
+                    </div>
+                  </section>
+                </>
+              ) : null}
             </div>
 
             <div className="mt-6 flex justify-end">
               <button
                 type="button"
                 onClick={() => setMeetingPendingAccess(null)}
-                disabled={isCreatingInvitation || Boolean(isRevokingInvitation)}
+                disabled={
+                  isCreatingInvitation ||
+                  Boolean(isRevokingInvitation) ||
+                  Boolean(isRemovingMember)
+                }
                 className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Close

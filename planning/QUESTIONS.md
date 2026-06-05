@@ -43,4 +43,5 @@
 - Resolved for PR 3C: owners and editors can view active owner/editor members; owners can remove active editors; editors cannot remove members; owners cannot remove themselves in Phase 3.
 - Resolved for PR 3C: dashboard member count means owner plus active editors, excluding pending invitations, removed members, and viewers.
 - Resolved for PR 3C: Tactical History remains visible to owners and editors; no owner-only Tactical History restriction should be added in Phase 3.
-- Open/deferred: exact RPC/view names and return shapes for member listing, member count, and owner-only removal; role editing, ownership transfer, Viewer UX, organizations, multiple owners, avatars, Local Mode changes, autosave changes, and realtime collaboration.
+- Resolved for PR 3C implementation: member listing uses `list_meeting_members(target_meeting_id)`, member count uses `get_accessible_meeting_member_counts()`, and owner-only removal uses `remove_meeting_editor(target_meeting_id, target_user_id)`.
+- Open/deferred: role editing, ownership transfer, Viewer UX, organizations, multiple owners, avatars, Local Mode changes, autosave changes, and realtime collaboration.

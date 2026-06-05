@@ -206,3 +206,11 @@ Pending invitations are not access grants. Runtime access remains based on `meet
 - Member removal should set `meeting_members.removed_at = now()` instead of deleting rows. Existing access helpers already exclude removed members from access/edit checks, so removed users should lose meeting access after refresh/reload and should no longer appear under `Shared with Me`.
 - Removing a member must not delete `meeting_invitations` history. Re-inviting a removed member should continue through the normal pending-invite acceptance path, which can reactivate the existing membership by clearing `removed_at`.
 - Tactical History is viewable by owners and editors for Phase 3. Do not add an owner-only Tactical History restriction; Viewer behavior remains deferred.
+
+## Phase 3 PR 3C Member Management Permissions
+
+- `list_meeting_members(target_meeting_id)` requires `user_can_access_meeting(target_meeting_id)` and returns only active owner/editor display rows for that meeting. Owners and editors can view members; non-members cannot list members. Viewer behavior remains deferred.
+- `remove_meeting_editor(target_meeting_id, target_user_id)` requires `user_can_manage_meeting_access(target_meeting_id)`. It rejects unauthenticated callers, editors, non-members, removed users, owner rows, and owner self-removal. Ownership transfer remains deferred, so owners cannot remove themselves in Phase 3.
+- `get_accessible_meeting_member_counts()` returns counts only for meetings already accessible to the caller. Counts include the owner and active editors and exclude pending invitations, removed members, and viewers.
+- Editors can view the member list but cannot remove members by UI or direct RPC. Shared/editor dashboard cards expose a members-only modal and do not expose invite controls.
+- Tactical History remains visible to owners and editors. Phase 3 PR 3C intentionally does not add owner-only Tactical History restrictions; Viewer behavior remains deferred.
