@@ -258,3 +258,15 @@ Rules:
 - `display_name` is derived from first/last name and remains null until at least one name exists, allowing callers to fall back to email and then generic role labels.
 - `ensure_own_profile()` creates or refreshes the signed-in user's profile for legacy auth users.
 - `get_accessible_meeting_owner_profiles()` returns only `meeting_id`, owner `user_id`, `display_name`, and email fallback for meetings visible to the caller.
+
+## Phase 3 PR 3B Invite Lifecycle
+
+`meeting_invitations` now has first user-facing lifecycle behavior:
+
+- Owners create new pending invitations by email with `role = 'editor'`.
+- Pending invitations are matched by lowercase trimmed `normalized_email` against the invitee's signed-in auth email.
+- Owners can revoke pending invitations, moving `status` from `pending` to `revoked` and setting `revoked_at`.
+- Invitees can accept matching pending invitations, moving `status` from `pending` to `accepted` and setting `accepted_by` plus `accepted_at`.
+- Acceptance creates or reactivates the corresponding `meeting_members` row with `role = 'editor'` and `removed_at = null`.
+- Accepted and revoked invitation rows are preserved for history. Re-inviting after accepted/revoked history creates a new pending row only when the email is not already an active member.
+- Duplicate active pending invitations for the same meeting/email remain blocked by the partial unique index on pending invitations.

@@ -37,6 +37,36 @@ export type SupabaseProfileUpdate = Pick<
   "first_name" | "last_name"
 >;
 
+export type SupabaseMeetingInvitation = {
+  id: string;
+  meeting_id: string;
+  email: string;
+  normalized_email: string;
+  role: "editor" | "viewer";
+  status: "pending" | "accepted" | "revoked";
+  invited_by: string | null;
+  accepted_by: string | null;
+  created_at: string;
+  updated_at: string;
+  accepted_at: string | null;
+  revoked_at: string | null;
+};
+
+export type SupabasePendingMeetingInvitation = Pick<
+  SupabaseMeetingInvitation,
+  | "id"
+  | "meeting_id"
+  | "email"
+  | "normalized_email"
+  | "role"
+  | "status"
+  | "invited_by"
+  | "created_at"
+> & {
+  meeting_name: string;
+  owner_display_name: string;
+};
+
 export type SupabaseMeeting = {
   id: string;
   created_at: string;
@@ -393,6 +423,115 @@ export const supabaseProfileClient = {
   },
 };
 
+export const supabaseInvitationClient = {
+  async createInvitation({
+    accessToken,
+    meetingId,
+    email,
+  }: {
+    accessToken: string;
+    meetingId: string;
+    email: string;
+  }) {
+    const response = await fetch(getRestUrl("rpc/create_meeting_invitation"), {
+      method: "POST",
+      headers: getSupabaseHeaders(accessToken),
+      body: JSON.stringify({
+        target_meeting_id: meetingId,
+        invite_email: email,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Invitation create"));
+    }
+
+    return (await response.json()) as SupabaseMeetingInvitation;
+  },
+
+  async listMeetingPendingInvitations({
+    accessToken,
+    meetingId,
+  }: {
+    accessToken: string;
+    meetingId: string;
+  }) {
+    const response = await fetch(
+      getRestUrl("rpc/list_meeting_pending_invitations"),
+      {
+        method: "POST",
+        headers: getSupabaseHeaders(accessToken),
+        body: JSON.stringify({ target_meeting_id: meetingId }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Invitation list"));
+    }
+
+    return (await response.json()) as SupabaseMeetingInvitation[];
+  },
+
+  async revokeInvitation({
+    accessToken,
+    invitationId,
+  }: {
+    accessToken: string;
+    invitationId: string;
+  }) {
+    const response = await fetch(getRestUrl("rpc/revoke_meeting_invitation"), {
+      method: "POST",
+      headers: getSupabaseHeaders(accessToken),
+      body: JSON.stringify({ target_invitation_id: invitationId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Invitation revoke"));
+    }
+
+    return (await response.json()) as SupabaseMeetingInvitation;
+  },
+
+  async listMyPendingInvitations(accessToken: string) {
+    const response = await fetch(
+      getRestUrl("rpc/list_my_pending_meeting_invitations"),
+      {
+        method: "POST",
+        headers: getSupabaseHeaders(accessToken),
+        body: JSON.stringify({}),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Pending invitations list"),
+      );
+    }
+
+    return (await response.json()) as SupabasePendingMeetingInvitation[];
+  },
+
+  async acceptInvitation({
+    accessToken,
+    invitationId,
+  }: {
+    accessToken: string;
+    invitationId: string;
+  }) {
+    const response = await fetch(getRestUrl("rpc/accept_meeting_invitation"), {
+      method: "POST",
+      headers: getSupabaseHeaders(accessToken),
+      body: JSON.stringify({ target_invitation_id: invitationId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Invitation accept"));
+    }
+
+    return (await response.json()) as SupabaseMeetingInvitation;
+  },
+};
+
 export const supabaseFeedbackClient = {
   async submitFeedback({
     accessToken,
@@ -472,38 +611,22 @@ export const supabaseMeetingClient = {
 
   async createWorkspace({
     accessToken,
-    ownerId,
     name,
   }: {
     accessToken: string;
-    ownerId: string;
     name: string;
   }) {
-    const response = await fetch(getRestUrl("meetings"), {
+    const response = await fetch(getRestUrl("rpc/create_owned_meeting"), {
       method: "POST",
-      headers: {
-        ...getSupabaseHeaders(accessToken),
-        Prefer: "return=representation",
-      },
-      body: JSON.stringify({
-        owner_id: ownerId,
-        name,
-        metadata_json: null,
-        meeting_data: null,
-      }),
+      headers: getSupabaseHeaders(accessToken),
+      body: JSON.stringify({ meeting_name: name }),
     });
 
     if (!response.ok) {
       throw new Error(await getRestErrorMessage(response, "Workspace create"));
     }
 
-    const meetings = (await response.json()) as SupabaseMeeting[];
-    const meeting = meetings[0];
-    if (!meeting) {
-      throw new Error("Supabase did not return the created meeting.");
-    }
-
-    return meeting;
+    return (await response.json()) as SupabaseMeeting;
   },
 
   async getWorkspace({

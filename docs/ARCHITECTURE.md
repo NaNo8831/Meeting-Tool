@@ -140,3 +140,17 @@ The database currently has an owner-only `meetings.owner_id` authority path and 
 - The recommended acceptance path is explicit signed-in acceptance: match pending invitations to `lower(trim(auth.users.email))`, then atomically create or reactivate an editor `meeting_members` row and mark the invitation `accepted`.
 - Invitation creation, revocation, invitee pending-list reads, and acceptance should be implemented through narrow database-authorized operations, preferably security-definer RPCs with explicit owner/email/status checks.
 - PR 3B should not add tokenized invite links, automated email delivery, automatic acceptance on sign-in, Viewer UX, role editing, active member management, ownership transfer, multiple owners, realtime collaboration, Local Mode changes, or dashboard card/count changes.
+
+## Phase 3 PR 3B Invite Flow
+
+- Dashboard shared access now uses the existing `meeting_invitations` pending-invite model through narrow Supabase RPCs rather than direct client writes to access-management tables.
+- Owner-facing access UI is placed on active owned dashboard cards. Shared/editor dashboard cards do not show access controls.
+- Invitee-facing acceptance UI is placed in a dashboard `Pending invitations` section. It lists only pending invitations that match the signed-in user's normalized auth email.
+- Invite acceptance is explicit. Signing in does not auto-accept invitations, pending invitations do not grant meeting access, and `/meeting/[id]` access still depends on meeting RLS resolving an active membership row.
+- Tokenized invite links, automated email delivery, Local Mode changes, autosave behavior changes, Viewer UX, member management/removal, role editing, ownership transfer, multiple owners, organizations, and realtime collaboration remain deferred.
+
+## PR 3B follow-up create-meeting RLS fix
+
+- New cloud meeting creation now uses `create_owned_meeting(meeting_name)` instead of a direct dashboard REST insert into `meetings` with a client-supplied `owner_id`.
+- The RPC sets `owner_id = auth.uid()` server-side and lets the existing owner-membership trigger create/preserve the owner's `meeting_members` row.
+- This keeps shared editors from creating or managing meetings on behalf of another owner while avoiding the fragile direct insert/return path against membership-aware `meetings` RLS.

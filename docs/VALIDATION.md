@@ -122,3 +122,41 @@ Manual validation for the invite implementation PR should cover:
 - Existing active member cannot receive a duplicate pending invite.
 - Pending invite alone does not allow direct meeting access before acceptance.
 - Local Mode, existing dashboard card actions, Supabase schema outside the invite implementation, and RLS boundaries remain unchanged except where PR 3B explicitly adds invite RPC/policy support.
+
+## PR 3B invite flow validation
+
+Automated validation:
+
+- Run `npm run lint`.
+- Run `npx tsc --noEmit`.
+- Run `npm run build`.
+
+Manual validation:
+
+- Owner can invite an existing user by email from an active owned dashboard card.
+- Owner can see that meeting's pending invitations in the Access modal.
+- Owner can revoke a pending invitation.
+- Owner cannot create a duplicate active pending invite for the same meeting/email.
+- Owner cannot invite an email that already belongs to an active meeting member.
+- A signed-in user with a matching auth email sees the pending invitation in the dashboard pending-invitations section.
+- An unrelated signed-in user does not see or accept another email's invitation.
+- Invitee accepts the invitation, an active editor membership is created/reactivated, and the meeting appears in `Shared with Me` after dashboard refresh.
+- Revoked and accepted invitations cannot be accepted again.
+- Pending invitations alone do not allow direct meeting access before acceptance.
+- Shared/editor users cannot manage invitations, non-owners cannot revoke invitations, non-members cannot access meetings, and existing meeting RLS remains intact.
+
+## PR 3B follow-up validation
+
+Automated validation:
+
+- Run `npm run lint`.
+- Run `npx tsc --noEmit`.
+- Run `npm run build`.
+
+Manual validation:
+
+- Authenticated owner can create a new meeting from the dashboard.
+- Created meeting has `owner_id = auth.uid()` and an active owner membership row.
+- Owner can still invite a user, the invitee sees and accepts the pending invite, and the meeting appears under `Shared with Me`.
+- Shared editor cannot access invite controls or manage another owner's meeting lifecycle/access.
+- The pending-invitations dashboard section is hidden when the signed-in user has no pending invitations and shown only while loading or when invitations exist.
