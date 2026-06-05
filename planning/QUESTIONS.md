@@ -53,6 +53,6 @@
 - Resolved: Phase 3 durable role vocabulary is `owner`/`editor`/`viewer`, but UI behavior remains owner/editor only; Viewer UX/read-only enforcement remains deferred.
 - Resolved: pending invitations are not access grants; accepted editor membership is required for shared meeting access.
 - Resolved: profiles are display metadata only and must not become authorization inputs.
-- Must-fix before Phase 3 closeout: harden owner-only meeting lifecycle/container mutations separately from the editor Manual Save/content update path.
-- Open implementation detail for the hardening PR: whether to use owner-only archive/restore/rename RPCs, column-specific database safeguards, or both, while preserving Manual Save and avoiding autosave expansion.
+- Resolved by PR 3D implementation: owner-only meeting lifecycle/container mutations are separated from editor Manual Save/content updates. Direct `meetings` updates are narrowed to `meeting_data`, owner-only duplicate/archive/restore/soft-delete/rename use RPCs, and a trigger blocks non-owner protected-field changes as defense in depth.
+- Resolved by PR 3D implementation: use both owner-only lifecycle RPCs and database safeguards while preserving editor Manual Save and avoiding autosave expansion.
 - Deferred: autosave expansion, forgot password, import-to-cloud, dashboard card polish, Tactical History rename, responsive/sticky header polish, Manual Save retirement/move, ownership transfer, multiple owners, Viewer UX, role editing, organizations, audit history, realtime collaboration, and email/tokenized invite delivery.

@@ -7,8 +7,8 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate plus autosave only the narrow `meeting_settings` structured pilot after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: Phase 3 **PR 3D Architecture Review — Shared Access Hardening** documents the final shared-access security and permission review before Phase 3 closeout. Current shared access supports owner-created meetings, profiles/owner attribution, owned/shared dashboard sections, pending invitations, invite acceptance, accepted editor memberships, shared editor access, owner/editor member visibility, owner-only active-editor removal, dashboard member counts, and Tactical History visibility for owners/editors.
-- Current branch note: Phase 3 work targets `phase-3-shared-access`. This local checkout is named `work` and is based on merge commit `cac3380` (`Merge pull request #74 from NaNo8831/phase-2-cloud`); no git remote is configured in this container.
+- Current focus: Phase 3 **PR 3D Implementation — Shared Access Lifecycle Mutation Hardening** closes the final shared-access hardening gap before closeout by separating owner-only meeting lifecycle/container mutations from editor-safe Manual Save/content updates at the database/API boundary. Current shared access supports owner-created meetings, profiles/owner attribution, owned/shared dashboard sections, pending invitations, invite acceptance, accepted editor memberships, shared editor access, owner/editor member visibility, owner-only active-editor removal, dashboard member counts, and Tactical History visibility for owners/editors.
+- Current branch note: Phase 3 work targets `phase-3-shared-access`; this implementation branch is checked out locally for the shared-access lifecycle hardening PR.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
 
 ## Production State
@@ -30,7 +30,14 @@
 - Keep membership architecture and long-term role direction (`owner`/`editor`/`viewer`) explicit. PR 1A migration `20260603090000_align_shared_access_schema.sql` aligns `meeting_members.role` to `owner`/`editor`/`viewer`, maps existing `admin` and `member` values to `editor`, and backfills owner membership rows while preserving `meetings.owner_id` as the runtime owner authority.
 - Support pending invitations for people who have not signed up yet. For the first Team Beta, expose only Owner and Editor behavior if needed and allow everyone with access to edit; defer Viewer enforcement until the permission surface is ready.
 - Keep Last Save Wins as the Team Beta concurrency model. Realtime collaboration, presence, cursors, websockets, CRDTs, and conflict resolution remain out of scope.
-- Next recommended action: create a small implementation hardening PR that makes meeting lifecycle/container mutations owner-only at the database/API boundary while preserving Manual Save for owners/editors. Then run a Supabase-linked closeout validation with owner, editor, non-member, re-invite, member-count, Tactical History, and direct RPC/REST negative scenarios. Role editing, ownership transfer, owner self-removal, Viewer UX, organizations, Local Mode changes, autosave expansion, and realtime collaboration remain deferred.
+- Next recommended action: run a Supabase-linked Phase 3 closeout validation with owner, editor, removed-editor, non-member, re-invite, member-count, Tactical History, Manual Save, and direct RPC/REST negative scenarios. Role editing, ownership transfer, owner self-removal, Viewer UX, organizations, Local Mode changes, autosave expansion, and realtime collaboration remain deferred.
+
+## Phase 3 PR 3D lifecycle mutation hardening implementation
+
+- Direct REST updates to `meetings` are narrowed to the editor-safe `meeting_data` Manual Save field; existing RLS still requires active owner/editor edit access.
+- Owner-only meeting lifecycle/container fields are protected: `name`, `owner_id`, `metadata_json`, `archived_at`, and `deleted_at`. A trigger also blocks non-owner changes to protected columns if update privileges are accidentally broadened.
+- Dashboard duplicate/archive/restore now use `duplicate_owned_meeting(source_meeting_id, duplicate_name)`, `archive_owned_meeting(target_meeting_id)`, and `restore_owned_archived_meeting(target_meeting_id)` RPCs. Archived soft-delete remains on `soft_delete_owned_archived_meeting(target_meeting_id)`, and `rename_owned_meeting(target_meeting_id, meeting_name)` is available for future owner-only title changes.
+- Structured autosave remains incomplete; Manual Save remains required and available to owners/editors as the full workspace backup safety net.
 
 ## Phase 3 PR 3C member management implementation
 

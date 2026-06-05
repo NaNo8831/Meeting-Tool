@@ -242,3 +242,20 @@ Recommended validation for the follow-up lifecycle hardening PR:
 - Removed editor loses access after refresh/reload and is excluded from dashboard member count.
 - Pending invitee cannot open a meeting before acceptance.
 - Non-member cannot open the meeting, list members, accept another user's invite, or view Tactical History.
+
+## Phase 3 PR 3D Lifecycle Mutation Hardening Validation
+
+Automated validation:
+
+- Run `npm run lint`.
+- Run `npx tsc --noEmit`.
+- Run `npm run build`.
+
+Manual validation:
+
+- Owner/Test One can create a cloud meeting, open it, edit content, use Manual Save, duplicate an owned meeting, archive it, restore it, soft-delete it while archived, invite/revoke/list/remove editors, and view Tactical History.
+- Editor/Test Two can open a shared meeting, edit content, use Manual Save/full workspace backup, view the member list, and view Tactical History.
+- Editor/Test Two does not see dashboard archive, restore, delete, duplicate, invitation-management, or member-removal controls for shared meetings.
+- Editor/Test Two direct REST/RPC attempts to mutate protected meeting container/lifecycle fields (`name`, `owner_id`, `metadata_json`, `archived_at`, `deleted_at`) fail.
+- Removed editor access is lost after refresh/reload.
+- Non-member/Test Three cannot open the meeting, list members, mutate the meeting, or view Tactical History.

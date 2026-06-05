@@ -63,3 +63,10 @@
 ## PR 3B follow-up create-meeting RLS decision
 
 - Cloud meeting creation now uses a narrow `create_owned_meeting(meeting_name)` RPC. The function sets `owner_id` from `auth.uid()` and does not accept an owner override, avoiding client-supplied ownership authority while preserving the existing owner-membership trigger behavior.
+
+## Phase 3 PR 3D lifecycle mutation hardening decisions
+
+- Keep editor Manual Save support by allowing active editors to update only `meetings.meeting_data` through the direct `meetings` update path while structured autosave remains incomplete.
+- Treat meeting container/lifecycle columns as owner-only at the database/API boundary: `name`, `owner_id`, `metadata_json`, `archived_at`, and `deleted_at` are not editor-editable content fields.
+- Use narrow owner-only lifecycle/container RPCs for duplicate, archive, restore, archived soft-delete, and rename/title changes, with a database trigger as defense in depth against accidental broad update privileges.
+- Do not expand autosave, add ownership transfer, role editing, Viewer UX, organizations, audit history, realtime collaboration, or Local Mode changes as part of lifecycle hardening.
