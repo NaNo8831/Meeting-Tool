@@ -1149,6 +1149,33 @@ export const supabaseMeetingClient = {
     }
   },
 
+
+  async listStrategicTopicNotes({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("strategic_topic_notes")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}&select=*`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Strategic topic notes list"),
+      );
+    }
+
+    return (await response.json()) as SupabaseStrategicTopicNote[];
+  },
+
   async loadStrategicTopicNote({
     accessToken,
     workspaceId,

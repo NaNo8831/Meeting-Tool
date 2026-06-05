@@ -144,8 +144,34 @@ const isStrategicTopicRichTextNote = (
   return candidate.version === 1 && Array.isArray(candidate.blocks);
 };
 
+type StrategicTopicNoteBackupEntry = {
+  strategic_topic_item_id: number;
+  content_json: Record<string, unknown> | null;
+  content_text: string | null;
+  updated_at?: string | null;
+};
+
+type StrategicTopicNoteDraftRecord =
+  | SupabaseStrategicTopicNote
+  | StrategicTopicNoteBackupEntry;
+
+const isStrategicTopicNoteBackupEntry = (
+  value: unknown,
+): value is StrategicTopicNoteBackupEntry => {
+  if (typeof value !== "object" || value === null) return false;
+
+  const candidate = value as Partial<StrategicTopicNoteBackupEntry>;
+  return (
+    typeof candidate.strategic_topic_item_id === "number" &&
+    (candidate.content_json === null ||
+      typeof candidate.content_json === "object") &&
+    (candidate.content_text === null ||
+      typeof candidate.content_text === "string")
+  );
+};
+
 const getStrategicTopicNoteDraft = (
-  note: SupabaseStrategicTopicNote | null,
+  note: StrategicTopicNoteDraftRecord | null,
 ): RichTextValue => {
   if (!note) return "";
   if (isStrategicTopicRichTextNote(note.content_json)) {
@@ -156,6 +182,7 @@ const getStrategicTopicNoteDraft = (
 };
 
 const strategicTopicsStorageKey = "leadership-strategic-topic-items";
+const strategicTopicNotesStorageKey = "leadership-strategic-topic-notes";
 const meetingSetupCompletedStorageKey = "leadership-meeting-setup-completed";
 
 const strategicTopicsAutosaveDebounceMs = 1200;
@@ -972,7 +999,7 @@ export default function MeetingWorkspace() {
   const [historyNotesStatus, setHistoryNotesStatus] = useState("");
   const [isLoadingHistoryNotes, setIsLoadingHistoryNotes] = useState(false);
   const [isSavingHistoryNotes, setIsSavingHistoryNotes] = useState(false);
-  const [strategicTopicNotesById, setStrategicTopicNotesById] = useState<Record<number, SupabaseStrategicTopicNote | null>>({});
+  const [strategicTopicNotesById, setStrategicTopicNotesById] = useState<Record<number, StrategicTopicNoteDraftRecord | null>>({});
   useBodyScrollLock(
     showSettingsMenu ||
       showDeleteMeetingNotesConfirm ||
@@ -1800,8 +1827,13 @@ export default function MeetingWorkspace() {
           strategicTopicItemId: item.id,
           strategicTopicId: item.strategicTopicId,
         });
-        const noteDraft = getStrategicTopicNoteDraft(note);
-        setStrategicTopicNotesById((current) => ({ ...current, [item.id]: note }));
+        const fallbackNote = strategicTopicNotesById[item.id] ?? null;
+        const noteForDraft = note ?? fallbackNote;
+        const noteDraft = getStrategicTopicNoteDraft(noteForDraft);
+        setStrategicTopicNotesById((current) => ({
+          ...current,
+          [item.id]: noteForDraft,
+        }));
         setHistoryNotesDraft(noteDraft);
         topicNotesAutosaveKeyRef.current = `${selectedMeetingId}:${item.id}`;
         lastTopicNotesAutosaveSignatureRef.current = JSON.stringify(
@@ -1820,7 +1852,7 @@ export default function MeetingWorkspace() {
         setIsLoadingHistoryNotes(false);
       }
     },
-    [authSession, selectedMeetingId],
+    [authSession, selectedMeetingId, strategicTopicNotesById],
   );
 
   const saveStrategicTopicHistoryNoteDraft = useCallback(
@@ -1999,6 +2031,115 @@ export default function MeetingWorkspace() {
     ],
   );
 
+  const normalizeStrategicTopicNotesBackup = useCallback(
+    (value: unknown): Record<number, StrategicTopicNoteBackupEntry> => {
+      if (typeof value !== "object" || value === null || Array.isArray(value)) {
+        return {};
+      }
+
+      return Object.values(value).reduce<Record<number, StrategicTopicNoteBackupEntry>>(
+        (entries, note) => {
+          if (!isStrategicTopicNoteBackupEntry(note)) return entries;
+          entries[note.strategic_topic_item_id] = {
+            strategic_topic_item_id: note.strategic_topic_item_id,
+            content_json: note.content_json,
+            content_text: note.content_text,
+            updated_at: note.updated_at ?? null,
+          };
+          return entries;
+        },
+        {},
+      );
+    },
+    [],
+  );
+
+  const buildStrategicTopicNotesBackup = useCallback(
+    (notes: StrategicTopicNoteDraftRecord[]) =>
+      notes.reduce<Record<number, StrategicTopicNoteBackupEntry>>(
+        (entries, note) => {
+          entries[note.strategic_topic_item_id] = {
+            strategic_topic_item_id: note.strategic_topic_item_id,
+            content_json: note.content_json,
+            content_text: note.content_text,
+            updated_at: note.updated_at ?? null,
+          };
+          return entries;
+        },
+        {},
+      ),
+    [],
+  );
+
+  const loadCloudStrategicTopicNotesForBackup = useCallback(async () => {
+    if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
+      return [];
+    }
+
+    return supabaseMeetingClient.listStrategicTopicNotes({
+      accessToken: authSession.accessToken,
+      workspaceId: selectedMeetingId,
+    });
+  }, [authSession, isCurrentCloudRouteWorkspace, selectedMeetingId]);
+
+  const saveStrategicTopicNotesBackupToCloud = useCallback(
+    async (notesByTopicItemId: Record<number, StrategicTopicNoteBackupEntry>) => {
+      if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
+        return;
+      }
+
+      await Promise.all(
+        Object.values(notesByTopicItemId).map((note) =>
+          supabaseMeetingClient.saveStrategicTopicNote({
+            accessToken: authSession.accessToken,
+            workspaceId: selectedMeetingId,
+            strategicTopicItemId: note.strategic_topic_item_id,
+            contentText: note.content_text ?? "",
+            contentJson: note.content_json,
+          }),
+        ),
+      );
+    },
+    [authSession, isCurrentCloudRouteWorkspace, selectedMeetingId],
+  );
+
+  const getCurrentWorkspaceStorageForBackup = useCallback(async () => {
+    const cloudNotes = await loadCloudStrategicTopicNotesForBackup();
+    const cachedNotes = Object.values(strategicTopicNotesById).filter(
+      (note): note is StrategicTopicNoteDraftRecord => note !== null,
+    );
+    const openDraftNote = historyNotesTopic
+      ? [
+          {
+            strategic_topic_item_id: historyNotesTopic.id,
+            content_json: normalizeRichTextValue(
+              historyNotesDraft,
+            ) as unknown as Record<string, unknown>,
+            content_text: getRichTextPlainText(
+              normalizeRichTextValue(historyNotesDraft),
+            ),
+            updated_at: new Date().toISOString(),
+          },
+        ]
+      : [];
+
+    return {
+      ...getCurrentWorkspaceStorage(),
+      [strategicTopicNotesStorageKey]: buildStrategicTopicNotesBackup([
+        ...cloudNotes,
+        ...cachedNotes,
+        ...openDraftNote,
+      ]),
+    };
+  }, [
+    buildStrategicTopicNotesBackup,
+    getCurrentWorkspaceStorage,
+    historyNotesDraft,
+    historyNotesTopic,
+    loadCloudStrategicTopicNotesForBackup,
+    strategicTopicNotesById,
+  ]);
+
 
   const storeWorkspaceBackupInBrowser = useCallback(
     (backup: WorkspaceBackupFile, cloudWorkspaceId = "") => {
@@ -2062,6 +2203,11 @@ export default function MeetingWorkspace() {
       setStrategicTopicItems(
         readBackupEntry(backup, strategicTopicsStorageKey, []),
       );
+      setStrategicTopicNotesById(
+        normalizeStrategicTopicNotesBackup(
+          readBackupEntry(backup, strategicTopicNotesStorageKey, {}),
+        ),
+      );
       setStandardOperatingObjectives(
         readBackupEntry(
           backup,
@@ -2077,6 +2223,7 @@ export default function MeetingWorkspace() {
       setActiveMeetingId,
       setDashboardTitle,
       setHasCompletedMeetingSetup,
+      normalizeStrategicTopicNotesBackup,
       setMeetingSectionOrder,
       setMeetings,
       setOrganizationInfo,
@@ -2347,6 +2494,7 @@ export default function MeetingWorkspace() {
       if (!cloudData) {
         applyMeetingSettingsToState(meetingSettings);
         applyStrategicTopicsToState(strategicTopics);
+        setStrategicTopicNotesById({});
         setActiveCloudWorkspaceId(selectedMeetingId);
         setCloudSaveStatus("idle");
         setCloudMeetingMessage(
@@ -2564,7 +2712,7 @@ export default function MeetingWorkspace() {
     setCloudMeetingMessage("Saving full workspace to cloud backup…");
 
     try {
-      const workspaceEntries = getCurrentWorkspaceStorage();
+      const workspaceEntries = await getCurrentWorkspaceStorageForBackup();
       const wasSaved = await saveWorkspaceBackupToCloud(
         workspaceEntries,
         "Full workspace saved to cloud backup.",
@@ -2581,7 +2729,7 @@ export default function MeetingWorkspace() {
     }
   }, [
     authSession,
-    getCurrentWorkspaceStorage,
+    getCurrentWorkspaceStorageForBackup,
     isCurrentCloudRouteWorkspace,
     isLocalRoute,
     saveWorkspaceBackupToCloud,
@@ -2941,9 +3089,9 @@ export default function MeetingWorkspace() {
     workspaceMode,
   ]);
 
-  const handleExportWorkspaceBackup = () => {
+  const handleExportWorkspaceBackup = async () => {
     try {
-      const backup = createWorkspaceBackup(getCurrentWorkspaceStorage());
+      const backup = createWorkspaceBackup(await getCurrentWorkspaceStorageForBackup());
       const backupJson = JSON.stringify(backup, null, 2);
       const blob = new Blob([backupJson], { type: "application/json" });
       const downloadUrl = URL.createObjectURL(blob);
@@ -2989,20 +3137,27 @@ export default function MeetingWorkspace() {
         return;
       }
 
+      const restoredStrategicTopicNotes = normalizeStrategicTopicNotesBackup(
+        readBackupEntry(backup, strategicTopicNotesStorageKey, {}),
+      );
+
       storeWorkspaceBackupInBrowser(backup, activeCloudWorkspaceId);
       applyWorkspaceBackupToState(backup);
+      if (workspaceMode === "cloud") {
+        await saveStrategicTopicNotesBackupToCloud(restoredStrategicTopicNotes);
+      }
       setHasCompletedMeetingSetup(true);
       setCloudSaveStatus(workspaceMode === "cloud" ? "idle" : "local");
       setCloudMeetingMessage(
         workspaceMode === "cloud"
-          ? "Backup imported into the current view. Click Save current workspace to cloud when ready."
+          ? "Backup imported into the current view. Strategic Topic Notes were restored; click Save current workspace to cloud for the full workspace backup."
           : "",
       );
       setBackupFeedback({
         type: "success",
         message:
           workspaceMode === "cloud"
-            ? "Workspace backup imported into the selected Cloud Meeting view. Cloud data was not saved."
+            ? "Workspace backup imported into the selected Cloud Meeting view. Strategic Topic Notes were restored; use Manual Save for the full workspace backup."
             : "Workspace backup imported successfully.",
       });
     } catch (error) {
@@ -4020,7 +4175,7 @@ export default function MeetingWorkspace() {
             />
             {strategicTopicNotesById[historyNotesTopic.id]?.updated_at ? (
               <p className="mt-2 text-xs text-slate-500">
-                Last saved: {new Date(strategicTopicNotesById[historyNotesTopic.id]!.updated_at).toLocaleString()}
+                Last saved: {new Date(strategicTopicNotesById[historyNotesTopic.id]?.updated_at ?? "").toLocaleString()}
               </p>
             ) : null}
             {historyNotesStatus ? (

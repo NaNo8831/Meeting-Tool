@@ -331,3 +331,10 @@ PR 4B also uses `strategic_topics` and `strategic_topic_notes` for live Strategi
 - `public.strategic_topic_notes` is the durable Topic Notes table. It is meeting-scoped, has a nullable UUID relationship to `strategic_topics`, retains the legacy numeric topic item key, and stores rich text JSON with a plain-text companion for readability/search-oriented future work.
 - Existing `strategic_topics.notes` is not the rich Topic Notes source; it remains a legacy/plain text field and the editor reads/writes `strategic_topic_notes`.
 - `meetings.meeting_data` continues to include `leadership-strategic-topic-items` when Manual Save/export is used, preserving backup and import compatibility.
+
+
+## Strategic Topic Notes Backup Shape
+
+- Workspace backups include `leadership-strategic-topic-notes` as an object keyed by numeric Strategic Topic item ID. Each value stores `strategic_topic_item_id`, `content_json`, `content_text`, and optional `updated_at`.
+- The backup intentionally uses the numeric client item ID rather than `strategic_topics.id` so notes remain attached when a backup is imported into a different cloud meeting and new structured topic UUIDs are generated.
+- On cloud import, restored notes are upserted into `strategic_topic_notes` with the restored item ID; later topic-note opens can also link the note to the new `strategic_topics.id`.

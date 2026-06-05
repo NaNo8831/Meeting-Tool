@@ -94,3 +94,8 @@
 - `public.strategic_topic_notes` is the durable Topic Notes table. It is meeting-scoped, links to structured topics through nullable `strategic_topic_id`, keeps legacy `strategic_topic_item_id` for compatibility, and stores rich text JSON plus plain text.
 - Manual Save to `meetings.meeting_data`, Local Mode, export/import, and backup restore remain intact during this transition; structured Strategic Topics overlay the backup only when rows exist.
 - Last Save Wins remains the concurrency model for Strategic Topics and Topic Notes; realtime merge/conflict resolution remains deferred.
+
+
+## PR 4B Follow-up Strategic Topic Notes Backup Decision
+
+- Strategic Topic Notes must be part of the workspace backup/export/import compatibility layer, not only structured cloud autosave. Backups store notes by legacy numeric Strategic Topic item ID so notes follow restored topics even when a new cloud meeting creates new structured topic UUIDs.

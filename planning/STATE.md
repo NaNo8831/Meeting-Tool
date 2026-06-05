@@ -147,3 +147,10 @@
 - Formalized `public.strategic_topic_notes` for cloud Topic Notes with meeting scope, nullable structured topic linkage, legacy numeric topic item linkage, rich text JSON, plain text, updated-at trigger, indexes, and membership-aware RLS.
 - Cloud meeting hydration remains backward-safe: load `meetings.meeting_data` backup first, overlay `meeting_settings`, then overlay structured Strategic Topics when rows exist; meetings without structured topic rows continue using backup/localStorage fallback.
 - Manual Save, export/import, workspace backup restore, Local Mode, shared owner/editor editing, and Last Save Wins remain intact. Objectives, tasks, SOOs, meeting notes, agenda/decisions/cascade autosave, realtime collaboration, Viewer UX, and ownership transfer remain deferred.
+
+## PR 4B Follow-up — Strategic Topic Notes Backup Compatibility
+
+- Strategic Topic Notes are now included in workspace backups under the `leadership-strategic-topic-notes` backup key, keyed by the same legacy numeric Strategic Topic item IDs used by `leadership-strategic-topic-items`.
+- Manual Save and JSON export collect cloud Topic Notes plus locally cached/open note drafts so topic-attached notes are included in the full-workspace backup safety net.
+- Import/restore reads `leadership-strategic-topic-notes` back into workspace state and, for cloud meetings, immediately restores those notes into `strategic_topic_notes` using the restored topic item IDs. This keeps notes attached when a backup is restored into a new meeting and structured topic UUIDs are recreated.
+- Structured Strategic Topic and Topic Notes autosave remains primary for cloud editing; backup/import compatibility is an additional fallback path and does not change Local Mode, Manual Save, shared editor behavior, or Last Save Wins.

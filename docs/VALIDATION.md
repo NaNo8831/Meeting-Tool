@@ -316,3 +316,10 @@ Manual validation:
 - Non-member cannot access topic or note rows; a removed editor loses topic/note access after refresh/reload.
 - Manual Save, export, import, workspace backup restore, Local Mode, and existing meetings backed only by `meeting_data` still load.
 - Last Save Wins remains expected for concurrent edits; do not validate realtime merge behavior because it is intentionally deferred.
+
+
+## PR 4B Follow-up Strategic Topic Notes Backup Validation
+
+- Create a Strategic Topic, add a Topic Note, Manual Save, export a backup, create a new meeting, import/restore the backup, open the Strategic Topic Note, and confirm the note content is restored.
+- Confirm Strategic Topic creation/edit/order autosave still persists after refresh and in a private window.
+- Confirm editor topic/note/order autosave still works, Local Mode still works, and Manual Save still works.

@@ -229,3 +229,10 @@ Do not treat objectives/DOs, tasks, SOOs, Strategic Topics list/lifecycle, Agend
 - Hydration order remains backward-safe: full workspace backup first, `meeting_settings` overlay second, structured Strategic Topics overlay third when rows exist. If structured topic rows do not exist, the backup/localStorage Strategic Topics remain in use.
 - Manual Save, export/import, workspace backup, and Local Mode remain intact. Manual Save is still the full-workspace safety net while structured autosave expands surface by surface.
 - Last Save Wins remains the shared editing model. Realtime collaboration, presence, merge/conflict resolution, Viewer UX, ownership transfer, and other autosave surfaces are intentionally deferred.
+
+
+## Strategic Topic Notes Backup Compatibility
+
+- Manual Save and JSON export include Topic Notes in the workspace backup under `leadership-strategic-topic-notes`, keyed by legacy numeric Strategic Topic item IDs.
+- Import/restore rehydrates those note backups into local workspace state and, in cloud meetings, writes them back to `strategic_topic_notes` using the restored numeric item IDs. This lets notes follow restored Strategic Topics even when structured topic UUIDs differ in a newly created meeting.
+- Structured autosave remains the primary cloud edit path; `meeting_data` and JSON backup remain the safety net for backup/import parity.
