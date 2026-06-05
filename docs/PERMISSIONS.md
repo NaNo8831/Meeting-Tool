@@ -280,3 +280,17 @@ Hardening note: dashboard UI already hides owner-only lifecycle controls from sh
 - removed editors lose access after refresh/reload because the helpers exclude removed membership rows.
 
 No Viewer UX is added in this PR. Last Save Wins remains the editing model for owners/editors.
+
+## Phase 4 PR 4D Objectives / Tasks / SOOs Permission Review
+
+This review does not change RLS or runtime behavior.
+
+Future Defining Objectives, Tasks, and SOOs autosave should reuse the existing membership-aware meeting-content boundaries:
+
+- Owners can read and write DO/task/SOO rows.
+- Active editors can read and write DO/task/SOO rows.
+- Non-members cannot read or write DO/task/SOO rows.
+- Removed editors lose access because `user_can_access_meeting` and `user_can_edit_meeting` exclude removed membership rows.
+- Viewer read-only UX remains deferred; do not introduce new Viewer behavior in the DO/task/SOO implementation slice.
+
+Existing foundation policies on `objectives`, `tasks`, and `standard_operating_objectives` already use meeting member select and meeting editor insert/update/delete patterns, but the tables are not active runtime storage yet.

@@ -98,4 +98,11 @@
 
 - What should the later Agenda/Decision/Action redesign do with the pass-through `notes_json` arrays currently preserved by `meeting_notes`?
 - Should historical Meeting Notes rows receive an explicit archival/ended flag after Tactical History is created, or is current read-only UI plus `tactical_sessions.snapshot_json` sufficient for Team Beta?
-- PR 4D still needs to decide structured autosave shape and migration order for Defining Objectives, Tasks, and SOOs before `main`.
+- After PR 4D review, implementation still needs to finalize the exact migration details for Defining Objectives, Tasks, and SOOs before runtime autosave is added.
+
+## Phase 4 PR 4D Objectives / Tasks / SOOs Follow-up Questions
+
+- Should rich descriptions for Defining Objectives, Tasks, and SOOs use explicit `description_json` / `description_text` columns, or should the implementation store rich text in documented `metadata_json` fields?
+- Should `tasks` use uniqueness by `(meeting_id, client_task_id)` or `(meeting_id, client_objective_id, client_task_id)` during import and row reconciliation?
+- Should nested task subtasks, comments, and activity history remain JSONB columns for the first autosave implementation, or should any of them become first-class tables later for reporting/audit needs?
+- What exact deletion reconciliation should cloud import use for DO/task/SOO rows so stale structured rows do not survive a restored backup?

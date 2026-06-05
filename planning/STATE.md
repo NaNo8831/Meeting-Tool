@@ -7,8 +7,8 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings`, structured Strategic Topics, Topic Notes, topic ordering, Meeting Notes, and Cascading Communications after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: Phase 4 **PR 4C Implementation — Meeting Notes / Cascading Communications Autosave** adds the active `meeting_notes` structured table and cloud-route hydration/autosave for dated Meeting Notes records and Cascading Communications.
-- Current branch note: Phase 4 autosave work targets `phase-4-autosave`; this local worktree is preparing the PR 4C implementation slice.
+- Current focus: Phase 4 **PR 4D Architecture Review — Defining Objectives / Tasks / SOOs Autosave** documents current persistence and recommends the safest structured autosave implementation scope for Defining Objectives, embedded Tasks, and Standard Operating Objectives before main/team beta.
+- Current branch note: Phase 4 autosave work targets `phase-4-autosave`; this local worktree is preparing the PR 4D documentation/review slice.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
 
 ## Production State
@@ -173,3 +173,12 @@
 - Agenda Items and Decisions/Actions remain pass-through compatibility JSON inside `notes_json` because they currently live in the same `MeetingRecord`; their first-class structured schema and workflow redesign remain deferred.
 - Autosave status summaries now explicitly show Settings, Strategic Topics, and Meeting Notes/Cascading Communications statuses in cloud status clusters without adding a sticky header redesign.
 - Before `main`, Defining Objectives, Tasks, and SOOs remain the next required autosave dependencies for PR 4D.
+
+
+## Phase 4 PR 4D Objectives / Tasks / SOOs Autosave Review Notes
+
+- Current Defining Objectives live in `leadership-objectives` as an `Objective[]`; Tasks are embedded under each objective and include status, assignee, due date, rich description, subtasks, comments, and activity history.
+- Current Standard Operating Objectives live in `leadership-standard-operating-objectives` as a separate `StandardOperatingObjective[]` with title, rich description, optional color, and array-order sorting.
+- Existing `objectives`, `tasks`, and `standard_operating_objectives` tables exist but are not active runtime tables; they need schema reconciliation for numeric client IDs, ordering, color/rich-text fields, and nested task detail compatibility before implementation.
+- Recommended implementation scope for the next autosave slice is Defining Objectives + Tasks + SOOs together, while keeping Manual Save/export/import, Local Mode, Last Save Wins, and existing UI behavior unchanged.
+- Remaining before-main dependencies after this future implementation should be Agenda Items / Decisions/Actions redesign, Manual Save as full backup, sticky status/header UX, Forgot Password, and Documentation Refresh.
