@@ -163,3 +163,14 @@ The database currently has an owner-only `meetings.owner_id` authority path and 
 - Member removal should be an owner-only RPC that marks an active editor membership with `removed_at = now()`. It must not delete membership or invitation history, must not remove the owner, and must not support owner self-removal before ownership transfer exists.
 - Dashboard member counts should be loaded with or alongside dashboard meetings through a narrow count RPC/view that returns counts only for accessible meetings. Counts should include the owner plus active editors and exclude pending invites, removed members, and viewers.
 - Tactical History remains visible to owners and editors in Phase 3. Do not add an owner-only Tactical History restriction; Viewer behavior remains deferred.
+
+## Phase 3 PR 3C Member Management
+
+- Member management remains a dashboard-level shared-access slice, not a broad dashboard redesign and not a Local Mode change.
+- The dashboard uses narrow Supabase RPCs for member access data instead of direct client reads from `meeting_members`:
+  - `list_meeting_members(target_meeting_id)` lists active owner/editor rows for meetings the caller can already access.
+  - `remove_meeting_editor(target_meeting_id, target_user_id)` soft-removes an active editor from an owned meeting.
+  - `get_accessible_meeting_member_counts()` returns dashboard counts only for meetings visible to the caller.
+- The Access/Members modal shows the Owner row separately from an `Editors` section that lists active editor rows. Owners additionally see pending invitations, invite email controls, revoke pending invite controls, and remove controls for active editors. Editors can open a members-only version from shared dashboard cards and do not see invite or remove controls. The owner-card `Access` button means owner access management; the shared-card `Members` button means editor read-only access overview.
+- Member removal sets `meeting_members.removed_at` and relies on existing membership-aware RLS helpers to remove meeting visibility after refresh/reload. It does not delete membership rows, invitation history, or owner rows.
+- Tactical History remains available to owners and editors through existing meeting access policies; Phase 3 PR 3C does not add owner-only Tactical History restrictions.

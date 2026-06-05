@@ -270,3 +270,11 @@ Rules:
 - Acceptance creates or reactivates the corresponding `meeting_members` row with `role = 'editor'` and `removed_at = null`.
 - Accepted and revoked invitation rows are preserved for history. Re-inviting after accepted/revoked history creates a new pending row only when the email is not already an active member.
 - Duplicate active pending invitations for the same meeting/email remain blocked by the partial unique index on pending invitations.
+
+## Phase 3 PR 3C Member Management Data Model
+
+- No new member table is introduced. Active membership remains `meeting_members` with `removed_at is null`.
+- Visible access-panel rows are limited to the separately shown owner plus active editors and display only profile display name, profile email fallback, auth email fallback, and role label. The active editor list is labeled `Editors`; dashboard `Members: #` still means owner plus active editors.
+- Member removal is a soft removal: `remove_meeting_editor(target_meeting_id, target_user_id)` sets `meeting_members.removed_at = now()` for an active editor and preserves the row for history/re-invite reconciliation.
+- Re-invite uses the existing invitation path. A removed editor can regain access only when an owner creates a new pending invitation and the removed editor accepts it; acceptance may reactivate the existing membership row by clearing `removed_at`.
+- Dashboard member count is calculated as one owner plus active editors for each accessible meeting. Pending invitations, removed members, and viewers are excluded.

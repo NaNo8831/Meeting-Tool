@@ -52,6 +52,28 @@ export type SupabaseMeetingInvitation = {
   revoked_at: string | null;
 };
 
+export type SupabaseMeetingMember = {
+  meeting_id: string;
+  user_id: string;
+  role: "owner" | "editor";
+  display_name: string | null;
+  email: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupabaseMeetingMemberCount = {
+  meeting_id: string;
+  member_count: number;
+};
+
+export type SupabaseRemovedMeetingMember = {
+  meeting_id: string;
+  user_id: string;
+  role: "editor";
+  removed_at: string;
+};
+
 export type SupabasePendingMeetingInvitation = Pick<
   SupabaseMeetingInvitation,
   | "id"
@@ -529,6 +551,79 @@ export const supabaseInvitationClient = {
     }
 
     return (await response.json()) as SupabaseMeetingInvitation;
+  },
+};
+
+export const supabaseMemberClient = {
+  async listMeetingMembers({
+    accessToken,
+    meetingId,
+  }: {
+    accessToken: string;
+    meetingId: string;
+  }) {
+    const response = await fetch(getRestUrl("rpc/list_meeting_members"), {
+      method: "POST",
+      headers: getSupabaseHeaders(accessToken),
+      body: JSON.stringify({ target_meeting_id: meetingId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Member list"));
+    }
+
+    return (await response.json()) as SupabaseMeetingMember[];
+  },
+
+  async removeMeetingEditor({
+    accessToken,
+    meetingId,
+    userId,
+  }: {
+    accessToken: string;
+    meetingId: string;
+    userId: string;
+  }) {
+    const response = await fetch(getRestUrl("rpc/remove_meeting_editor"), {
+      method: "POST",
+      headers: getSupabaseHeaders(accessToken),
+      body: JSON.stringify({
+        target_meeting_id: meetingId,
+        target_user_id: userId,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Member removal"));
+    }
+
+    const removedMembers =
+      (await response.json()) as SupabaseRemovedMeetingMember[];
+    const removedMember = removedMembers[0];
+    if (!removedMember) {
+      throw new Error("Supabase did not return the removed member.");
+    }
+
+    return removedMember;
+  },
+
+  async listAccessibleMeetingMemberCounts(accessToken: string) {
+    const response = await fetch(
+      getRestUrl("rpc/get_accessible_meeting_member_counts"),
+      {
+        method: "POST",
+        headers: getSupabaseHeaders(accessToken),
+        body: JSON.stringify({}),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Meeting member count list"),
+      );
+    }
+
+    return (await response.json()) as SupabaseMeetingMemberCount[];
   },
 };
 
