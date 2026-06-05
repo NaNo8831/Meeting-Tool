@@ -39,7 +39,9 @@ Architecture drawbacks of full JSONB autosave:
 
 ## Current Split Save Model
 
-- `meeting_settings` autosave persists playbook/settings-level data only: `dashboard_title`, `organization_info`, `meeting_section_order`, and `setup_completed`.
+- `meeting_settings` autosave persists playbook/settings-level data: `dashboard_title`, `organization_info`, `meeting_section_order`, and `setup_completed`.
+- `strategic_topics` autosave persists cloud Strategic Topic rows, including legacy `client_item_id`, title/text, `status`, completed/archive timestamps, captured/removed meeting context, `sort_order`, and metadata.
+- `strategic_topic_notes` autosave persists topic-attached rich notes separately from the full-workspace backup using `meeting_id`, nullable `strategic_topic_id`, legacy `strategic_topic_item_id`, `content_json`, and `content_text`.
 - Manual Save persists the full operational workspace backup to `meetings.meeting_data`, including objectives, tasks, agenda items, Strategic Topics, meeting notes, Standard Operating Objectives, Defining Objectives, and other runtime meeting state.
 - Manual Save remains required, visible, and available until structured autosave reliably covers all important meeting data.
 - Full-workspace JSONB autosave remains out of scope. Future structured autosave expansion should continue surface-by-surface in separate PRs.
@@ -305,16 +307,14 @@ Rules:
 - `exportedAt`
 - `localStorage`, containing validated `leadership-*` workspace keys
 
-The currently active structured autosave payload is `meeting_settings` only:
+Structured autosave currently has two active cloud payloads. `meeting_settings` stores:
 
 - `dashboard_title`
 - `organization_info`
 - `meeting_section_order`
 - `setup_completed`
 
-The repository already has structured tables for several future persistence slices (`objectives`, `tasks`, `standard_operating_objectives`, `strategic_topics`, `tactical_sessions`, `tactical_items`, `strategic_sessions`, and `strategic_session_notes`), but current runtime autosave does not use those tables for live objectives, tasks, SOOs, Strategic Topics list/lifecycle, meeting notes, agenda, decisions, cascading communications, or active meeting selection.
-
-`strategic_topic_notes` is referenced by the current client for topic-attached notes, but the reviewed repository migrations do not create that table or RLS policies. Treat topic notes as a schema-reconciliation prerequisite before expanding Strategic Topic autosave.
+PR 4B also uses `strategic_topics` and `strategic_topic_notes` for live Strategic Topic list/lifecycle/order and Topic Notes autosave. Other structured tables (`objectives`, `tasks`, `standard_operating_objectives`, `tactical_sessions`, `tactical_items`, `strategic_sessions`, and `strategic_session_notes`) remain future persistence slices for live objectives, tasks, SOOs, meeting notes, agenda, decisions, cascading communications, or active meeting selection.
 
 
 ## Phase 4 Strategic Topics Autosave Data Model Recommendation
@@ -322,4 +322,12 @@ The repository already has structured tables for several future persistence slic
 - Current runtime Strategic Topics are `MeetingItem[]` records keyed by numeric client IDs and stored under `leadership-strategic-topic-items`; Manual Save includes this array in `meetings.meeting_data`.
 - `public.strategic_topics` should become the active structured autosave table for Strategic Topic rows, using `title`, `status`, `archived_at`, `completed_at`, `sort_order`, and `metadata_json` for current captured-date/meeting context and legacy client-ID compatibility.
 - Current Topic Notes are rich text records loaded/saved separately through app calls to `strategic_topic_notes` by `meeting_id` plus numeric `strategic_topic_item_id`; they are not included in Manual Save/export backup.
-- Reviewed migrations do not create `strategic_topic_notes`; `strategic_session_notes` is session-scoped and should not be reused for persistent topic-attached notes. A future migration should formalize topic notes before autosave relies on them.
+- PR 4B formalizes `strategic_topic_notes`; `strategic_session_notes` is session-scoped and is not reused for persistent topic-attached notes.
+
+
+## Strategic Topics Structured Autosave Shape
+
+- `public.strategic_topics` is reused rather than duplicating topic storage. PR 4B adds `client_item_id` for the existing numeric client item identity plus captured/completed/removed context columns and persists list order in `sort_order`.
+- `public.strategic_topic_notes` is the durable Topic Notes table. It is meeting-scoped, has a nullable UUID relationship to `strategic_topics`, retains the legacy numeric topic item key, and stores rich text JSON with a plain-text companion for readability/search-oriented future work.
+- Existing `strategic_topics.notes` is not the rich Topic Notes source; it remains a legacy/plain text field and the editor reads/writes `strategic_topic_notes`.
+- `meetings.meeting_data` continues to include `leadership-strategic-topic-items` when Manual Save/export is used, preserving backup and import compatibility.

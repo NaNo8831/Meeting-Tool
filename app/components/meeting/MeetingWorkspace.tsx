@@ -53,7 +53,9 @@ import {
   supabaseMeetingClient,
   type SupabaseMeetingSettings,
   type SupabaseMeetingSettingsUpsert,
+  type SupabaseStrategicTopic,
   type SupabaseStrategicTopicNote,
+  type SupabaseStrategicTopicUpsert,
   type SupabaseTacticalSession,
 } from "@/app/lib/supabaseClient";
 import type {
@@ -155,6 +157,108 @@ const getStrategicTopicNoteDraft = (
 
 const strategicTopicsStorageKey = "leadership-strategic-topic-items";
 const meetingSetupCompletedStorageKey = "leadership-meeting-setup-completed";
+
+const strategicTopicsAutosaveDebounceMs = 1200;
+const topicNotesAutosaveDebounceMs = 1000;
+
+type StrategicTopicsAutosaveStatus =
+  | "ready"
+  | "pending"
+  | "saving"
+  | "saved"
+  | "error";
+
+const toNullableNumber = (value: number | undefined) =>
+  typeof value === "number" ? value : null;
+
+const toNullableString = (value: string | undefined) =>
+  value && value.trim() ? value : null;
+
+const mapStrategicTopicFromSupabase = (
+  topic: SupabaseStrategicTopic,
+): MeetingItem => {
+  const metadata = topic.metadata_json ?? {};
+
+  return {
+    id: topic.client_item_id,
+    strategicTopicId: topic.id,
+    text: topic.title,
+    capturedDate:
+      topic.captured_date ??
+      (typeof metadata.capturedDate === "string" ? metadata.capturedDate : undefined),
+    capturedMeetingId:
+      topic.captured_meeting_id ??
+      (typeof metadata.capturedMeetingId === "number"
+        ? metadata.capturedMeetingId
+        : undefined),
+    capturedMeetingIndex:
+      topic.captured_meeting_index ??
+      (typeof metadata.capturedMeetingIndex === "number"
+        ? metadata.capturedMeetingIndex
+        : undefined),
+    completed: topic.status === "completed" || Boolean(topic.completed_at),
+    completedDate:
+      topic.completed_date ??
+      (typeof metadata.completedDate === "string" ? metadata.completedDate : ""),
+    status: topic.status,
+    completedAt: topic.completed_at ?? undefined,
+    archivedAt: topic.archived_at ?? undefined,
+    removedMeetingId:
+      topic.removed_meeting_id ??
+      (typeof metadata.removedMeetingId === "number"
+        ? metadata.removedMeetingId
+        : undefined),
+    removedMeetingIndex:
+      topic.removed_meeting_index ??
+      (typeof metadata.removedMeetingIndex === "number"
+        ? metadata.removedMeetingIndex
+        : undefined),
+    removedDate:
+      topic.removed_date ??
+      (typeof metadata.removedDate === "string" ? metadata.removedDate : undefined),
+  };
+};
+
+const mapStrategicTopicToSupabase = (
+  item: MeetingItem,
+  meetingId: string,
+  sortOrder: number,
+): SupabaseStrategicTopicUpsert => ({
+  meeting_id: meetingId,
+  client_item_id: item.id,
+  title: item.text,
+  status: item.status ?? (item.completed ? "completed" : "active"),
+  archived_at: toNullableString(item.archivedAt),
+  completed_at: toNullableString(item.completedAt),
+  completed_date: toNullableString(item.completedDate),
+  captured_date: toNullableString(item.capturedDate),
+  captured_meeting_id: toNullableNumber(item.capturedMeetingId),
+  captured_meeting_index: toNullableNumber(item.capturedMeetingIndex),
+  removed_meeting_id: toNullableNumber(item.removedMeetingId),
+  removed_meeting_index: toNullableNumber(item.removedMeetingIndex),
+  removed_date: toNullableString(item.removedDate),
+  sort_order: sortOrder,
+  metadata_json: {
+    completed: item.completed ?? false,
+  },
+});
+
+const mergeSavedStrategicTopicIds = (
+  currentItems: MeetingItem[],
+  savedTopics: SupabaseStrategicTopic[],
+) => {
+  if (savedTopics.length === 0) return currentItems;
+
+  const savedIdsByClientId = new Map(
+    savedTopics.map((topic) => [topic.client_item_id, topic.id]),
+  );
+
+  return currentItems.map((item) => {
+    const strategicTopicId = savedIdsByClientId.get(item.id);
+    return strategicTopicId ? { ...item, strategicTopicId } : item;
+  });
+};
+
 type MeetingSpecificSectionKey =
   | "agendaItems"
   | "decisionItems"
@@ -710,6 +814,15 @@ export default function MeetingWorkspace() {
     saved: "Settings saved to cloud",
     error: "Settings save failed",
   };
+  const [strategicTopicsAutosaveStatus, setStrategicTopicsAutosaveStatus] =
+    useState<StrategicTopicsAutosaveStatus>("ready");
+  const strategicTopicsAutosaveStatusLabel: Record<StrategicTopicsAutosaveStatus, string> = {
+    ready: "Strategic Topics autosave ready",
+    pending: "Strategic Topics autosave pending…",
+    saving: "Saving Strategic Topics…",
+    saved: "Strategic Topics saved to cloud",
+    error: "Strategic Topics save failed",
+  };
   const [cloudMeetingMessage, setCloudMeetingMessage] = useState("");
   const [hasUnsavedFullWorkspaceChanges, setHasUnsavedFullWorkspaceChanges] =
     useState(false);
@@ -836,6 +949,12 @@ export default function MeetingWorkspace() {
   const meetingSettingsAutosaveWorkspaceIdRef = useRef("");
   const pendingMeetingSettingsAutosaveSignatureRef = useRef("");
   const isMeetingSettingsAutosaveInFlightRef = useRef(false);
+  const lastStrategicTopicsAutosaveSignatureRef = useRef("");
+  const strategicTopicsAutosaveWorkspaceIdRef = useRef("");
+  const pendingStrategicTopicsAutosaveSignatureRef = useRef("");
+  const isStrategicTopicsAutosaveInFlightRef = useRef(false);
+  const lastTopicNotesAutosaveSignatureRef = useRef("");
+  const topicNotesAutosaveKeyRef = useRef("");
   const lastAutoLoadedCloudMeetingIdRef = useRef("");
   const [isRouteCloudBootstrapping, setIsRouteCloudBootstrapping] =
     useState(false);
@@ -1332,6 +1451,21 @@ export default function MeetingWorkspace() {
     );
   };
 
+  const reorderStrategicTopicItems = (draggedItemId: number, targetItemId: number) => {
+    if (draggedItemId === targetItemId) return;
+
+    setStrategicTopicItems((currentItems) => {
+      const draggedIndex = currentItems.findIndex((item) => item.id === draggedItemId);
+      const targetIndex = currentItems.findIndex((item) => item.id === targetItemId);
+      if (draggedIndex === -1 || targetIndex === -1) return currentItems;
+
+      const reordered = [...currentItems];
+      const [draggedItem] = reordered.splice(draggedIndex, 1);
+      reordered.splice(targetIndex, 0, draggedItem);
+      return reordered;
+    });
+  };
+
   const updateStrategicTopicCompleted = (
     itemId: number,
     completed: boolean,
@@ -1664,10 +1798,18 @@ export default function MeetingWorkspace() {
           accessToken: authSession.accessToken,
           workspaceId: selectedMeetingId,
           strategicTopicItemId: item.id,
+          strategicTopicId: item.strategicTopicId,
         });
+        const noteDraft = getStrategicTopicNoteDraft(note);
         setStrategicTopicNotesById((current) => ({ ...current, [item.id]: note }));
-        setHistoryNotesDraft(getStrategicTopicNoteDraft(note));
+        setHistoryNotesDraft(noteDraft);
+        topicNotesAutosaveKeyRef.current = `${selectedMeetingId}:${item.id}`;
+        lastTopicNotesAutosaveSignatureRef.current = JSON.stringify(
+          normalizeRichTextValue(noteDraft),
+        );
       } catch (error) {
+        topicNotesAutosaveKeyRef.current = "";
+        lastTopicNotesAutosaveSignatureRef.current = "";
         setHistoryNotesDraft("");
         setHistoryNotesStatus(
           error instanceof Error
@@ -1681,35 +1823,80 @@ export default function MeetingWorkspace() {
     [authSession, selectedMeetingId],
   );
 
+  const saveStrategicTopicHistoryNoteDraft = useCallback(
+    async (closeAfterSave: boolean) => {
+      if (!historyNotesTopic || !authSession || !selectedMeetingId) return;
+      setIsSavingHistoryNotes(true);
+      setHistoryNotesStatus(closeAfterSave ? "Saving history…" : "Autosaving history…");
+      try {
+        const contentDocument = normalizeRichTextValue(historyNotesDraft);
+        const saved = await supabaseMeetingClient.saveStrategicTopicNote({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+          strategicTopicItemId: historyNotesTopic.id,
+          strategicTopicId: historyNotesTopic.strategicTopicId,
+          contentText: getRichTextPlainText(contentDocument),
+          contentJson: contentDocument as unknown as Record<string, unknown>,
+        });
+        setStrategicTopicNotesById((current) => ({
+          ...current,
+          [historyNotesTopic.id]: saved,
+        }));
+        lastTopicNotesAutosaveSignatureRef.current = JSON.stringify(contentDocument);
+        topicNotesAutosaveKeyRef.current = `${selectedMeetingId}:${historyNotesTopic.id}`;
+        setHistoryNotesStatus(
+          closeAfterSave ? "History saved." : "History autosaved.",
+        );
+        if (closeAfterSave) {
+          setHistoryNotesTopic(null);
+        }
+      } catch (error) {
+        setHistoryNotesStatus(
+          error instanceof Error
+            ? error.message
+            : "Strategic topic note could not be saved.",
+        );
+      } finally {
+        setIsSavingHistoryNotes(false);
+      }
+    },
+    [authSession, historyNotesDraft, historyNotesTopic, selectedMeetingId],
+  );
+
   const handleSaveStrategicTopicHistoryNotes = useCallback(async () => {
+    await saveStrategicTopicHistoryNoteDraft(true);
+  }, [saveStrategicTopicHistoryNoteDraft]);
+
+  useEffect(() => {
     if (!historyNotesTopic || !authSession || !selectedMeetingId) return;
-    setIsSavingHistoryNotes(true);
-    setHistoryNotesStatus("Saving history…");
-    try {
-      const contentDocument = normalizeRichTextValue(historyNotesDraft);
-      const saved = await supabaseMeetingClient.saveStrategicTopicNote({
-        accessToken: authSession.accessToken,
-        workspaceId: selectedMeetingId,
-        strategicTopicItemId: historyNotesTopic.id,
-        contentText: getRichTextPlainText(contentDocument),
-        contentJson: contentDocument as unknown as Record<string, unknown>,
-      });
-      setStrategicTopicNotesById((current) => ({
-        ...current,
-        [historyNotesTopic.id]: saved,
-      }));
-      setHistoryNotesStatus("History saved.");
-      setHistoryNotesTopic(null);
-    } catch (error) {
-      setHistoryNotesStatus(
-        error instanceof Error
-          ? error.message
-          : "Strategic topic note could not be saved.",
+    if (isLoadingHistoryNotes) return;
+
+    const topicNotesKey = `${selectedMeetingId}:${historyNotesTopic.id}`;
+    if (topicNotesAutosaveKeyRef.current !== topicNotesKey) {
+      topicNotesAutosaveKeyRef.current = topicNotesKey;
+      lastTopicNotesAutosaveSignatureRef.current = JSON.stringify(
+        normalizeRichTextValue(historyNotesDraft),
       );
-    } finally {
-      setIsSavingHistoryNotes(false);
+      return;
     }
-  }, [authSession, historyNotesDraft, historyNotesTopic, selectedMeetingId]);
+
+    const currentSignature = JSON.stringify(normalizeRichTextValue(historyNotesDraft));
+    if (currentSignature === lastTopicNotesAutosaveSignatureRef.current) return;
+
+    setHistoryNotesStatus("Topic Notes autosave pending…");
+    const timeoutId = window.setTimeout(() => {
+      void saveStrategicTopicHistoryNoteDraft(false);
+    }, topicNotesAutosaveDebounceMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    authSession,
+    historyNotesDraft,
+    historyNotesTopic,
+    isLoadingHistoryNotes,
+    saveStrategicTopicHistoryNoteDraft,
+    selectedMeetingId,
+  ]);
 
   const meetingSections: Record<MeetingSectionKey, MeetingSectionConfig> = {
     agenda: {
@@ -1746,6 +1933,7 @@ export default function MeetingWorkspace() {
       archivedHistoryItems: archivedStrategicTopicItems,
       updateCompleted: updateStrategicTopicCompleted,
       openHistoryNotes: openStrategicTopicHistoryNotes,
+      reorderItems: reorderStrategicTopicItems,
       placeholder: "New strategic topic",
       editPlaceholder: "Add strategic topic",
     },
@@ -2117,6 +2305,15 @@ export default function MeetingWorkspace() {
     ],
   );
 
+  const applyStrategicTopicsToState = useCallback(
+    (topics: SupabaseStrategicTopic[]) => {
+      if (topics.length === 0) return;
+
+      setStrategicTopicItems(topics.map(mapStrategicTopicFromSupabase));
+    },
+    [setStrategicTopicItems],
+  );
+
   const handleLoadCloudMeeting = useCallback(async () => {
     if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
       setCloudSaveStatus(isLocalRoute ? "local" : "error");
@@ -2132,7 +2329,7 @@ export default function MeetingWorkspace() {
     setCloudMeetingMessage("Loading cloud meeting…");
 
     try {
-      const [cloudData, meetingSettings] = await Promise.all([
+      const [cloudData, meetingSettings, strategicTopics] = await Promise.all([
         supabaseMeetingClient.loadWorkspaceData({
           accessToken: authSession.accessToken,
           workspaceId: selectedMeetingId,
@@ -2141,14 +2338,21 @@ export default function MeetingWorkspace() {
           accessToken: authSession.accessToken,
           workspaceId: selectedMeetingId,
         }),
+        supabaseMeetingClient.loadStrategicTopics({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+        }),
       ]);
 
       if (!cloudData) {
         applyMeetingSettingsToState(meetingSettings);
+        applyStrategicTopicsToState(strategicTopics);
         setActiveCloudWorkspaceId(selectedMeetingId);
         setCloudSaveStatus("idle");
         setCloudMeetingMessage(
-          "This cloud meeting has no saved data yet. Use Save current workspace to cloud when ready.",
+          strategicTopics.length > 0
+            ? "Cloud meeting loaded from structured Strategic Topics. Manual Save remains available for full workspace backup."
+            : "This cloud meeting has no saved data yet. Use Save current workspace to cloud when ready.",
         );
         setIsRouteCloudBootstrapping(false);
         return;
@@ -2160,11 +2364,12 @@ export default function MeetingWorkspace() {
       setActiveCloudWorkspaceId(selectedMeetingId);
       applyWorkspaceBackupToState(backup);
       applyMeetingSettingsToState(meetingSettings);
+      applyStrategicTopicsToState(strategicTopics);
       lastCloudAutosaveSignatureRef.current = signature;
       setHasUnsavedFullWorkspaceChanges(false);
       setCloudSaveStatus("idle");
       setCloudMeetingMessage(
-        "Cloud workspace loaded. Settings autosave covers playbook settings only; Manual Save backs up the full workspace.",
+        "Cloud workspace loaded. Settings and Strategic Topics autosave to structured storage; Manual Save backs up the full workspace.",
       );
       setIsRouteCloudBootstrapping(false);
     } catch (error) {
@@ -2178,6 +2383,7 @@ export default function MeetingWorkspace() {
     }
   }, [
     applyMeetingSettingsToState,
+    applyStrategicTopicsToState,
     applyWorkspaceBackupToState,
     authSession,
     isCurrentCloudRouteWorkspace,
@@ -2390,8 +2596,14 @@ export default function MeetingWorkspace() {
         lastMeetingSettingsAutosaveSignatureRef.current = "";
         meetingSettingsAutosaveWorkspaceIdRef.current = "";
         pendingMeetingSettingsAutosaveSignatureRef.current = "";
+        lastStrategicTopicsAutosaveSignatureRef.current = "";
+        strategicTopicsAutosaveWorkspaceIdRef.current = "";
+        pendingStrategicTopicsAutosaveSignatureRef.current = "";
+        topicNotesAutosaveKeyRef.current = "";
+        lastTopicNotesAutosaveSignatureRef.current = "";
         setHasUnsavedFullWorkspaceChanges(false);
         setSettingsAutosaveStatus("ready");
+        setStrategicTopicsAutosaveStatus("ready");
         setCloudSaveStatus("local");
         setCloudMeetingMessage(
           authSession
@@ -2403,6 +2615,7 @@ export default function MeetingWorkspace() {
       }
 
       setSettingsAutosaveStatus("ready");
+      setStrategicTopicsAutosaveStatus("ready");
       setCloudSaveStatus("idle");
       setCloudMeetingMessage(
         "Cloud workspace selected. Load cloud data when needed.",
@@ -2554,6 +2767,154 @@ export default function MeetingWorkspace() {
     isRouteCloudBootstrapping,
     meetingSettingsAutosaveSignature,
     selectedMeetingId,
+    workspaceMode,
+  ]);
+
+  const strategicTopicsAutosavePayload = useMemo(
+    () =>
+      strategicTopicItems.map((item, index) =>
+        mapStrategicTopicToSupabase(item, selectedMeetingId, index),
+      ),
+    [selectedMeetingId, strategicTopicItems],
+  );
+  const strategicTopicsAutosaveSignature = useMemo(
+    () => JSON.stringify(strategicTopicsAutosavePayload),
+    [strategicTopicsAutosavePayload],
+  );
+
+  useEffect(() => {
+    if (workspaceMode !== "cloud") return;
+    if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace)
+      return;
+    if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
+      return;
+    if (isRouteCloudBootstrapping || !hasLoadedDashboardStorage) return;
+
+    if (strategicTopicsAutosaveWorkspaceIdRef.current !== selectedMeetingId) {
+      strategicTopicsAutosaveWorkspaceIdRef.current = selectedMeetingId;
+      lastStrategicTopicsAutosaveSignatureRef.current =
+        strategicTopicsAutosaveSignature;
+      pendingStrategicTopicsAutosaveSignatureRef.current = "";
+      return;
+    }
+
+    if (
+      strategicTopicsAutosaveSignature ===
+      lastStrategicTopicsAutosaveSignatureRef.current
+    ) {
+      if (pendingStrategicTopicsAutosaveSignatureRef.current) {
+        pendingStrategicTopicsAutosaveSignatureRef.current = "";
+        setStrategicTopicsAutosaveStatus("saved");
+        setCloudMeetingMessage("Strategic Topics match the saved cloud version.");
+      }
+      return;
+    }
+
+    pendingStrategicTopicsAutosaveSignatureRef.current =
+      strategicTopicsAutosaveSignature;
+    setStrategicTopicsAutosaveStatus("pending");
+    setCloudMeetingMessage(
+      "Strategic Topics autosave pending… Manual Save still backs up the full workspace.",
+    );
+
+    let isCancelled = false;
+    let timeoutId: number;
+    const flushPendingTopics = async () => {
+      if (isCancelled) return;
+      if (isStrategicTopicsAutosaveInFlightRef.current) {
+        timeoutId = window.setTimeout(
+          flushPendingTopics,
+          strategicTopicsAutosaveDebounceMs,
+        );
+        return;
+      }
+
+      const pendingSignature =
+        pendingStrategicTopicsAutosaveSignatureRef.current;
+      if (
+        !pendingSignature ||
+        pendingSignature === lastStrategicTopicsAutosaveSignatureRef.current
+      )
+        return;
+
+      const pendingTopics = JSON.parse(
+        pendingSignature,
+      ) as SupabaseStrategicTopicUpsert[];
+
+      isStrategicTopicsAutosaveInFlightRef.current = true;
+      pendingStrategicTopicsAutosaveSignatureRef.current = "";
+      setStrategicTopicsAutosaveStatus("saving");
+      setCloudMeetingMessage("Saving Strategic Topics to cloud…");
+
+      try {
+        const savedTopics = await supabaseMeetingClient.saveStrategicTopics({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+          topics: pendingTopics,
+        });
+        await supabaseMeetingClient.deleteMissingStrategicTopics({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+          retainedClientItemIds: pendingTopics.map((topic) => topic.client_item_id),
+        });
+        lastStrategicTopicsAutosaveSignatureRef.current = pendingSignature;
+
+        if (savedTopics.length > 0) {
+          setStrategicTopicItems((currentItems) =>
+            mergeSavedStrategicTopicIds(currentItems, savedTopics),
+          );
+        }
+
+        if (
+          !isCancelled &&
+          !pendingStrategicTopicsAutosaveSignatureRef.current
+        ) {
+          setStrategicTopicsAutosaveStatus("saved");
+          setCloudMeetingMessage(
+            "Strategic Topics saved to cloud. Manual Save still backs up the full workspace.",
+          );
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setStrategicTopicsAutosaveStatus("error");
+          setCloudMeetingMessage(
+            error instanceof Error
+              ? error.message
+              : "Strategic Topics could not be saved to cloud.",
+          );
+        }
+      } finally {
+        isStrategicTopicsAutosaveInFlightRef.current = false;
+        if (
+          !isCancelled &&
+          pendingStrategicTopicsAutosaveSignatureRef.current
+        ) {
+          timeoutId = window.setTimeout(
+            flushPendingTopics,
+            strategicTopicsAutosaveDebounceMs,
+          );
+        }
+      }
+    };
+
+    timeoutId = window.setTimeout(
+      flushPendingTopics,
+      strategicTopicsAutosaveDebounceMs,
+    );
+
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    activeCloudWorkspaceId,
+    authSession,
+    hasLoadedDashboardStorage,
+    isCurrentCloudRouteWorkspace,
+    isRouteCloudBootstrapping,
+    selectedMeetingId,
+    setStrategicTopicItems,
+    strategicTopicsAutosaveSignature,
     workspaceMode,
   ]);
 
@@ -2872,6 +3233,9 @@ export default function MeetingWorkspace() {
                 <p className="mt-2 text-xs font-semibold text-blue-700">
                   {settingsAutosaveStatusLabel[settingsAutosaveStatus]}
                 </p>
+                <p className="mt-1 text-xs font-semibold text-blue-700">
+                  {strategicTopicsAutosaveStatusLabel[strategicTopicsAutosaveStatus]}
+                </p>
                 <p className="mt-2 text-xs text-slate-500">{cloudMeetingMessage}</p>
                 <p className={`mt-2 text-xs font-semibold ${
                   hasUnsavedFullWorkspaceChanges
@@ -2880,7 +3244,7 @@ export default function MeetingWorkspace() {
                 }`}>
                   {hasUnsavedFullWorkspaceChanges
                     ? "Manual Save needed for full workspace changes."
-                    : "Full workspace backup saved. Manual Save backs up objectives, tasks, meeting notes, Strategic Topics, and other workspace changes."}
+                    : "Full workspace backup saved. Manual Save backs up objectives, tasks, meeting notes, and other workspace changes while Strategic Topics autosave separately."}
                 </p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <button

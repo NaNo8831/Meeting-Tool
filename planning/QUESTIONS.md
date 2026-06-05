@@ -73,3 +73,12 @@
 - Should the existing `strategic_topics.notes` text column remain unused, hold a plain-text summary of rich Topic Notes, or be deprecated in documentation once `strategic_topic_notes` is formalized?
 - Should the current Strategic Topic delete action become a real delete, archive, or hidden/removed state before structured autosave preserves it as durable behavior?
 - What UI status language should distinguish Strategic Topic autosave, Topic Notes save/autosave, settings autosave, and Manual Save while all coexist?
+
+
+## Phase 4 PR 4B Strategic Topics Autosave Resolved/Deferred Notes
+
+- Resolved: Topic Notes use `public.strategic_topic_notes` with `meeting_id`, nullable `strategic_topic_id`, required legacy `strategic_topic_item_id`, `content_json`, and `content_text`.
+- Resolved: Strategic Topic ordering is persisted on `public.strategic_topics.sort_order`.
+- Resolved: `strategic_topics.notes` remains unused by the runtime rich Topic Notes editor; rich notes live in `strategic_topic_notes`.
+- Deferred: delete semantics remain the existing non-destructive removed-context behavior; broader delete/archive product language can be revisited separately.
+- Deferred: Objectives, tasks, SOOs, meeting notes, agenda items, decisions/actions, and cascading communication autosave remain future PRs.

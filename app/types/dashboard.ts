@@ -19,6 +19,7 @@ export interface StandardOperatingObjective {
 
 export interface MeetingItem {
   id: number;
+  strategicTopicId?: string;
   text: string;
   capturedDate?: string;
   capturedMeetingId?: number;
@@ -60,6 +61,7 @@ export interface MeetingSectionConfig {
   archiveItem?: (itemId: number) => void;
   unarchiveItem?: (itemId: number) => void;
   restoreToActive?: (itemId: number) => void;
+  reorderItems?: (draggedItemId: number, targetItemId: number) => void;
   completedHistoryItems?: MeetingItem[];
   archivedHistoryItems?: MeetingItem[];
   placeholder: string;
