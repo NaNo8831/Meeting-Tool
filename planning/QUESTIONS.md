@@ -65,3 +65,11 @@
 - Should editor Manual Save remain enabled after structured autosave expands, or should editor writes gradually move to narrower structured tables while full-backup overwrite privileges are restricted?
 - What UI copy is needed to prevent users from interpreting “Settings saved” as “full workspace saved” while Manual Save remains required?
 - What stale-state and conflict warnings are acceptable for Last Save Wins before realtime/presence/merge behavior exists?
+
+
+## Phase 4 PR 4B Strategic Topics Autosave Follow-up Questions
+
+- What exact topic-note schema should be formalized: `strategic_topic_notes` keyed by `strategic_topic_id`, legacy `strategic_topic_item_id`, or both during migration?
+- Should the existing `strategic_topics.notes` text column remain unused, hold a plain-text summary of rich Topic Notes, or be deprecated in documentation once `strategic_topic_notes` is formalized?
+- Should the current Strategic Topic delete action become a real delete, archive, or hidden/removed state before structured autosave preserves it as durable behavior?
+- What UI status language should distinguish Strategic Topic autosave, Topic Notes save/autosave, settings autosave, and Manual Save while all coexist?

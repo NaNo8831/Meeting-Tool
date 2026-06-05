@@ -133,3 +133,10 @@
 - Confirmed Tactical History snapshots persist only on explicit End Meeting and do not replace active-workspace autosave or Manual Save.
 - Flagged a schema/documentation boundary: app code references `strategic_topic_notes`, but the reviewed repository migrations do not create that table/RLS, so Strategic Topic notes persistence is deployment-dependent until reconciled.
 - Before main/team beta, recommend structured autosave expansion for Strategic Topics plus notes first, then Meeting Notes/Agenda/Decisions/Cascading Communications, followed by DO/SOO objectives and tasks.
+
+## Phase 4 PR 4B Strategic Topics Autosave Architecture Review
+
+- Added `planning/reviews/phase-4-strategic-topics-autosave-review.md` as a documentation-only review of Strategic Topics, Topic Notes, existing structured tables, shared-access write expectations, migration strategy, validation, and before-main implications.
+- Confirmed current Strategic Topics list/lifecycle are runtime `MeetingItem[]` records in localStorage plus Manual Save backup under `leadership-strategic-topic-items`; the app does not currently hydrate or write the live topic list through `public.strategic_topics`.
+- Confirmed Topic Notes are separate cloud-only rich text records attempted through `strategic_topic_notes` and are not covered by Manual Save/export backup; repo migrations still do not create that table.
+- Recommended PR 4B implementation scope: Strategic Topics + Topic Notes + Ordering after schema reconciliation, preserving Manual Save, Local Mode, Last Save Wins, and `meeting_data` fallback during a dual-write period.

@@ -247,3 +247,11 @@ Hardening note: dashboard UI already hides owner-only lifecycle controls from sh
 - Meeting container/lifecycle fields (`name`, `owner_id`, `metadata_json`, `archived_at`, and `deleted_at`) remain owner-only through dashboard RPCs and PR 3D hardening; editor Manual Save must not imply editor permission to rename, archive, restore, duplicate, or delete shared meeting containers.
 - Structured content tables have membership-aware RLS for future owner/editor content editing, but runtime autosave currently uses only `meeting_settings`; objectives, tasks, SOOs, Strategic Topics list/lifecycle, and meeting notes remain Manual Save/full-backup dependent until implementation PRs add explicit structured persistence.
 - `strategic_topic_notes` remains a schema boundary to reconcile before relying on topic-note structured persistence because the reviewed repository migrations do not create that table or policies.
+
+
+## Phase 4 Strategic Topics Autosave Permissions Recommendation
+
+- Structured Strategic Topic autosave should follow the existing meeting-content RLS model: active members can read, and active owners/editors can insert/update/delete.
+- Existing `strategic_topics` policies already use `user_can_access_meeting(meeting_id)` for select and `user_can_edit_meeting(meeting_id)` for writes.
+- A future `strategic_topic_notes` migration must add equivalent owner/editor write and member read policies before Topic Notes autosave can be relied on.
+- Do not use owner-only policies for topic autosave; editors are expected to edit meeting content during Team Beta.
