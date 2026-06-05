@@ -119,12 +119,12 @@ PR 1B adds the membership-aware RLS foundation. It does not add dashboard sharin
 
 - `meetings` select allows non-deleted meetings when `user_can_access_meeting(id)` is true.
 - `meetings` update allows `user_can_edit_meeting(id)` so the existing `meetings.meeting_data` Manual Save path can work for Team Beta editors; insert remains `owner_id = auth.uid()`.
-- `meeting_settings`, `objectives`, `tasks`, `standard_operating_objectives`, `strategic_topics`, `tactical_sessions`, `tactical_items`, `strategic_sessions`, and `strategic_session_notes` allow active members to select and active owners/editors to insert/update/delete.
+- `meeting_settings`, `objectives`, `tasks`, `standard_operating_objectives`, `strategic_topics`, `strategic_topic_notes`, `tactical_sessions`, `tactical_items`, `strategic_sessions`, and `strategic_session_notes` allow active members to select and active owners/editors to insert/update/delete.
 - `meeting_members` remains owner/manage-only for select, insert, update, and delete. Editors and viewers cannot invite, remove, or change roles through RLS.
 - `meeting_invitations` remains owner/manage-only. Pending invite email alone does not grant runtime access.
 - Archived dashboard soft-delete uses the narrow `soft_delete_owned_archived_meeting` RPC so only `meetings.owner_id = auth.uid()` can mark an archived, non-deleted meeting as deleted without granting editors container lifecycle permissions.
 - Removed members (`removed_at is not null`) are excluded from all access/edit helpers.
-- The repo does not currently include a Supabase migration-created `strategic_topic_notes` table, so PR 1B does not invent or policy that table.
+- PR 4B formalizes `strategic_topic_notes` with membership-aware RLS: active members can read, and active owners/editors can insert/update/delete.
 
 ### Team Beta capability shape
 
@@ -245,13 +245,19 @@ Hardening note: dashboard UI already hides owner-only lifecycle controls from sh
 - Owners and active editors can update `meetings.meeting_data` through Manual Save while structured autosave remains incomplete.
 - Owners and active editors can read/write the current `meeting_settings` structured autosave pilot under membership-aware content RLS.
 - Meeting container/lifecycle fields (`name`, `owner_id`, `metadata_json`, `archived_at`, and `deleted_at`) remain owner-only through dashboard RPCs and PR 3D hardening; editor Manual Save must not imply editor permission to rename, archive, restore, duplicate, or delete shared meeting containers.
-- Structured content tables have membership-aware RLS for future owner/editor content editing, but runtime autosave currently uses only `meeting_settings`; objectives, tasks, SOOs, Strategic Topics list/lifecycle, and meeting notes remain Manual Save/full-backup dependent until implementation PRs add explicit structured persistence.
-- `strategic_topic_notes` remains a schema boundary to reconcile before relying on topic-note structured persistence because the reviewed repository migrations do not create that table or policies.
+- Structured content tables have membership-aware RLS for owner/editor content editing. Runtime autosave currently uses `meeting_settings`, `strategic_topics`, and `strategic_topic_notes`; objectives, tasks, SOOs, meeting notes, agenda, decisions/actions, and cascading communication remain Manual Save/full-backup dependent until implementation PRs add explicit structured persistence.
 
 
 ## Phase 4 Strategic Topics Autosave Permissions Recommendation
 
 - Structured Strategic Topic autosave should follow the existing meeting-content RLS model: active members can read, and active owners/editors can insert/update/delete.
 - Existing `strategic_topics` policies already use `user_can_access_meeting(meeting_id)` for select and `user_can_edit_meeting(meeting_id)` for writes.
-- A future `strategic_topic_notes` migration must add equivalent owner/editor write and member read policies before Topic Notes autosave can be relied on.
+- PR 4B adds `strategic_topic_notes` policies equivalent to other structured meeting content: owner/editor writes and active-member reads.
 - Do not use owner-only policies for topic autosave; editors are expected to edit meeting content during Team Beta.
+
+
+## Phase 4 PR 4B Strategic Topic Permissions
+
+- Strategic Topic autosave uses existing `strategic_topics` membership policies: owners and active editors can create/edit/archive/complete/reorder; active members can read; non-members cannot access rows.
+- Topic Notes use `strategic_topic_notes` RLS with the same meeting membership helpers. Owner/editor users can edit notes; active members can read; removed editors lose access once membership RLS no longer matches after refresh/reload.
+- The client does not implement Viewer UX in PR 4B; database policies remain the enforcement boundary.

@@ -131,9 +131,51 @@ export type SupabaseTacticalSession = {
   ended_at: string | null;
 };
 
+export type SupabaseStrategicTopic = {
+  id: string;
+  meeting_id: string;
+  client_item_id: number;
+  title: string;
+  notes: string | null;
+  status: "active" | "completed" | "archived";
+  archived_at: string | null;
+  completed_at: string | null;
+  completed_date: string | null;
+  captured_date: string | null;
+  captured_meeting_id: number | null;
+  captured_meeting_index: number | null;
+  removed_meeting_id: number | null;
+  removed_meeting_index: number | null;
+  removed_date: string | null;
+  sort_order: number;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupabaseStrategicTopicUpsert = {
+  id?: string;
+  meeting_id: string;
+  client_item_id: number;
+  title: string;
+  status: "active" | "completed" | "archived";
+  archived_at: string | null;
+  completed_at: string | null;
+  completed_date: string | null;
+  captured_date: string | null;
+  captured_meeting_id: number | null;
+  captured_meeting_index: number | null;
+  removed_meeting_id: number | null;
+  removed_meeting_index: number | null;
+  removed_date: string | null;
+  sort_order: number;
+  metadata_json: Record<string, unknown> | null;
+};
+
 export type SupabaseStrategicTopicNote = {
   id: string;
   meeting_id: string;
+  strategic_topic_id: string | null;
   strategic_topic_item_id: number;
   content_json: Record<string, unknown> | null;
   content_text: string | null;
@@ -1018,19 +1060,140 @@ export const supabaseMeetingClient = {
     return session;
   },
 
-  async loadStrategicTopicNote({
+  async loadStrategicTopics({
     accessToken,
     workspaceId,
-    strategicTopicItemId,
   }: {
     accessToken: string;
     workspaceId: string;
-    strategicTopicItemId: number;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("strategic_topics")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}&select=*&order=sort_order.asc,created_at.asc`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Strategic topics load"),
+      );
+    }
+
+    return (await response.json()) as SupabaseStrategicTopic[];
+  },
+
+  async saveStrategicTopics({
+    accessToken,
+    workspaceId,
+    topics,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    topics: SupabaseStrategicTopicUpsert[];
+  }) {
+    if (topics.length === 0) return [];
+
+    const normalizedTopics = topics.map((topic) => ({
+      ...topic,
+      meeting_id: workspaceId,
+    }));
+    const endpoint = `${getRestUrl("strategic_topics")}?on_conflict=meeting_id,client_item_id`;
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        ...getSupabaseHeaders(accessToken),
+        Prefer: "resolution=merge-duplicates,return=representation",
+      },
+      body: JSON.stringify(normalizedTopics),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Strategic topics autosave"),
+      );
+    }
+
+    return (await response.json()) as SupabaseStrategicTopic[];
+  },
+
+  async deleteMissingStrategicTopics({
+    accessToken,
+    workspaceId,
+    retainedClientItemIds,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    retainedClientItemIds: number[];
+  }) {
+    const retainedFilter = retainedClientItemIds.length
+      ? `&client_item_id=not.in.(${retainedClientItemIds.join(",")})`
+      : "";
+    const response = await fetch(
+      `${getRestUrl("strategic_topics")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}${retainedFilter}`,
+      {
+        method: "DELETE",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Strategic topics cleanup"),
+      );
+    }
+  },
+
+
+  async listStrategicTopicNotes({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
   }) {
     const response = await fetch(
       `${getRestUrl("strategic_topic_notes")}?meeting_id=eq.${encodeURIComponent(
         workspaceId,
-      )}&strategic_topic_item_id=eq.${strategicTopicItemId}&select=*&limit=1`,
+      )}&select=*`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Strategic topic notes list"),
+      );
+    }
+
+    return (await response.json()) as SupabaseStrategicTopicNote[];
+  },
+
+  async loadStrategicTopicNote({
+    accessToken,
+    workspaceId,
+    strategicTopicItemId,
+    strategicTopicId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    strategicTopicItemId: number;
+    strategicTopicId?: string | null;
+  }) {
+    const topicFilter = strategicTopicId
+      ? `&or=(strategic_topic_id.eq.${encodeURIComponent(strategicTopicId)},strategic_topic_item_id.eq.${strategicTopicItemId})`
+      : `&strategic_topic_item_id=eq.${strategicTopicItemId}`;
+    const response = await fetch(
+      `${getRestUrl("strategic_topic_notes")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}${topicFilter}&select=*&limit=1`,
       {
         method: "GET",
         headers: getSupabaseHeaders(accessToken),
@@ -1051,12 +1214,14 @@ export const supabaseMeetingClient = {
     accessToken,
     workspaceId,
     strategicTopicItemId,
+    strategicTopicId = null,
     contentText,
     contentJson = null,
   }: {
     accessToken: string;
     workspaceId: string;
     strategicTopicItemId: number;
+    strategicTopicId?: string | null;
     contentText: string;
     contentJson?: Record<string, unknown> | null;
   }) {
@@ -1064,6 +1229,7 @@ export const supabaseMeetingClient = {
       accessToken,
       workspaceId,
       strategicTopicItemId,
+      strategicTopicId,
     });
     const updatedAtIso = new Date().toISOString();
     const endpoint = existingNote
@@ -1078,12 +1244,15 @@ export const supabaseMeetingClient = {
       body: JSON.stringify(
         existingNote
           ? {
+              strategic_topic_id:
+                strategicTopicId ?? existingNote.strategic_topic_id,
               content_text: contentText,
               content_json: contentJson,
               updated_at: updatedAtIso,
             }
           : {
               meeting_id: workspaceId,
+              strategic_topic_id: strategicTopicId,
               strategic_topic_item_id: strategicTopicItemId,
               content_text: contentText,
               content_json: contentJson,

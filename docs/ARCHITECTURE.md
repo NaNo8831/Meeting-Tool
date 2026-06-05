@@ -5,7 +5,7 @@
 - Next.js + TypeScript + Tailwind app deployed on Vercel.
 - Local Workspace remains browser `localStorage` based.
 - Cloud Meeting full-workspace persistence uses manual save/load to `meetings.meeting_data` JSONB.
-- Valid `/meeting/[id]` cloud routes run one narrow structured persistence pilot: hydrate `meeting_settings` after the full-workspace backup loads, then debounce settings-only autosave. `/meeting/local` never reads or writes this cloud pilot.
+- Valid `/meeting/[id]` cloud routes hydrate the full-workspace backup, overlay structured `meeting_settings`, then overlay structured Strategic Topics when `strategic_topics` rows exist. Settings and Strategic Topics debounce structured autosave separately; `/meeting/local` never reads or writes these cloud autosave paths.
 - Backup/Restore JSON export/import remains operational and must stay intact.
 - Feedback remains separate from meeting persistence.
 - Auth sign out returns to `/`.
@@ -27,7 +27,7 @@ New direction:
 ## Manual Save During Autosave Migration
 
 - Manual Save remains visible, available, and required during the structured autosave migration.
-- PR #72 autosaves only `meeting_settings`; it does **not** autosave objectives, tasks, agenda items, Strategic Topics, meeting notes, Standard Operating Objectives, Defining Objectives, or other operational runtime state.
+- PR #72 autosaved only `meeting_settings`. PR 4B adds structured autosave for Strategic Topics, Topic Notes, and Strategic Topic ordering. Objectives, tasks, agenda items, meeting notes, Standard Operating Objectives, Defining Objectives, decisions/actions, cascading communication, and other runtime state still depend on Manual Save or future structured autosave PRs.
 - Manual Save writes the full workspace backup to `meetings.meeting_data` and remains the cloud safety net until structured autosave reliably covers all important meeting data.
 - Full-workspace JSONB autosave remains out of scope. Future structured autosave expansion should proceed surface-by-surface in separate PRs.
 - Once structured autosave handles the core operational workspace reliably, evaluate retiring Manual Save from the primary workflow or moving it into a secondary backup/export utility role. Do not remove or demote Manual Save in PR #72.
@@ -220,3 +220,19 @@ Do not treat objectives/DOs, tasks, SOOs, Strategic Topics list/lifecycle, Agend
 - Topic Notes need schema reconciliation before implementation: current app code calls `strategic_topic_notes`, but reviewed migrations create `strategic_session_notes` and `strategic_topics.notes`, not `strategic_topic_notes`.
 - `strategic_sessions` and `strategic_session_notes` should remain session/history tables rather than being repurposed for persistent topic-attached notes.
 - The recommended implementation path is schema reconciliation, structured topic/note writes, structured hydration with `meeting_data` fallback, and a dual-write period where Manual Save/export backup remain intact.
+
+
+## Phase 4 PR 4B Strategic Topics Autosave
+
+- Cloud Strategic Topics are now a structured persistence surface backed by `public.strategic_topics`; rows are keyed by `meeting_id` plus legacy numeric `client_item_id`, sorted by `sort_order`, and carry lifecycle/captured/removed context fields needed by the current meeting UI.
+- Topic Notes are backed by `public.strategic_topic_notes`, not `meetings.meeting_data`. Notes are meeting-scoped, can link to `strategic_topics.id`, and retain `strategic_topic_item_id` so existing item-keyed app code and data keep working.
+- Hydration order remains backward-safe: full workspace backup first, `meeting_settings` overlay second, structured Strategic Topics overlay third when rows exist. If structured topic rows do not exist, the backup/localStorage Strategic Topics remain in use.
+- Manual Save, export/import, workspace backup, and Local Mode remain intact. Manual Save is still the full-workspace safety net while structured autosave expands surface by surface.
+- Last Save Wins remains the shared editing model. Realtime collaboration, presence, merge/conflict resolution, Viewer UX, ownership transfer, and other autosave surfaces are intentionally deferred.
+
+
+## Strategic Topic Notes Backup Compatibility
+
+- Manual Save and JSON export include Topic Notes in the workspace backup under `leadership-strategic-topic-notes`, keyed by legacy numeric Strategic Topic item IDs.
+- Import/restore rehydrates those note backups into local workspace state and, in cloud meetings, writes them back to `strategic_topic_notes` using the restored numeric item IDs. This lets notes follow restored Strategic Topics even when structured topic UUIDs differ in a newly created meeting.
+- Structured autosave remains the primary cloud edit path; `meeting_data` and JSON backup remain the safety net for backup/import parity.

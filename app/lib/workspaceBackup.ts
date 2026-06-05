@@ -31,6 +31,7 @@ export const defaultWorkspaceStorageEntries: Record<string, unknown> = {
   "leadership-meeting-setup-completed": false,
   "leadership-meeting-section-order": defaultMeetingSectionOrder,
   "leadership-strategic-topic-items": [],
+  "leadership-strategic-topic-notes": {},
   "leadership-standard-operating-objectives":
     defaultStandardOperatingObjectives,
 };

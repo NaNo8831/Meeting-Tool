@@ -86,3 +86,16 @@
 - Reuse `public.strategic_topics` as the active autosave table for topic title/text, lifecycle, timestamps, captured context, and `sort_order`; do not repurpose `strategic_sessions` or `strategic_session_notes` for persistent topic-attached notes.
 - Continue Last Save Wins for PR 4B structured topic/note writes; realtime merge, presence, and richer conflict handling remain deferred.
 - Preserve Manual Save, Local Mode, export/import backup, and `meetings.meeting_data` fallback through a dual-write/read-migration period.
+
+
+## Phase 4 PR 4B Strategic Topics Autosave Decisions
+
+- `public.strategic_topics` is the structured autosave source of truth for cloud Strategic Topic list data, including title/text, lifecycle status, completed/archive timestamps, captured/removed meeting context, and ordering via `sort_order`.
+- `public.strategic_topic_notes` is the durable Topic Notes table. It is meeting-scoped, links to structured topics through nullable `strategic_topic_id`, keeps legacy `strategic_topic_item_id` for compatibility, and stores rich text JSON plus plain text.
+- Manual Save to `meetings.meeting_data`, Local Mode, export/import, and backup restore remain intact during this transition; structured Strategic Topics overlay the backup only when rows exist.
+- Last Save Wins remains the concurrency model for Strategic Topics and Topic Notes; realtime merge/conflict resolution remains deferred.
+
+
+## PR 4B Follow-up Strategic Topic Notes Backup Decision
+
+- Strategic Topic Notes must be part of the workspace backup/export/import compatibility layer, not only structured cloud autosave. Backups store notes by legacy numeric Strategic Topic item ID so notes follow restored topics even when a new cloud meeting creates new structured topic UUIDs.

@@ -83,9 +83,9 @@ Validation performed for `20260604090000_add_membership_rls_foundation.sql`:
 - Migration SQL reviewed for coherent PostgreSQL/Supabase ordering: preserve `user_owns_meeting`, add membership-aware helper functions, add a new-meeting owner-membership trigger and an owner-id update guard, replace inherited `Workspace owners ...` `meetings` policies, keep access-management tables owner/manage-only, then replace owner-only structured-table policies with select/edit splits.
 - Helper behavior is explicit: owners can access/edit/manage; active `owner` and `editor` membership rows can access/edit; active `viewer` membership rows can access/read; all membership checks require `removed_at is null`; pending invitation email text is never consulted for runtime access.
 - `meetings.meeting_data` remains in place and is still loaded/saved through the `meetings` table, now protected by the membership-aware `meetings` select/update RLS policies rather than a separate API-only authorization helper.
-- Meeting-scoped structured tables covered by PR 1B are `meeting_settings`, `objectives`, `tasks`, `standard_operating_objectives`, `strategic_topics`, `tactical_sessions`, `tactical_items`, `strategic_sessions`, and `strategic_session_notes`.
+- Meeting-scoped structured tables covered by membership RLS include `meeting_settings`, `objectives`, `tasks`, `standard_operating_objectives`, `strategic_topics`, `strategic_topic_notes`, `tactical_sessions`, `tactical_items`, `strategic_sessions`, and `strategic_session_notes`.
 - Access-management tables covered by owner-only management policies are `meeting_members` and `meeting_invitations`; editors and viewers cannot manage members or invitations.
-- The repository migrations do not currently create `strategic_topic_notes`, so PR 1B intentionally does not invent that table or add policies for it.
+- PR 4B creates and policies `strategic_topic_notes`; validate owner/editor note writes, active-member reads, and non-member blocking.
 - No dashboard sharing UI, invite UI, member-management UI, ownership transfer, multiple owners, Viewer UI/read-only enforcement, autosave expansion, realtime collaboration, Local Mode removal, or `meetings.meeting_data` rewrite is included.
 - PR #77 manual validation passed for owner access, editor direct-URL access to the shared cloud meeting, removed-member blocking, pending invitations not granting access, and shared dashboard visibility remaining deferred to PR 2.
 - Documentation now records the decision to defer detailed audit logging and per-user edit attribution.
@@ -299,3 +299,27 @@ Recommended validation for a future implementation PR:
 - Editor can edit Strategic Topics and Topic Notes, refresh, and open a new browser/profile with changes intact.
 - Non-member and pending invitee cannot access topic/note rows; removed editor loses access after refresh/reload.
 - Manual Save still backs up the full workspace, and Local Mode remains browser-only.
+
+
+## Phase 4 PR 4B Strategic Topics Autosave Validation
+
+Automated validation:
+
+- Run `npm run lint`.
+- Run `npx tsc --noEmit`.
+- Run `npm run build`.
+
+Manual validation:
+
+- Owner creates, edits, completes, archives, restores, reorders Strategic Topics, edits Topic Notes, refreshes, and confirms structured persistence.
+- Editor opens a shared meeting, edits/reorders Strategic Topics and Topic Notes, refreshes or opens another browser/profile, and sees the same order/content.
+- Non-member cannot access topic or note rows; a removed editor loses topic/note access after refresh/reload.
+- Manual Save, export, import, workspace backup restore, Local Mode, and existing meetings backed only by `meeting_data` still load.
+- Last Save Wins remains expected for concurrent edits; do not validate realtime merge behavior because it is intentionally deferred.
+
+
+## PR 4B Follow-up Strategic Topic Notes Backup Validation
+
+- Create a Strategic Topic, add a Topic Note, Manual Save, export a backup, create a new meeting, import/restore the backup, open the Strategic Topic Note, and confirm the note content is restored.
+- Confirm Strategic Topic creation/edit/order autosave still persists after refresh and in a private window.
+- Confirm editor topic/note/order autosave still works, Local Mode still works, and Manual Save still works.

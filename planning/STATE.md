@@ -5,10 +5,10 @@
 - Product: Meeting Tool by LyArk in the `Meeting-Tool` repo.
 - Status: live/deployed operational beta.
 - Deployment: Vercel.
-- Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate plus autosave only the narrow `meeting_settings` structured pilot after route bootstrap.
+- Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings` plus structured Strategic Topics, Topic Notes, and topic ordering after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: Phase 3 **PR 3D Implementation — Shared Access Lifecycle Mutation Hardening** closes the final shared-access hardening gap before closeout by separating owner-only meeting lifecycle/container mutations from editor-safe Manual Save/content updates at the database/API boundary. Current shared access supports owner-created meetings, profiles/owner attribution, owned/shared dashboard sections, pending invitations, invite acceptance, accepted editor memberships, shared editor access, owner/editor member visibility, owner-only active-editor removal, dashboard member counts, and Tactical History visibility for owners/editors.
-- Current branch note: Phase 3 work targets `phase-3-shared-access`; this implementation branch is checked out locally for the shared-access lifecycle hardening PR.
+- Current focus: Phase 4 **PR 4B Implementation — Strategic Topics + Topic Notes Autosave** expands structured autosave to Strategic Topics, Topic Notes, and Strategic Topic ordering while preserving Manual Save, Local Mode, export/import, workspace backup, and Last Save Wins.
+- Current branch note: Phase 4 autosave work targets `phase-4-autosave`; this local worktree is implementing the PR 4B autosave slice.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
 
 ## Production State
@@ -58,7 +58,7 @@
 ## Sprint Status
 
 - Completed sprint: Dashboard / Meeting Selector (authenticated dashboard cards, user-scoped meeting list, open-route entry, and local fallback completed on `phase-2-cloud`).
-- Current architecture status: App route separation is active with `/` landing/auth entry, `/dashboard` authenticated cloud meeting cards and create/duplicate/archive controls, `/meeting/local` browser-only local mode, and `/meeting/[id]` route-driven cloud meeting load with manual cloud save preserved. Cloud UI now separates the narrow settings-autosave state from the Manual Save full-workspace backup state, and only the `meeting_settings` structured pilot hydrates from structured storage and autosaves after cloud bootstrap with a debounce.
+- Current architecture status: App route separation is active with `/` landing/auth entry, `/dashboard` authenticated cloud meeting cards and create/duplicate/archive controls, `/meeting/local` browser-only local mode, and `/meeting/[id]` route-driven cloud meeting load with manual cloud save preserved. Cloud UI now separates settings autosave, Strategic Topics autosave, and Manual Save full-workspace backup state; `meeting_settings`, `strategic_topics`, and `strategic_topic_notes` hydrate from structured storage and autosave after cloud bootstrap with debounced Last Save Wins writes.
 - Archived Meeting soft-delete is now active on the dashboard for cloud meetings: archived cards can be restored by clearing `archived_at` or soft-deleted via confirmation, `meetings.deleted_at` is populated only for archived delete, and dashboard plus Cloud Meeting load/save queries exclude soft-deleted rows by default.
 - Tactical history foundation added on cloud meetings: **End Meeting** writes archival tactical session snapshots to `tactical_sessions` (with `snapshot_json`) and leaves the active workspace visible with a calm success message; Tactical History opens intentionally from Meeting History in the workspace menu, shows readable historical summaries, and defaults to the latest five sessions while preserving all historical records.
 - Testing Mode meeting date override is available only when a preview/development deployment explicitly sets `NEXT_PUBLIC_ENABLE_TESTING_TOOLS=true`: testers can enable the workspace toggle, choose a past, present, or future date, create or reopen the single meeting record for that selected date, and end test-created meetings to accelerate Meeting History and Tactical History validation. Test-created notes and tactical snapshots display a **Test Date** badge. Live production must keep the flag disabled or unset; when it is not exactly `true`, controls do not render and the standard today-only lifecycle remains unchanged.
@@ -140,3 +140,17 @@
 - Confirmed current Strategic Topics list/lifecycle are runtime `MeetingItem[]` records in localStorage plus Manual Save backup under `leadership-strategic-topic-items`; the app does not currently hydrate or write the live topic list through `public.strategic_topics`.
 - Confirmed Topic Notes are separate cloud-only rich text records attempted through `strategic_topic_notes` and are not covered by Manual Save/export backup; repo migrations still do not create that table.
 - Recommended PR 4B implementation scope: Strategic Topics + Topic Notes + Ordering after schema reconciliation, preserving Manual Save, Local Mode, Last Save Wins, and `meeting_data` fallback during a dual-write period.
+
+## Phase 4 PR 4B Strategic Topics Autosave Implementation
+
+- Implemented structured autosave for cloud Strategic Topics through `public.strategic_topics`, including title/text, lifecycle status, completed/archive timestamps, captured/removed meeting context, and `sort_order` ordering.
+- Formalized `public.strategic_topic_notes` for cloud Topic Notes with meeting scope, nullable structured topic linkage, legacy numeric topic item linkage, rich text JSON, plain text, updated-at trigger, indexes, and membership-aware RLS.
+- Cloud meeting hydration remains backward-safe: load `meetings.meeting_data` backup first, overlay `meeting_settings`, then overlay structured Strategic Topics when rows exist; meetings without structured topic rows continue using backup/localStorage fallback.
+- Manual Save, export/import, workspace backup restore, Local Mode, shared owner/editor editing, and Last Save Wins remain intact. Objectives, tasks, SOOs, meeting notes, agenda/decisions/cascade autosave, realtime collaboration, Viewer UX, and ownership transfer remain deferred.
+
+## PR 4B Follow-up — Strategic Topic Notes Backup Compatibility
+
+- Strategic Topic Notes are now included in workspace backups under the `leadership-strategic-topic-notes` backup key, keyed by the same legacy numeric Strategic Topic item IDs used by `leadership-strategic-topic-items`.
+- Manual Save and JSON export collect cloud Topic Notes plus locally cached/open note drafts so topic-attached notes are included in the full-workspace backup safety net.
+- Import/restore reads `leadership-strategic-topic-notes` back into workspace state and, for cloud meetings, immediately restores those notes into `strategic_topic_notes` using the restored topic item IDs. This keeps notes attached when a backup is restored into a new meeting and structured topic UUIDs are recreated.
+- Structured Strategic Topic and Topic Notes autosave remains primary for cloud editing; backup/import compatibility is an additional fallback path and does not change Local Mode, Manual Save, shared editor behavior, or Last Save Wins.

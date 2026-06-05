@@ -191,6 +191,7 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const isReadOnly = section.isReadOnly === true;
   const [historyTab, setHistoryTab] = useState<'completed' | 'archived'>('completed');
+  const [draggingTopicItemId, setDraggingTopicItemId] = useState<number | null>(null);
   useBodyScrollLock(isHistoryOpen);
   const lastItemIdRef = useRef<number | null>(null);
   const previousItemCountRef = useRef(section.items.length);
@@ -257,7 +258,33 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
           className={section.id === 'topic' ? 'max-h-[34rem] space-y-3 overflow-y-auto pr-1' : 'space-y-3'}
         >
         {section.items.map((item) => (
-          <div key={item.id} className={`rounded-2xl bg-white shadow-sm ${section.id === 'topic' ? 'p-2.5' : 'p-3'}`}>
+          <div
+            key={item.id}
+            draggable={section.id === 'topic' && !isReadOnly}
+            onDragStart={(event) => {
+              if (section.id !== 'topic' || isReadOnly) return;
+              event.stopPropagation();
+              setDraggingTopicItemId(item.id);
+              event.dataTransfer.setData('text/plain', String(item.id));
+            }}
+            onDragOver={(event) => {
+              if (section.id !== 'topic' || isReadOnly) return;
+              event.stopPropagation();
+              event.preventDefault();
+            }}
+            onDrop={(event) => {
+              if (section.id !== 'topic' || isReadOnly) return;
+              event.stopPropagation();
+              event.preventDefault();
+              const draggedId = Number(event.dataTransfer.getData('text/plain')) || draggingTopicItemId;
+              if (typeof draggedId === 'number') {
+                section.reorderItems?.(draggedId, item.id);
+              }
+              setDraggingTopicItemId(null);
+            }}
+            onDragEnd={() => setDraggingTopicItemId(null)}
+            className={`rounded-2xl bg-white shadow-sm ${section.id === 'topic' ? 'p-2.5 cursor-grab' : 'p-3'} ${draggingTopicItemId === item.id ? 'opacity-60' : ''}`}
+          >
             <div className={section.id === 'topic' ? 'flex gap-2' : 'flex gap-3'}>
               <div className="flex-1">
                 <div className={`flex flex-col sm:flex-row sm:items-start sm:justify-between ${section.id === 'topic' ? 'gap-1.5' : 'gap-2'}`}>
