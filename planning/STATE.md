@@ -124,3 +124,12 @@
 - Recommendation: no new member table for Phase 3C; use `meetings.owner_id`, active `meeting_members` rows, `meeting_invitations` history, and `profiles` display metadata.
 - Recommended implementation scope: Access panel member list for owners/editors, owner-only active-editor removal via narrow RPC, dashboard member count loaded with/alongside dashboard meetings, and Tactical History visible to owners/editors.
 - Deferred: role editing, ownership transfer, owner self-removal, Viewer UX, organizations, multiple owners, avatars, Local Mode changes, autosave behavior changes, and realtime collaboration.
+
+## Phase 4 PR 4A Autosave Audit Review
+
+- Added `planning/reviews/phase-4-autosave-audit-review.md` as a documentation-only architecture review of current autosave, Manual Save, localStorage, shared-editor, session, and before-main persistence risks.
+- Confirmed structured autosave remains intentionally narrow: only `meeting_settings` fields for dashboard title, organization/playbook setup info, meeting section order, and setup completed state autosave to cloud after cloud-route bootstrap.
+- Confirmed Manual Save to `meetings.meeting_data` remains required for full workspace cloud backup of DOs/objectives, tasks, SOOs, Strategic Topics list/lifecycle, meeting date records, Agenda Items, Decisions/Actions, Cascading Communications, and full backup parity.
+- Confirmed Tactical History snapshots persist only on explicit End Meeting and do not replace active-workspace autosave or Manual Save.
+- Flagged a schema/documentation boundary: app code references `strategic_topic_notes`, but the reviewed repository migrations do not create that table/RLS, so Strategic Topic notes persistence is deployment-dependent until reconciled.
+- Before main/team beta, recommend structured autosave expansion for Strategic Topics plus notes first, then Meeting Notes/Agenda/Decisions/Cascading Communications, followed by DO/SOO objectives and tasks.

@@ -56,3 +56,12 @@
 - Resolved by PR 3D implementation: owner-only meeting lifecycle/container mutations are separated from editor Manual Save/content updates. Direct `meetings` updates are narrowed to `meeting_data`, owner-only duplicate/archive/restore/soft-delete/rename use RPCs, and a trigger blocks non-owner protected-field changes as defense in depth.
 - Resolved by PR 3D implementation: use both owner-only lifecycle RPCs and database safeguards while preserving editor Manual Save and avoiding autosave expansion.
 - Deferred: autosave expansion, forgot password, import-to-cloud, dashboard card polish, Tactical History rename, responsive/sticky header polish, Manual Save retirement/move, ownership transfer, multiple owners, Viewer UX, role editing, organizations, audit history, realtime collaboration, and email/tokenized invite delivery.
+
+## Phase 4 PR 4A Autosave Audit Open Questions
+
+- Should main/team beta wait until Strategic Topics plus topic notes and Meeting Notes/Agenda/Decisions/Cascading Communications have structured autosave, or is a controlled beta acceptable with prominent Manual Save training?
+- Should `strategic_topic_notes` be formalized in a new migration, or should topic notes be mapped onto an existing structured notes table before PR 4B implementation?
+- What identity model should structured autosave use for current numeric client IDs when migrating Strategic Topics, meeting notes, objectives, tasks, SOOs, and nested task records to UUID-backed structured tables?
+- Should editor Manual Save remain enabled after structured autosave expands, or should editor writes gradually move to narrower structured tables while full-backup overwrite privileges are restricted?
+- What UI copy is needed to prevent users from interpreting “Settings saved” as “full workspace saved” while Manual Save remains required?
+- What stale-state and conflict warnings are acceptable for Last Save Wins before realtime/presence/merge behavior exists?

@@ -239,3 +239,11 @@ Hardening note: dashboard UI already hides owner-only lifecycle controls from sh
 - Editors must not mutate meeting lifecycle/container fields. Direct REST/table attempts to change `meetings.name`, `owner_id`, `metadata_json`, `archived_at`, or `deleted_at` should fail through column privileges and the non-owner container-update trigger.
 - Owner-only lifecycle/container RPCs are `duplicate_owned_meeting(source_meeting_id, duplicate_name)`, `archive_owned_meeting(target_meeting_id)`, `restore_owned_archived_meeting(target_meeting_id)`, `soft_delete_owned_archived_meeting(target_meeting_id)`, and `rename_owned_meeting(target_meeting_id, meeting_name)`.
 - Non-members cannot open meetings, list members, view Tactical History, update `meeting_data`, or call owner-only lifecycle/access RPCs successfully.
+
+## Phase 4 PR 4A Autosave Permission Clarification
+
+- Owners and active editors can update `meetings.meeting_data` through Manual Save while structured autosave remains incomplete.
+- Owners and active editors can read/write the current `meeting_settings` structured autosave pilot under membership-aware content RLS.
+- Meeting container/lifecycle fields (`name`, `owner_id`, `metadata_json`, `archived_at`, and `deleted_at`) remain owner-only through dashboard RPCs and PR 3D hardening; editor Manual Save must not imply editor permission to rename, archive, restore, duplicate, or delete shared meeting containers.
+- Structured content tables have membership-aware RLS for future owner/editor content editing, but runtime autosave currently uses only `meeting_settings`; objectives, tasks, SOOs, Strategic Topics list/lifecycle, and meeting notes remain Manual Save/full-backup dependent until implementation PRs add explicit structured persistence.
+- `strategic_topic_notes` remains a schema boundary to reconcile before relying on topic-note structured persistence because the reviewed repository migrations do not create that table or policies.
