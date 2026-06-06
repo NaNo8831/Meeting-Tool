@@ -114,3 +114,12 @@
 - Resolved: nested task details stay embedded on each structured task row as JSON arrays for subtasks, comments, and activity history.
 - Resolved: Cloud hydration loads `meetings.meeting_data` first and overlays structured rows only when present, preserving existing meetings and fallback behavior.
 - Deferred: first-class Agenda Items autosave, first-class Decisions/Actions autosave, realtime collaboration, conflict/merge UI beyond Last Save Wins, Viewer UX, ownership transfer, Local Mode changes, Manual Save retirement, forgot password, UX polish, and the documentation refresh/main-readiness review.
+
+## Phase 4 PR 4R Before Main Readiness Questions
+
+- What exact product copy should distinguish structured autosave from Manual Save in the main-era README, user guide, and in-app status text?
+- Should `docs/USER_GUIDE.md` and `docs/TESTING_GUIDE.md` both be added in the Documentation Refresh Sprint, or should testing guidance remain inside `docs/VALIDATION.md` until after main?
+- What is the minimum accepted Forgot Password flow for main: reset request only, full reset completion route, or reset plus explicit user-facing troubleshooting guidance?
+- Which Supabase/Vercel preview environment and test accounts should be treated as the canonical final Main Readiness Review environment?
+- Should Agenda Items and Decisions/Actions remain documented as Manual Save-backed through main, or does the main readiness reviewer require their redesign before launch?
+- Is Local Mode positioned as a supported browser-only mode for the main release, or should documentation call it a fallback mode pending future cloud-first onboarding?
