@@ -123,3 +123,14 @@
 - Which Supabase/Vercel preview environment and test accounts should be treated as the canonical final Main Readiness Review environment?
 - Should Agenda Items and Decisions/Actions remain documented as Manual Save-backed through main, or does the main readiness reviewer require their redesign before launch?
 - Is Local Mode positioned as a supported browser-only mode for the main release, or should documentation call it a fallback mode pending future cloud-first onboarding?
+
+
+## Before Main UX Architecture Review Questions
+
+- Should the before-main UX sprint treat Agenda Items as first-class outcome containers with discussion notes, decision text, action items, completed state, promote-to-Strategic-Topic action, and cascade-needed markers?
+- Should Decisions/Actions become a rollup/summary generated from agenda outcomes while still allowing standalone entries for items that do not belong to an agenda item?
+- What is the minimum before-main Agenda/Decision autosave scope once the workflow is accepted: agenda title/order/completion only, or full discussion notes, decisions, action items, and cascade-needed markers?
+- Should Manual Save remain visible in the sticky header through main, or move into Backup/Restore only after Agenda/Decision outcomes become first-class autosaved?
+- Should Local Mode be labeled `Browser-only fallback` in the UI before main, or should that wording wait for a broader cloud-first onboarding pass?
+- Should Strategic Topic lifecycle copy distinguish per-meeting `Reviewed this meeting` from durable `Completed` status before main?
+- Should the menu label `Meeting History` be renamed to `Tactical History` in the before-main UX sprint while owner/editor visibility remains unchanged?

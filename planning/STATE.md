@@ -7,9 +7,16 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings`, structured Strategic Topics, Topic Notes, topic ordering, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, and Standard Operating Objectives after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: Phase 4 **PR 4R Before Main Readiness Review** documents the post-persistence readiness audit and recommended sequence before merging to `main`.
-- Current branch note: PR 4R is a documentation/planning-only review on the Phase 4 review path; it must not change runtime behavior, schema, migrations, RLS, UI, or persistence.
+- Current focus: **Before Main UX Architecture Review** documents a repo-aware UX sprint blueprint for dashboard clarity, sticky autosave visibility, workspace navigation, Agenda/Decision workflow clarification, Manual Save/Backup wording, Local Mode wording, and responsive polish before the main UX sprint.
+- Current branch note: the UX architecture review is a documentation/planning-only branch; it must not change app code, runtime behavior, schema, migrations, RLS, UI implementation, persistence, Local Mode, or Manual Save.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
+
+## Before Main UX Architecture Review
+
+- This review is documentation/planning-only and adds `planning/reviews/before-main-ux-architecture-review.md`; it makes no app-code, runtime behavior, migration, RLS, persistence, Manual Save, or Local Mode changes.
+- The review recommends a focused UX sprint around dashboard card hierarchy, sticky meeting header/autosave confidence, lightweight workspace navigation, card/button hierarchy, Strategic Topics label/control cleanup, Tactical History label consistency, Manual Save/Backup wording, Local Mode browser-only fallback wording, and responsive polish.
+- Critical before-main concern: Agenda Items and Decisions/Actions should be visually redesigned before persistence; the recommended direction is Agenda Items as first-class discussion/outcome containers with discussion notes, decision, action items, completed state, promote-to-Strategic-Topic action, and cascade-needed markers, while Decisions/Actions remains a summary/rollup.
+- Recommended next action: refine the UX visually in Cursor, approve the Agenda/Decision workflow, then implement small UX PRs and a separate first-class Agenda/Decision autosave PR only after the workflow is accepted.
 
 ## Phase 4 PR 4R Before Main Readiness Review
 
