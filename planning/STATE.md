@@ -7,9 +7,17 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings`, structured Strategic Topics, Topic Notes, topic ordering, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, and Standard Operating Objectives after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: Phase 4 **PR 4D Implementation — Defining Objectives / Tasks / SOOs Autosave** wires the existing objective/task/SOO tables into cloud runtime while preserving Local Mode, Manual Save, JSON backup/export/import, and Last Save Wins.
-- Current branch note: Phase 4 autosave work is being implemented on `phase-4-autosave`/`phase-4-autosave`-derived work for PR 4D.
+- Current focus: Phase 4 **PR 4R Before Main Readiness Review** documents the post-persistence readiness audit and recommended sequence before merging to `main`.
+- Current branch note: PR 4R is a documentation/planning-only review on the Phase 4 review path; it must not change runtime behavior, schema, migrations, RLS, UI, or persistence.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
+
+## Phase 4 PR 4R Before Main Readiness Review
+
+- PR 4R is a review/documentation/planning PR only and adds `planning/reviews/phase-4-before-main-readiness-review.md`.
+- The review finds Phase 4 persistence broadly ready for final validation, with structured autosave now covering Settings, Strategic Topics, Topic Notes, Meeting Notes, Cascading Communications, Defining Objectives, Tasks, and SOOs.
+- Manual Save remains required for full-workspace backup parity and for Agenda Items and Decisions/Actions until the future agenda/decision redesign.
+- Required before-main sequence is: PR A Forgot Password, PR B Documentation Refresh Sprint, and PR C Main Readiness Review.
+- Local Mode should be retained for main as a browser-only fallback and documented with a backup/import migration path.
 
 ## Phase 4 PR 4D implementation — Defining Objectives / Tasks / SOOs Autosave
 
