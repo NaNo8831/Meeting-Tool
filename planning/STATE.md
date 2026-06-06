@@ -5,11 +5,19 @@
 - Product: Meeting Tool by LyArk in the `Meeting-Tool` repo.
 - Status: live/deployed operational beta.
 - Deployment: Vercel.
-- Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings`, structured Strategic Topics, Topic Notes, topic ordering, Meeting Notes, and Cascading Communications after route bootstrap.
+- Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings`, structured Strategic Topics, Topic Notes, topic ordering, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, and Standard Operating Objectives after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: Phase 4 **PR 4D Architecture Review — Defining Objectives / Tasks / SOOs Autosave** documents current persistence and recommends the safest structured autosave implementation scope for Defining Objectives, embedded Tasks, and Standard Operating Objectives before main/team beta.
-- Current branch note: Phase 4 autosave work targets `phase-4-autosave`; this local worktree is preparing the PR 4D documentation/review slice.
+- Current focus: Phase 4 **PR 4D Implementation — Defining Objectives / Tasks / SOOs Autosave** wires the existing objective/task/SOO tables into cloud runtime while preserving Local Mode, Manual Save, JSON backup/export/import, and Last Save Wins.
+- Current branch note: Phase 4 autosave work is being implemented on `phase-4-autosave`/`phase-4-autosave`-derived work for PR 4D.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
+
+## Phase 4 PR 4D implementation — Defining Objectives / Tasks / SOOs Autosave
+
+- Schema reconciliation adds numeric client IDs, rich-text JSON/text fields, sort order support, objective/task/SOO color/status/priority/due-date compatibility, and nested task detail JSON columns to the existing `objectives`, `tasks`, and `standard_operating_objectives` tables.
+- Cloud meeting load still starts from `meetings.meeting_data` / scoped browser fallback, then overlays structured Defining Objective, Task, and SOO rows when they exist. Existing meetings without structured rows continue to load from the full-workspace backup path.
+- Owners and active editors autosave Defining Objectives, embedded Tasks, nested task details, and SOOs with a debounced Last Save Wins flow. Local Mode remains browser-only and Manual Save remains the full-workspace safety net.
+- Importing a JSON backup into a Cloud Meeting now restores structured Defining Objective, Task, nested task detail, and SOO rows in addition to the full localStorage-compatible workspace state.
+- Remaining before-main dependencies: Forgot Password, UX polish, documentation refresh/main-readiness review, Supabase preview validation, and the future Agenda/Decision workflow redesign remain deferred.
 
 ## Production State
 

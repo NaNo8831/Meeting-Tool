@@ -1,5 +1,15 @@
 # Validation
 
+## Phase 4 PR 4D objectives/tasks/SOOs validation
+
+Automated validation for PR 4D:
+
+- Run `npm run lint`.
+- Run `npx tsc --noEmit`.
+- Run `npm run build`.
+
+Manual validation should cover owner/editor creation, edit, reorder, completion/deletion, rich descriptions, task status/due date/assignee, nested task subtasks/comments/activity history, SOO edit/reorder/recolor, refresh/new-browser persistence, backup export/import into a Cloud Meeting, non-member blocking, removed-editor blocking after refresh, and regression checks for existing settings, Strategic Topics, Topic Notes, Meeting Notes, Cascading Communications, Manual Save, Local Mode, Agenda Items, and Decisions/Actions behavior.
+
 ## Current Validation Approach
 
 - Manual PR testing for changed user flows.

@@ -55,10 +55,16 @@ import {
   type SupabaseMeetingNoteUpsert,
   type SupabaseMeetingSettings,
   type SupabaseMeetingSettingsUpsert,
+  type SupabaseObjective,
+  type SupabaseObjectiveUpsert,
+  type SupabaseStandardOperatingObjective,
+  type SupabaseStandardOperatingObjectiveUpsert,
   type SupabaseStrategicTopic,
   type SupabaseStrategicTopicNote,
   type SupabaseStrategicTopicUpsert,
   type SupabaseTacticalSession,
+  type SupabaseTask,
+  type SupabaseTaskUpsert,
 } from "@/app/lib/supabaseClient";
 import type {
   MeetingItem,
@@ -68,7 +74,7 @@ import type {
   OrganizationInfo,
   StandardOperatingObjective,
 } from "@/app/types/dashboard";
-import type { ObjectiveColor } from "@/app/types/objective";
+import type { Objective, ObjectiveColor, Task } from "@/app/types/objective";
 import type { RichTextDocument, RichTextValue } from "@/app/types/richText";
 
 const getTodayDate = () => new Date().toISOString().slice(0, 10);
@@ -190,6 +196,7 @@ const meetingSetupCompletedStorageKey = "leadership-meeting-setup-completed";
 const strategicTopicsAutosaveDebounceMs = 1200;
 const topicNotesAutosaveDebounceMs = 1000;
 const meetingNotesAutosaveDebounceMs = 1000;
+const objectivesAutosaveDebounceMs = 1200;
 
 type StrategicTopicsAutosaveStatus =
   | "ready"
@@ -199,6 +206,13 @@ type StrategicTopicsAutosaveStatus =
   | "error";
 
 type MeetingNotesAutosaveStatus =
+  | "ready"
+  | "pending"
+  | "saving"
+  | "saved"
+  | "error";
+
+type ObjectivesAutosaveStatus =
   | "ready"
   | "pending"
   | "saving"
@@ -295,6 +309,175 @@ const mergeSavedStrategicTopicIds = (
     return strategicTopicId ? { ...item, strategicTopicId } : item;
   });
 };
+
+const isRichTextDocumentValue = (value: unknown): value is RichTextDocument => {
+  if (typeof value !== "object" || value === null) return false;
+
+  const candidate = value as Partial<RichTextDocument>;
+  return candidate.version === 1 && Array.isArray(candidate.blocks);
+};
+
+const richTextJsonOrNull = (value: RichTextValue): Record<string, unknown> | null => {
+  const normalized = normalizeRichTextValue(value);
+  return typeof normalized === "string"
+    ? null
+    : (normalized as unknown as Record<string, unknown>);
+};
+
+const richTextTextOrNull = (value: RichTextValue) => {
+  const text = getRichTextPlainText(normalizeRichTextValue(value)).trim();
+  return text ? text : null;
+};
+
+const richTextFromStructured = (
+  contentJson: Record<string, unknown> | null,
+  contentText: string | null,
+): RichTextValue => {
+  if (isRichTextDocumentValue(contentJson)) return contentJson;
+  return contentText ?? "";
+};
+
+const normalizeObjectiveStatus = (status: string | null | undefined): Objective["status"] => {
+  if (status === "in-progress" || status === "completed") return status;
+  return "planning";
+};
+
+const normalizeObjectivePriority = (priority: string | null | undefined): Objective["priority"] => {
+  if (priority === "high" || priority === "low") return priority;
+  return "medium";
+};
+
+const normalizeObjectiveColor = (color: string | null | undefined): ObjectiveColor => {
+  if (
+    color === "dark-green" ||
+    color === "green" ||
+    color === "yellow" ||
+    color === "orange" ||
+    color === "red"
+  ) {
+    return color;
+  }
+
+  return defaultObjectiveColor;
+};
+
+const mapObjectiveToSupabase = (
+  objective: Objective,
+  meetingId: string,
+  sortOrder: number,
+): SupabaseObjectiveUpsert => ({
+  meeting_id: meetingId,
+  client_objective_id: objective.id,
+  title: objective.title,
+  description: richTextTextOrNull(objective.description),
+  description_json: richTextJsonOrNull(objective.description),
+  status: objective.status,
+  priority: objective.priority,
+  due_date: toNullableString(objective.dueDate),
+  color: objective.color,
+  sort_order: sortOrder,
+  metadata_json: null,
+});
+
+const mapTaskToSupabase = (
+  task: Task,
+  objective: Objective,
+  meetingId: string,
+  objectiveId: string | null,
+  sortOrder: number,
+): SupabaseTaskUpsert => ({
+  meeting_id: meetingId,
+  objective_id: objectiveId,
+  client_objective_id: objective.id,
+  client_task_id: task.id,
+  title: task.title,
+  description: richTextTextOrNull(task.description),
+  description_text: richTextTextOrNull(task.description),
+  description_json: richTextJsonOrNull(task.description),
+  status: task.status,
+  assignee: toNullableString(task.assignedTo),
+  assigned_to: toNullableString(task.assignedTo),
+  due_date: toNullableString(task.dueDate),
+  sort_order: sortOrder,
+  subtasks_json: task.subtasks as unknown as Record<string, unknown>[],
+  comments_json: task.comments as unknown as Record<string, unknown>[],
+  activity_history_json: task.activityHistory as unknown as Record<string, unknown>[],
+  metadata_json: null,
+});
+
+const mapSooToSupabase = (
+  soo: StandardOperatingObjective,
+  meetingId: string,
+  sortOrder: number,
+): SupabaseStandardOperatingObjectiveUpsert => ({
+  meeting_id: meetingId,
+  client_soo_id: soo.id,
+  title: soo.title,
+  description: richTextTextOrNull(soo.description),
+  description_json: richTextJsonOrNull(soo.description),
+  color: soo.color ?? defaultObjectiveColor,
+  sort_order: sortOrder,
+  metadata_json: null,
+});
+
+const mapTaskFromSupabase = (task: SupabaseTask): Task => ({
+  id: task.client_task_id,
+  title: task.title,
+  description: richTextFromStructured(
+    task.description_json,
+    task.description_text ?? task.description,
+  ),
+  dueDate: task.due_date ?? "",
+  subtasks: Array.isArray(task.subtasks_json)
+    ? (task.subtasks_json as unknown as Task["subtasks"])
+    : [],
+  comments: Array.isArray(task.comments_json)
+    ? (task.comments_json as unknown as Task["comments"])
+    : [],
+  activityHistory: Array.isArray(task.activity_history_json)
+    ? (task.activity_history_json as unknown as Task["activityHistory"])
+    : [],
+  assignedTo: task.assigned_to ?? task.assignee ?? "",
+  status: normalizeObjectiveStatus(task.status),
+});
+
+const mergeStructuredObjectives = (
+  objectiveRows: SupabaseObjective[],
+  taskRows: SupabaseTask[],
+): Objective[] => {
+  const tasksByObjectiveClientId = new Map<number, Task[]>();
+  taskRows.forEach((taskRow) => {
+    const clientObjectiveId = taskRow.client_objective_id;
+    if (typeof clientObjectiveId !== "number") return;
+
+    const tasks = tasksByObjectiveClientId.get(clientObjectiveId) ?? [];
+    tasks.push(mapTaskFromSupabase(taskRow));
+    tasksByObjectiveClientId.set(clientObjectiveId, tasks);
+  });
+
+  return objectiveRows.map((objective) => ({
+    id: objective.client_objective_id,
+    title: objective.title,
+    description: richTextFromStructured(
+      objective.description_json,
+      objective.description,
+    ),
+    status: normalizeObjectiveStatus(objective.status),
+    priority: normalizeObjectivePriority(objective.priority),
+    dueDate: objective.due_date ?? "",
+    color: normalizeObjectiveColor(objective.color),
+    tasks: tasksByObjectiveClientId.get(objective.client_objective_id) ?? [],
+  }));
+};
+
+const mapSooFromSupabase = (
+  soo: SupabaseStandardOperatingObjective,
+): StandardOperatingObjective => ({
+  id: soo.client_soo_id,
+  title: soo.title,
+  description: richTextFromStructured(soo.description_json, soo.description),
+  color: normalizeObjectiveColor(soo.color),
+});
 
 // Agenda Items and Decisions/Actions currently live inside the same
 // MeetingRecord as Meeting Notes. PR 4C carries them through notes_json only
@@ -934,6 +1117,15 @@ export default function MeetingWorkspace() {
     saved: "Meeting Notes and Cascading Communications saved to cloud",
     error: "Meeting Notes autosave failed",
   };
+  const [objectivesAutosaveStatus, setObjectivesAutosaveStatus] =
+    useState<ObjectivesAutosaveStatus>("ready");
+  const objectivesAutosaveStatusLabel: Record<ObjectivesAutosaveStatus, string> = {
+    ready: "Objectives, Tasks, and SOOs autosave ready",
+    pending: "Objectives, Tasks, and SOOs autosave pending…",
+    saving: "Saving Objectives, Tasks, and SOOs…",
+    saved: "Objectives, Tasks, and SOOs saved to cloud",
+    error: "Objectives, Tasks, and SOOs autosave failed",
+  };
   const [cloudMeetingMessage, setCloudMeetingMessage] = useState("");
   const [hasUnsavedFullWorkspaceChanges, setHasUnsavedFullWorkspaceChanges] =
     useState(false);
@@ -1068,6 +1260,10 @@ export default function MeetingWorkspace() {
   const meetingNotesAutosaveWorkspaceIdRef = useRef("");
   const pendingMeetingNotesAutosaveSignatureRef = useRef("");
   const isMeetingNotesAutosaveInFlightRef = useRef(false);
+  const lastObjectivesAutosaveSignatureRef = useRef("");
+  const objectivesAutosaveWorkspaceIdRef = useRef("");
+  const pendingObjectivesAutosaveSignatureRef = useRef("");
+  const isObjectivesAutosaveInFlightRef = useRef(false);
   const lastTopicNotesAutosaveSignatureRef = useRef("");
   const topicNotesAutosaveKeyRef = useRef("");
   const lastAutoLoadedCloudMeetingIdRef = useRef("");
@@ -2550,6 +2746,116 @@ export default function MeetingWorkspace() {
   );
 
 
+  const applyObjectivesToState = useCallback(
+    (objectiveRows: SupabaseObjective[], taskRows: SupabaseTask[]) => {
+      if (objectiveRows.length === 0) return;
+
+      replaceObjectives(mergeStructuredObjectives(objectiveRows, taskRows));
+    },
+    [replaceObjectives],
+  );
+
+  const applyStandardOperatingObjectivesToState = useCallback(
+    (sooRows: SupabaseStandardOperatingObjective[]) => {
+      if (sooRows.length === 0) return;
+
+      setStandardOperatingObjectives(sooRows.map(mapSooFromSupabase));
+    },
+    [setStandardOperatingObjectives],
+  );
+
+  const buildObjectivesAutosavePayload = useCallback(
+    (objectiveItems: Objective[], meetingId: string) => {
+      const objectiveRows = objectiveItems.map((objective, index) =>
+        mapObjectiveToSupabase(objective, meetingId, index),
+      );
+      const taskRows = objectiveItems.flatMap((objective) =>
+        objective.tasks.map((task, index) =>
+          mapTaskToSupabase(
+            task,
+            objective,
+            meetingId,
+            null,
+            index,
+          ),
+        ),
+      );
+
+      return { objectiveRows, taskRows };
+    },
+    [],
+  );
+
+  const saveObjectivesBackupToCloud = useCallback(
+    async (objectiveItems: Objective[]) => {
+      if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
+        return;
+      }
+
+      const { objectiveRows, taskRows } = buildObjectivesAutosavePayload(
+        objectiveItems,
+        selectedMeetingId,
+      );
+      const savedObjectives = await supabaseMeetingClient.saveObjectives({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        objectives: objectiveRows,
+      });
+      const objectiveUuidByClientId = new Map(
+        savedObjectives.map((objective) => [objective.client_objective_id, objective.id]),
+      );
+      await supabaseMeetingClient.saveTasks({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        tasks: taskRows.map((task) => ({
+          ...task,
+          objective_id: objectiveUuidByClientId.get(task.client_objective_id) ?? null,
+        })),
+      });
+      await supabaseMeetingClient.deleteMissingTasks({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        retainedClientTaskIds: taskRows.map((task) => task.client_task_id),
+      });
+      await supabaseMeetingClient.deleteMissingObjectives({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        retainedClientObjectiveIds: objectiveRows.map(
+          (objective) => objective.client_objective_id,
+        ),
+      });
+    },
+    [
+      authSession,
+      buildObjectivesAutosavePayload,
+      isCurrentCloudRouteWorkspace,
+      selectedMeetingId,
+    ],
+  );
+
+  const saveStandardOperatingObjectivesBackupToCloud = useCallback(
+    async (sooItems: StandardOperatingObjective[]) => {
+      if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
+        return;
+      }
+
+      const sooRows = sooItems.map((soo, index) =>
+        mapSooToSupabase(soo, selectedMeetingId, index),
+      );
+      await supabaseMeetingClient.saveStandardOperatingObjectives({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        standardOperatingObjectives: sooRows,
+      });
+      await supabaseMeetingClient.deleteMissingStandardOperatingObjectives({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        retainedClientSooIds: sooRows.map((soo) => soo.client_soo_id),
+      });
+    },
+    [authSession, isCurrentCloudRouteWorkspace, selectedMeetingId],
+  );
+
   const applyMeetingNotesToState = useCallback(
     (notes: SupabaseMeetingNote[]) => {
       if (notes.length === 0) return;
@@ -2599,7 +2905,15 @@ export default function MeetingWorkspace() {
     setCloudMeetingMessage("Loading cloud meeting…");
 
     try {
-      const [cloudData, meetingSettings, strategicTopics, meetingNotes] = await Promise.all([
+      const [
+        cloudData,
+        meetingSettings,
+        strategicTopics,
+        meetingNotes,
+        objectiveRows,
+        taskRows,
+        sooRows,
+      ] = await Promise.all([
         supabaseMeetingClient.loadWorkspaceData({
           accessToken: authSession.accessToken,
           workspaceId: selectedMeetingId,
@@ -2616,17 +2930,34 @@ export default function MeetingWorkspace() {
           accessToken: authSession.accessToken,
           workspaceId: selectedMeetingId,
         }),
+        supabaseMeetingClient.loadObjectives({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+        }),
+        supabaseMeetingClient.loadTasks({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+        }),
+        supabaseMeetingClient.loadStandardOperatingObjectives({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+        }),
       ]);
 
       if (!cloudData) {
         applyMeetingSettingsToState(meetingSettings);
         applyStrategicTopicsToState(strategicTopics);
         applyMeetingNotesToState(meetingNotes);
+        applyObjectivesToState(objectiveRows, taskRows);
+        applyStandardOperatingObjectivesToState(sooRows);
         setStrategicTopicNotesById({});
         setActiveCloudWorkspaceId(selectedMeetingId);
         setCloudSaveStatus("idle");
         setCloudMeetingMessage(
-          strategicTopics.length > 0 || meetingNotes.length > 0
+          strategicTopics.length > 0 ||
+            meetingNotes.length > 0 ||
+            objectiveRows.length > 0 ||
+            sooRows.length > 0
             ? "Cloud meeting loaded from structured autosave rows. Manual Save remains available for full workspace backup."
             : "This cloud meeting has no saved data yet. Use Save current workspace to cloud when ready.",
         );
@@ -2642,11 +2973,13 @@ export default function MeetingWorkspace() {
       applyMeetingSettingsToState(meetingSettings);
       applyStrategicTopicsToState(strategicTopics);
       applyMeetingNotesToState(meetingNotes);
+      applyObjectivesToState(objectiveRows, taskRows);
+      applyStandardOperatingObjectivesToState(sooRows);
       lastCloudAutosaveSignatureRef.current = signature;
       setHasUnsavedFullWorkspaceChanges(false);
       setCloudSaveStatus("idle");
       setCloudMeetingMessage(
-        "Cloud workspace loaded. Settings, Strategic Topics, Meeting Notes, and Cascading Communications autosave to structured storage; Manual Save backs up the full workspace.",
+        "Cloud workspace loaded. Settings, Strategic Topics, Meeting Notes, Cascading Communications, Objectives, Tasks, and SOOs autosave to structured storage; Manual Save backs up the full workspace.",
       );
       setIsRouteCloudBootstrapping(false);
     } catch (error) {
@@ -2661,6 +2994,8 @@ export default function MeetingWorkspace() {
   }, [
     applyMeetingNotesToState,
     applyMeetingSettingsToState,
+    applyObjectivesToState,
+    applyStandardOperatingObjectivesToState,
     applyStrategicTopicsToState,
     applyWorkspaceBackupToState,
     authSession,
@@ -2880,12 +3215,16 @@ export default function MeetingWorkspace() {
         lastMeetingNotesAutosaveSignatureRef.current = "";
         meetingNotesAutosaveWorkspaceIdRef.current = "";
         pendingMeetingNotesAutosaveSignatureRef.current = "";
+        lastObjectivesAutosaveSignatureRef.current = "";
+        objectivesAutosaveWorkspaceIdRef.current = "";
+        pendingObjectivesAutosaveSignatureRef.current = "";
         topicNotesAutosaveKeyRef.current = "";
         lastTopicNotesAutosaveSignatureRef.current = "";
         setHasUnsavedFullWorkspaceChanges(false);
         setSettingsAutosaveStatus("ready");
         setStrategicTopicsAutosaveStatus("ready");
         setMeetingNotesAutosaveStatus("ready");
+        setObjectivesAutosaveStatus("ready");
         setCloudSaveStatus("local");
         setCloudMeetingMessage(
           authSession
@@ -2899,6 +3238,7 @@ export default function MeetingWorkspace() {
       setSettingsAutosaveStatus("ready");
       setStrategicTopicsAutosaveStatus("ready");
       setMeetingNotesAutosaveStatus("ready");
+      setObjectivesAutosaveStatus("ready");
       setCloudSaveStatus("idle");
       setCloudMeetingMessage(
         "Cloud workspace selected. Load cloud data when needed.",
@@ -3339,6 +3679,179 @@ export default function MeetingWorkspace() {
     workspaceMode,
   ]);
 
+  const objectivesAutosavePayload = useMemo(() => {
+    const { objectiveRows, taskRows } = buildObjectivesAutosavePayload(
+      objectives,
+      selectedMeetingId,
+    );
+    const sooRows = standardOperatingObjectives.map((soo, index) =>
+      mapSooToSupabase(soo, selectedMeetingId, index),
+    );
+
+    return { objectiveRows, taskRows, sooRows };
+  }, [buildObjectivesAutosavePayload, objectives, selectedMeetingId, standardOperatingObjectives]);
+  const objectivesAutosaveSignature = useMemo(
+    () => JSON.stringify(objectivesAutosavePayload),
+    [objectivesAutosavePayload],
+  );
+
+  useEffect(() => {
+    if (workspaceMode !== "cloud") return;
+    if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace)
+      return;
+    if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
+      return;
+    if (isRouteCloudBootstrapping || !hasLoadedDashboardStorage) return;
+
+    if (objectivesAutosaveWorkspaceIdRef.current !== selectedMeetingId) {
+      objectivesAutosaveWorkspaceIdRef.current = selectedMeetingId;
+      lastObjectivesAutosaveSignatureRef.current = objectivesAutosaveSignature;
+      pendingObjectivesAutosaveSignatureRef.current = "";
+      return;
+    }
+
+    if (objectivesAutosaveSignature === lastObjectivesAutosaveSignatureRef.current) {
+      if (pendingObjectivesAutosaveSignatureRef.current) {
+        pendingObjectivesAutosaveSignatureRef.current = "";
+        setObjectivesAutosaveStatus("saved");
+        setCloudMeetingMessage(
+          "Objectives, Tasks, and SOOs match the saved cloud version.",
+        );
+      }
+      return;
+    }
+
+    pendingObjectivesAutosaveSignatureRef.current = objectivesAutosaveSignature;
+    setObjectivesAutosaveStatus("pending");
+    setCloudMeetingMessage(
+      "Objectives, Tasks, and SOOs autosave pending… Manual Save still backs up the full workspace.",
+    );
+
+    let isCancelled = false;
+    let timeoutId: number;
+    const flushPendingObjectives = async () => {
+      if (isCancelled) return;
+      if (isObjectivesAutosaveInFlightRef.current) {
+        timeoutId = window.setTimeout(
+          flushPendingObjectives,
+          objectivesAutosaveDebounceMs,
+        );
+        return;
+      }
+
+      const pendingSignature = pendingObjectivesAutosaveSignatureRef.current;
+      if (
+        !pendingSignature ||
+        pendingSignature === lastObjectivesAutosaveSignatureRef.current
+      )
+        return;
+
+      const pendingPayload = JSON.parse(pendingSignature) as {
+        objectiveRows: SupabaseObjectiveUpsert[];
+        taskRows: SupabaseTaskUpsert[];
+        sooRows: SupabaseStandardOperatingObjectiveUpsert[];
+      };
+
+      isObjectivesAutosaveInFlightRef.current = true;
+      pendingObjectivesAutosaveSignatureRef.current = "";
+      setObjectivesAutosaveStatus("saving");
+      setCloudMeetingMessage("Saving Objectives, Tasks, and SOOs to cloud…");
+
+      try {
+        const savedObjectives = await supabaseMeetingClient.saveObjectives({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+          objectives: pendingPayload.objectiveRows,
+        });
+        const objectiveUuidByClientId = new Map(
+          savedObjectives.map((objective) => [
+            objective.client_objective_id,
+            objective.id,
+          ]),
+        );
+        await supabaseMeetingClient.saveTasks({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+          tasks: pendingPayload.taskRows.map((task) => ({
+            ...task,
+            objective_id:
+              objectiveUuidByClientId.get(task.client_objective_id) ?? null,
+          })),
+        });
+        await supabaseMeetingClient.deleteMissingTasks({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+          retainedClientTaskIds: pendingPayload.taskRows.map(
+            (task) => task.client_task_id,
+          ),
+        });
+        await supabaseMeetingClient.deleteMissingObjectives({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+          retainedClientObjectiveIds: pendingPayload.objectiveRows.map(
+            (objective) => objective.client_objective_id,
+          ),
+        });
+        await supabaseMeetingClient.saveStandardOperatingObjectives({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+          standardOperatingObjectives: pendingPayload.sooRows,
+        });
+        await supabaseMeetingClient.deleteMissingStandardOperatingObjectives({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+          retainedClientSooIds: pendingPayload.sooRows.map(
+            (soo) => soo.client_soo_id,
+          ),
+        });
+        lastObjectivesAutosaveSignatureRef.current = pendingSignature;
+
+        if (!isCancelled && !pendingObjectivesAutosaveSignatureRef.current) {
+          setObjectivesAutosaveStatus("saved");
+          setCloudMeetingMessage(
+            "Objectives, Tasks, and SOOs saved to cloud. Manual Save still backs up the full workspace.",
+          );
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setObjectivesAutosaveStatus("error");
+          setCloudMeetingMessage(
+            error instanceof Error
+              ? error.message
+              : "Objectives, Tasks, and SOOs could not be saved to cloud.",
+          );
+        }
+      } finally {
+        isObjectivesAutosaveInFlightRef.current = false;
+        if (!isCancelled && pendingObjectivesAutosaveSignatureRef.current) {
+          timeoutId = window.setTimeout(
+            flushPendingObjectives,
+            objectivesAutosaveDebounceMs,
+          );
+        }
+      }
+    };
+
+    timeoutId = window.setTimeout(
+      flushPendingObjectives,
+      objectivesAutosaveDebounceMs,
+    );
+
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    activeCloudWorkspaceId,
+    authSession,
+    hasLoadedDashboardStorage,
+    isCurrentCloudRouteWorkspace,
+    isRouteCloudBootstrapping,
+    objectivesAutosaveSignature,
+    selectedMeetingId,
+    workspaceMode,
+  ]);
+
   useEffect(() => {
     if (workspaceMode !== "cloud") return;
     if (!selectedMeetingId || !isCurrentCloudRouteWorkspace) return;
@@ -3418,6 +3931,16 @@ export default function MeetingWorkspace() {
         "leadership-meetings",
         initialMeetings,
       );
+      const restoredObjectives = readBackupEntry(
+        backup,
+        "leadership-objectives",
+        objectives,
+      );
+      const restoredStandardOperatingObjectives = readBackupEntry(
+        backup,
+        "leadership-standard-operating-objectives",
+        defaultStandardOperatingObjectives,
+      );
 
       storeWorkspaceBackupInBrowser(backup, activeCloudWorkspaceId);
       applyWorkspaceBackupToState(backup);
@@ -3425,20 +3948,24 @@ export default function MeetingWorkspace() {
         await Promise.all([
           saveStrategicTopicNotesBackupToCloud(restoredStrategicTopicNotes),
           saveMeetingNotesBackupToCloud(restoredMeetings),
+          saveObjectivesBackupToCloud(restoredObjectives),
+          saveStandardOperatingObjectivesBackupToCloud(
+            restoredStandardOperatingObjectives,
+          ),
         ]);
       }
       setHasCompletedMeetingSetup(true);
       setCloudSaveStatus(workspaceMode === "cloud" ? "idle" : "local");
       setCloudMeetingMessage(
         workspaceMode === "cloud"
-          ? "Backup imported into the current view. Meeting Notes, Cascading Communications, and Strategic Topic Notes were restored; click Save current workspace to cloud for the full workspace backup."
+          ? "Backup imported into the current view. Meeting Notes, Cascading Communications, Strategic Topic Notes, Objectives, Tasks, and SOOs were restored; click Save current workspace to cloud for the full workspace backup."
           : "",
       );
       setBackupFeedback({
         type: "success",
         message:
           workspaceMode === "cloud"
-            ? "Workspace backup imported into the selected Cloud Meeting view. Meeting Notes, Cascading Communications, and Strategic Topic Notes were restored; use Manual Save for the full workspace backup."
+            ? "Workspace backup imported into the selected Cloud Meeting view. Meeting Notes, Cascading Communications, Strategic Topic Notes, Objectives, Tasks, and SOOs were restored; use Manual Save for the full workspace backup."
             : "Workspace backup imported successfully.",
       });
     } catch (error) {
@@ -3584,6 +4111,9 @@ export default function MeetingWorkspace() {
                 <span className="font-semibold text-blue-700">
                   {meetingNotesAutosaveStatusLabel[meetingNotesAutosaveStatus]}
                 </span>
+                <span className="font-semibold text-blue-700">
+                  {objectivesAutosaveStatusLabel[objectivesAutosaveStatus]}
+                </span>
                 <span
                   className={
                     hasUnsavedFullWorkspaceChanges
@@ -3681,6 +4211,9 @@ export default function MeetingWorkspace() {
                 <p className="mt-1 text-xs font-semibold text-blue-700">
                   {meetingNotesAutosaveStatusLabel[meetingNotesAutosaveStatus]}
                 </p>
+                <p className="mt-1 text-xs font-semibold text-blue-700">
+                  {objectivesAutosaveStatusLabel[objectivesAutosaveStatus]}
+                </p>
                 <p className="mt-2 text-xs text-slate-500">{cloudMeetingMessage}</p>
                 <p className={`mt-2 text-xs font-semibold ${
                   hasUnsavedFullWorkspaceChanges
@@ -3689,7 +4222,7 @@ export default function MeetingWorkspace() {
                 }`}>
                   {hasUnsavedFullWorkspaceChanges
                     ? "Manual Save needed for full workspace changes."
-                    : "Full workspace backup saved. Manual Save backs up objectives, tasks, meeting notes, and other workspace changes while Strategic Topics autosave separately."}
+                    : "Full workspace backup saved. Manual Save backs up the full workspace while structured surfaces autosave separately."}
                 </p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <button

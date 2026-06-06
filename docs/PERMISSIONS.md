@@ -1,5 +1,11 @@
 # Permissions
 
+## Phase 4 PR 4D objectives/tasks/SOOs permissions
+
+- `objectives`, `tasks`, and `standard_operating_objectives` use the existing meeting access helpers: active members can read through `user_can_access_meeting`; owners and active editors can insert/update/delete through `user_can_edit_meeting`.
+- Non-members cannot read or write these structured rows through RLS. Removed editors lose access after refresh/reload because helper checks require active membership (`removed_at is null`).
+- PR 4D does not add Viewer UX/read-only enforcement in the client, ownership transfer, role editing, or Local Mode permission changes.
+
 ## Current State (Membership-Aware Cloud Meetings)
 
 - Signed-out users can use Local Workspace via `localStorage` and export/import.
