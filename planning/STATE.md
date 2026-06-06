@@ -7,8 +7,8 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings`, structured Strategic Topics, Topic Notes, topic ordering, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, and Standard Operating Objectives after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: **Before Main UX Architecture Review** documents a repo-aware UX sprint blueprint for dashboard clarity, sticky autosave visibility, workspace navigation, Agenda/Decision workflow clarification, Manual Save/Backup wording, Local Mode wording, and responsive polish before the main UX sprint.
-- Current branch note: the UX architecture review is a documentation/planning-only branch; it must not change app code, runtime behavior, schema, migrations, RLS, UI implementation, persistence, Local Mode, or Manual Save.
+- Current focus: **Before Main UX Sprint** implements approved visual polish from the UX Architecture Review: dashboard card hierarchy, sticky meeting header/autosave visibility, Tactical History naming, Manual Save/Backup wording, Local Mode browser-only fallback wording, and a non-functional Agenda/Decision workflow preview.
+- Current branch note: `before-main-ux-sprint` is a UI-only polish branch against `phase-3-shared-access`. It must not change persistence, schema, migrations, RLS, auth, shared-access logic, or Agenda/Decision autosave.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
 
 ## Before Main UX Architecture Review

@@ -38,7 +38,8 @@ export function BackupRestoreModal({
             Backup / Restore
           </h2>
           <p className="text-xl text-slate-600">
-            Export a JSON backup of this browser workspace or import a previous backup to restore local Meeting Tool data.
+            Export or import a workspace backup. This is separate from cloud
+            autosave and remains a safety net.
           </p>
         </div>
 

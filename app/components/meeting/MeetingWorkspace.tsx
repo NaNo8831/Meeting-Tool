@@ -791,6 +791,61 @@ const buildTacticalSnapshotSummary = (
 
 type CloudSaveStatus = "local" | "idle" | "saving" | "saved" | "error";
 type SettingsAutosaveStatus = "ready" | "pending" | "saving" | "saved" | "error";
+type AutosaveSummaryStatus = "autosaved" | "saving" | "backup-needed" | "error";
+
+type StructuredAutosaveStatus =
+  | SettingsAutosaveStatus
+  | StrategicTopicsAutosaveStatus
+  | MeetingNotesAutosaveStatus
+  | ObjectivesAutosaveStatus;
+
+const getAutosaveSummaryStatus = ({
+  isCloudWorkspace,
+  structuredStatuses,
+  hasUnsavedFullWorkspaceChanges,
+  cloudSaveStatus,
+}: {
+  isCloudWorkspace: boolean;
+  structuredStatuses: StructuredAutosaveStatus[];
+  hasUnsavedFullWorkspaceChanges: boolean;
+  cloudSaveStatus: CloudSaveStatus;
+}): AutosaveSummaryStatus => {
+  if (!isCloudWorkspace) return "autosaved";
+
+  if (
+    structuredStatuses.some((status) => status === "error") ||
+    cloudSaveStatus === "error"
+  ) {
+    return "error";
+  }
+
+  if (
+    structuredStatuses.some(
+      (status) => status === "saving" || status === "pending",
+    ) ||
+    cloudSaveStatus === "saving"
+  ) {
+    return "saving";
+  }
+
+  if (hasUnsavedFullWorkspaceChanges) return "backup-needed";
+
+  return "autosaved";
+};
+
+const autosaveSummaryLabel: Record<AutosaveSummaryStatus, string> = {
+  autosaved: "Autosaved",
+  saving: "Saving…",
+  "backup-needed": "Backup needed",
+  error: "Autosave issue",
+};
+
+const autosaveSummaryChipClassName: Record<AutosaveSummaryStatus, string> = {
+  autosaved: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  saving: "border-blue-200 bg-blue-50 text-blue-800",
+  "backup-needed": "border-amber-200 bg-amber-50 text-amber-900",
+  error: "border-red-200 bg-red-50 text-red-800",
+};
 const meetingSettingsAutosaveDebounceMs = 1200;
 
 const readBackupEntry = <T,>(
@@ -1229,7 +1284,10 @@ export default function MeetingWorkspace() {
   const [newDecisionItem, setNewDecisionItem] = useState("");
   const [newCascadeItem, setNewCascadeItem] = useState("");
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [showAutosaveStatusDetail, setShowAutosaveStatusDetail] =
+    useState(false);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
+  const autosaveStatusDetailRef = useRef<HTMLDivElement>(null);
   const meetingNotesRef = useRef<HTMLDivElement>(null);
   const [showMeetingSetup, setShowMeetingSetup] = useState(false);
   const [showPlaybookDefinitions, setShowPlaybookDefinitions] = useState(false);
@@ -1581,6 +1639,24 @@ export default function MeetingWorkspace() {
       document.removeEventListener("pointerdown", handleOutsidePointerDown);
     };
   }, [showSettingsMenu]);
+
+  useEffect(() => {
+    if (!showAutosaveStatusDetail) return;
+
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      const panelElement = autosaveStatusDetailRef.current;
+      if (!panelElement || !(event.target instanceof Node)) return;
+      if (panelElement.contains(event.target)) return;
+
+      setShowAutosaveStatusDetail(false);
+    };
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    };
+  }, [showAutosaveStatusDetail]);
 
   useEffect(() => {
     if (workspaceMode === "cloud" || !hasLoadedMeetings) return;
@@ -2218,7 +2294,8 @@ export default function MeetingWorkspace() {
     agenda: {
       id: "agenda",
       title: "Agenda Items",
-      description: "List the meeting agenda items to cover.",
+      description:
+        "List agenda items to cover. A future workflow will add discussion notes, decisions, and action items per item.",
       items: activeMeeting.agendaItems,
       newItem: newAgendaItem,
       setNewItem: setNewAgendaItem,
@@ -2256,7 +2333,8 @@ export default function MeetingWorkspace() {
     decision: {
       id: "decision",
       title: "Decisions / Actions",
-      description: "Document the decisions and next actions from the meeting.",
+      description:
+        "Meeting outcome summary. Future workflow will roll up decisions and actions from agenda items, with optional standalone entries.",
       items: activeMeeting.decisionItems,
       newItem: newDecisionItem,
       setNewItem: setNewDecisionItem,
@@ -4013,6 +4091,22 @@ export default function MeetingWorkspace() {
   const selectedTacticalSessionSummary = buildTacticalSnapshotSummary(
     selectedTacticalSession,
   );
+  const stickyMeetingTitle =
+    dashboardTitle || selectedMeetingName || defaultDashboardTitle;
+  const structuredAutosaveStatuses: StructuredAutosaveStatus[] = [
+    settingsAutosaveStatus,
+    strategicTopicsAutosaveStatus,
+    meetingNotesAutosaveStatus,
+    objectivesAutosaveStatus,
+  ];
+  const autosaveSummaryStatus = getAutosaveSummaryStatus({
+    isCloudWorkspace: isCurrentCloudRouteWorkspace,
+    structuredStatuses: structuredAutosaveStatuses,
+    hasUnsavedFullWorkspaceChanges,
+    cloudSaveStatus,
+  });
+  const isManualSaveInFlight =
+    cloudSaveStatus === "saving" && isCurrentCloudRouteWorkspace;
 
   if (!hasLoadedDashboardStorage) {
     return (
@@ -4060,365 +4154,393 @@ export default function MeetingWorkspace() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 p-8">
-      <div className="mx-auto max-w-[1600px]">
-        <div className="mb-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-start">
-          <div>
-            <h1 className="text-5xl font-bold text-slate-900">
-              {dashboardTitle || selectedMeetingName || defaultDashboardTitle}
-            </h1>
-          </div>
-
-          <section
-            className="rounded-3xl border border-blue-100 bg-white/85 p-4 shadow-sm xl:justify-self-center"
-            aria-label="Meeting lifecycle actions"
-          >
-            <p className="text-center text-xs font-semibold uppercase tracking-wide text-blue-600">
-              Meeting actions
-            </p>
-            <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={handleMeetingAction}
-                disabled={!hasMeetingActionDate}
-                className="rounded-full bg-blue-600 px-5 py-2 font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+    <main className="min-h-screen bg-slate-100">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-slate-100/95 backdrop-blur">
+        <div className="mx-auto max-w-[1600px] px-4 py-3 sm:px-8">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-center gap-2">
+              <h1 className="truncate text-lg font-bold text-slate-900 sm:text-xl">
+                {stickyMeetingTitle}
+              </h1>
+              <span
+                className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                  isLocalRoute
+                    ? "border-slate-300 bg-slate-100 text-slate-700"
+                    : "border-blue-200 bg-blue-50 text-blue-700"
+                }`}
               >
-                {meetingActionLabel}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowEndMeetingConfirm(true)}
-                disabled={
-                  isEndingMeeting ||
-                  !authSession ||
-                  !selectedMeetingId ||
-                  !isCurrentCloudRouteWorkspace ||
-                  !canEndMeeting
-                }
-                className="rounded-full border border-emerald-200 bg-emerald-50 px-5 py-2 font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isEndingMeeting ? "Ending Meeting…" : "End Meeting"}
-              </button>
+                {isLocalRoute ? "Local Workspace" : "Cloud Meeting"}
+              </span>
+              {isLocalRoute ? (
+                <span className="hidden shrink-0 text-xs font-medium text-slate-500 sm:inline">
+                  Browser-only fallback
+                </span>
+              ) : null}
             </div>
-            {isCurrentCloudRouteWorkspace ? (
-              <div className="mt-3 grid gap-1 border-t border-blue-100 pt-3 text-center text-xs">
-                <span className="font-semibold text-blue-700">
-                  {settingsAutosaveStatusLabel[settingsAutosaveStatus]}
-                </span>
-                <span className="font-semibold text-blue-700">
-                  {strategicTopicsAutosaveStatusLabel[strategicTopicsAutosaveStatus]}
-                </span>
-                <span className="font-semibold text-blue-700">
-                  {meetingNotesAutosaveStatusLabel[meetingNotesAutosaveStatus]}
-                </span>
-                <span className="font-semibold text-blue-700">
-                  {objectivesAutosaveStatusLabel[objectivesAutosaveStatus]}
-                </span>
-                <span
-                  className={
-                    hasUnsavedFullWorkspaceChanges
-                      ? "font-semibold text-amber-700"
-                      : "text-slate-500"
-                  }
-                >
-                  {hasUnsavedFullWorkspaceChanges
-                    ? "Manual Save needed for full workspace changes."
-                    : "Full workspace backup saved."}
-                </span>
-              </div>
-            ) : null}
-            {testingToolsEnabled ? (
-              <div className="mt-4 border-t border-amber-100 pt-3">
-                <label className="flex items-center justify-center gap-2 text-xs font-semibold text-amber-800">
-                  <input
-                    type="checkbox"
-                    checked={isTestingModeActive}
-                    onChange={(event) => setIsTestingModeActive(event.target.checked)}
-                    className="h-4 w-4 rounded border-amber-300 text-amber-600"
-                  />
-                  Testing Mode
-                </label>
-                {isTestingModeActive ? (
-                  <label className="mt-3 block text-xs font-semibold text-slate-600">
-                    Test meeting date
-                    <input
-                      type="date"
-                      required
-                      value={testingMeetingDate}
-                      onChange={(event) => setTestingMeetingDate(event.target.value)}
-                      className="mt-1 block w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-slate-900"
-                    />
-                  </label>
-                ) : null}
-              </div>
-            ) : null}
-          </section>
 
-          <div className="flex flex-col gap-3 self-start sm:flex-row sm:items-start xl:justify-self-end">
-            {isLocalRoute ? (
-              <section className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm sm:w-96">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Local Workspace
-                </p>
-                <div className="mt-1 flex items-center justify-between gap-3">
-                  <p className="font-semibold text-slate-900">
-                    This browser only
-                  </p>
-                  <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
-                    {cloudSaveStatusLabel[cloudSaveStatus]}
-                  </span>
-                </div>
-                <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
-                  Local changes are stored only in this browser. To move them to cloud, export/import or create a cloud meeting.
-                </p>
-                {authSession ? (
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <Link
-                      href="/dashboard"
-                      className="rounded-xl bg-blue-600 px-3 py-2 text-center font-semibold text-white hover:bg-blue-700"
-                    >
-                      Dashboard
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => setShowBackupRestore(true)}
-                      className="rounded-xl border border-slate-300 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50"
-                    >
-                      Export / Import
-                    </button>
-                  </div>
-                ) : null}
-              </section>
-            ) : (
-              <section className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm sm:w-96">
-                <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
-                  Cloud Meeting
-                </p>
-                <div className="mt-1 flex items-center justify-between gap-3">
-                  <p className="font-semibold text-slate-900">
-                    {selectedMeetingName || "Selected from route"}
-                  </p>
-                  <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                    {cloudSaveStatusLabel[cloudSaveStatus]}
-                  </span>
-                </div>
-                <p className="mt-2 text-xs font-semibold text-blue-700">
-                  {settingsAutosaveStatusLabel[settingsAutosaveStatus]}
-                </p>
-                <p className="mt-1 text-xs font-semibold text-blue-700">
-                  {strategicTopicsAutosaveStatusLabel[strategicTopicsAutosaveStatus]}
-                </p>
-                <p className="mt-1 text-xs font-semibold text-blue-700">
-                  {meetingNotesAutosaveStatusLabel[meetingNotesAutosaveStatus]}
-                </p>
-                <p className="mt-1 text-xs font-semibold text-blue-700">
-                  {objectivesAutosaveStatusLabel[objectivesAutosaveStatus]}
-                </p>
-                <p className="mt-2 text-xs text-slate-500">{cloudMeetingMessage}</p>
-                <p className={`mt-2 text-xs font-semibold ${
-                  hasUnsavedFullWorkspaceChanges
-                    ? "text-amber-700"
-                    : "text-slate-500"
-                }`}>
-                  {hasUnsavedFullWorkspaceChanges
-                    ? "Manual Save needed for full workspace changes."
-                    : "Full workspace backup saved. Manual Save backs up the full workspace while structured surfaces autosave separately."}
-                </p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={handleLoadCloudMeeting}
-                    className="rounded-xl border border-blue-200 px-3 py-2 font-semibold text-blue-700 hover:bg-blue-50"
-                  >
-                    Load
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveCloudMeeting}
-                    className="rounded-xl bg-blue-600 px-3 py-2 font-semibold text-white hover:bg-blue-700"
-                  >
-                    Save
-                  </button>
-                </div>
-              </section>
-            )}
-
-            {isLocalRoute && shouldShowLocalToCloudMigrationPrompt ? (
-              <section className="w-full rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm sm:w-96">
-                <p className="font-semibold text-amber-950">
-                  Local Workspace data is available to migrate.
-                </p>
-                <p className="mt-2 text-xs leading-relaxed text-amber-900">
-                  You selected{" "}
-                  {selectedMeetingName || "a Cloud Meeting"}. Migration
-                  is optional and will not happen automatically. Export a JSON
-                  backup first if you want an extra rollback copy.
-                </p>
-                {selectedMeetingHasData ? (
-                  <p className="mt-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700">
-                    This will overwrite the saved cloud data for{" "}
-                    {selectedMeetingName || "this workspace"} with the
-                    current Local Workspace data.
-                  </p>
-                ) : null}
-                <div className="mt-3 grid gap-2">
-                  <button
-                    type="button"
-                    onClick={handleMigrateLocalWorkspaceToCloud}
-                    disabled={
-                      isMigratingLocalWorkspace || isCheckingCloudWorkspaceData
-                    }
-                    className="rounded-xl bg-amber-600 px-3 py-2 font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isMigratingLocalWorkspace
-                      ? "Migrating…"
-                      : "Save Local Workspace into Cloud Meeting"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSkipLocalWorkspaceMigration}
-                    className="rounded-xl border border-amber-300 bg-white px-3 py-2 font-semibold text-amber-900 hover:bg-amber-100"
-                  >
-                    Keep existing Cloud Meeting unchanged
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleContinueLocalWorkspace}
-                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    Continue using Local Workspace
-                  </button>
-                </div>
-              </section>
-            ) : null}
-
-            <div ref={settingsMenuRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setShowSettingsMenu((isOpen) => !isOpen)}
-                className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 font-semibold text-white shadow-lg hover:bg-blue-700"
-                aria-expanded={showSettingsMenu}
-                aria-haspopup="menu"
-                aria-label="Open meeting menu"
-              >
-                <span className="text-2xl leading-none" aria-hidden="true">
-                  ☰
-                </span>
-              </button>
-
-              {showSettingsMenu ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between lg:flex-1 lg:justify-end lg:gap-3">
+              {isCurrentCloudRouteWorkspace ? (
                 <div
-                  className="absolute right-0 z-40 mt-3 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white py-2 shadow-xl"
-                  role="menu"
-                  aria-label="Meeting menu"
+                  ref={autosaveStatusDetailRef}
+                  className="relative sm:flex-1 sm:max-w-md lg:mx-4"
                 >
-                  {!isLocalRoute ? (
-                    <Link
-                      href="/dashboard"
-                      onClick={() => setShowSettingsMenu(false)}
-                      className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
-                      role="menuitem"
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowAutosaveStatusDetail((isOpen) => !isOpen)
+                    }
+                    className={`flex w-full items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold ${autosaveSummaryChipClassName[autosaveSummaryStatus]}`}
+                    aria-expanded={showAutosaveStatusDetail}
+                    aria-label={`Autosave status: ${autosaveSummaryLabel[autosaveSummaryStatus]}. Show details.`}
+                  >
+                    <span>{autosaveSummaryLabel[autosaveSummaryStatus]}</span>
+                    <span className="text-xs opacity-70" aria-hidden="true">
+                      ▾
+                    </span>
+                  </button>
+
+                  {showAutosaveStatusDetail ? (
+                    <div
+                      className="absolute left-0 right-0 z-40 mt-2 rounded-2xl border border-slate-200 bg-white p-4 text-xs shadow-xl sm:left-auto sm:right-auto sm:min-w-[22rem]"
+                      role="region"
+                      aria-label="Autosave status details"
                     >
-                      Dashboard
-                    </Link>
-                  ) : null}
-                  {isAuthLoading ? (
-                    <p className="px-5 py-3 text-sm font-semibold text-slate-500">
-                      Checking account…
-                    </p>
-                  ) : authSession ? (
-                    <>
-                      <div className="border-b border-slate-100 px-5 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          User
+                      <p className="font-semibold text-slate-800">
+                        Autosave protects supported cloud sections. Manual Save
+                        creates a full-workspace backup.
+                      </p>
+                      <ul className="mt-3 space-y-1.5 text-slate-700">
+                        <li>
+                          <span className="font-semibold">Setup:</span>{" "}
+                          {settingsAutosaveStatusLabel[settingsAutosaveStatus]}
+                        </li>
+                        <li>
+                          <span className="font-semibold">Topics:</span>{" "}
+                          {
+                            strategicTopicsAutosaveStatusLabel[
+                              strategicTopicsAutosaveStatus
+                            ]
+                          }
+                        </li>
+                        <li>
+                          <span className="font-semibold">Notes &amp; comms:</span>{" "}
+                          {
+                            meetingNotesAutosaveStatusLabel[
+                              meetingNotesAutosaveStatus
+                            ]
+                          }
+                        </li>
+                        <li>
+                          <span className="font-semibold">Objectives &amp; SOOs:</span>{" "}
+                          {
+                            objectivesAutosaveStatusLabel[
+                              objectivesAutosaveStatus
+                            ]
+                          }
+                        </li>
+                        <li
+                          className={
+                            hasUnsavedFullWorkspaceChanges
+                              ? "font-semibold text-amber-800"
+                              : "text-slate-600"
+                          }
+                        >
+                          <span className="font-semibold">Full backup:</span>{" "}
+                          {hasUnsavedFullWorkspaceChanges
+                            ? "Manual Save recommended for full-workspace backup."
+                            : cloudSaveStatusLabel[cloudSaveStatus]}
+                        </li>
+                      </ul>
+                      {autosaveSummaryStatus === "error" ? (
+                        <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 font-semibold text-red-800">
+                          Some cloud autosave changes may not have saved. Use
+                          Manual Save now, then retry or refresh after confirming
+                          status.
                         </p>
-                        <p className="mt-1 truncate text-sm font-semibold text-slate-800">
-                          {authSession.user.email}
-                        </p>
-                      </div>
+                      ) : null}
+                      {cloudMeetingMessage ? (
+                        <p className="mt-3 text-slate-500">{cloudMeetingMessage}</p>
+                      ) : null}
                       <button
                         type="button"
-                        onClick={() => void handleSignOutAndExit()}
-                        disabled={isSigningOut}
-                        className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-slate-400"
+                        onClick={() => {
+                          setShowAutosaveStatusDetail(false);
+                          void handleLoadCloudMeeting();
+                        }}
+                        className="mt-3 rounded-lg border border-slate-200 px-3 py-1.5 font-semibold text-slate-600 hover:bg-slate-50"
+                      >
+                        Reload cloud backup
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : isLocalRoute ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 sm:flex-1 lg:mx-4">
+                  Saved in this browser only. Not shared with members and not
+                  cloud autosaved.
+                </p>
+              ) : null}
+
+              <div className="flex items-center justify-end gap-2">
+                {isCurrentCloudRouteWorkspace ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveCloudMeeting()}
+                    disabled={isManualSaveInFlight}
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isManualSaveInFlight ? "Saving…" : "Manual Save"}
+                  </button>
+                ) : null}
+                {authSession ? (
+                  <Link
+                    href="/dashboard"
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Dashboard
+                  </Link>
+                ) : null}
+                <div ref={settingsMenuRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowSettingsMenu((isOpen) => !isOpen)}
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 font-semibold text-white shadow-lg hover:bg-blue-700"
+                    aria-expanded={showSettingsMenu}
+                    aria-haspopup="menu"
+                    aria-label="Open meeting menu"
+                  >
+                    <span className="text-lg leading-none" aria-hidden="true">
+                      ☰
+                    </span>
+                  </button>
+
+                  {showSettingsMenu ? (
+                    <div
+                      className="absolute right-0 z-40 mt-3 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white py-2 shadow-xl"
+                      role="menu"
+                      aria-label="Meeting menu"
+                    >
+                      {!isLocalRoute ? (
+                        <Link
+                          href="/dashboard"
+                          onClick={() => setShowSettingsMenu(false)}
+                          className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700 lg:hidden"
+                          role="menuitem"
+                        >
+                          Dashboard
+                        </Link>
+                      ) : null}
+                      {isAuthLoading ? (
+                        <p className="px-5 py-3 text-sm font-semibold text-slate-500">
+                          Checking account…
+                        </p>
+                      ) : authSession ? (
+                        <>
+                          <div className="border-b border-slate-100 px-5 py-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              User
+                            </p>
+                            <p className="mt-1 truncate text-sm font-semibold text-slate-800">
+                              {authSession.user.email}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void handleSignOutAndExit()}
+                            disabled={isSigningOut}
+                            className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-slate-400"
+                            role="menuitem"
+                          >
+                            {isSigningOut ? "Signing out…" : "Sign Out"}
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowAuthModal(true);
+                            setShowSettingsMenu(false);
+                          }}
+                          className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                          role="menuitem"
+                        >
+                          Sign In
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowPlaybookDefinitions(true);
+                          setShowSettingsMenu(false);
+                        }}
+                        className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
                         role="menuitem"
                       >
-                        {isSigningOut ? "Signing out…" : "Sign Out"}
+                        Edit Playbook
                       </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowAuthModal(true);
-                        setShowSettingsMenu(false);
-                      }}
-                      className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
-                      role="menuitem"
-                    >
-                      Sign In
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowPlaybookDefinitions(true);
-                      setShowSettingsMenu(false);
-                    }}
-                    className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
-                    role="menuitem"
-                  >
-                    Edit Playbook
-                  </button>
-                  {workspaceMode === "cloud" && selectedMeetingId ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowTacticalHistory(true);
-                        setShowSettingsMenu(false);
-                      }}
-                      className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
-                      role="menuitem"
-                    >
-                      Meeting History
-                    </button>
+                      {workspaceMode === "cloud" && selectedMeetingId ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowTacticalHistory(true);
+                            setShowSettingsMenu(false);
+                          }}
+                          className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                          role="menuitem"
+                        >
+                          Tactical History
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isMeetingNotesReadOnly) return;
+                          setShowDeleteMeetingNotesConfirm(true);
+                          setShowSettingsMenu(false);
+                        }}
+                        disabled={isMeetingNotesReadOnly}
+                        className="block w-full px-5 py-3 text-left text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-white"
+                        role="menuitem"
+                        title={
+                          isMeetingNotesReadOnly
+                            ? meetingNotesReadOnlyMessage
+                            : undefined
+                        }
+                      >
+                        {isMeetingNotesReadOnly
+                          ? "Meeting Notes Read-Only"
+                          : "Delete Current Meeting Notes"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowBackupRestore(true);
+                          setShowSettingsMenu(false);
+                        }}
+                        className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                        role="menuitem"
+                      >
+                        Backup / Restore
+                      </button>
+                    </div>
                   ) : null}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (isMeetingNotesReadOnly) return;
-                      setShowDeleteMeetingNotesConfirm(true);
-                      setShowSettingsMenu(false);
-                    }}
-                    disabled={isMeetingNotesReadOnly}
-                    className="block w-full px-5 py-3 text-left text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-white"
-                    role="menuitem"
-                    title={
-                      isMeetingNotesReadOnly
-                        ? meetingNotesReadOnlyMessage
-                        : undefined
-                    }
-                  >
-                    {isMeetingNotesReadOnly
-                      ? "Meeting Notes Read-Only"
-                      : "Delete Current Meeting Notes"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowBackupRestore(true);
-                      setShowSettingsMenu(false);
-                    }}
-                    className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
-                    role="menuitem"
-                  >
-                    Backup / Restore
-                  </button>
                 </div>
-              ) : null}
+              </div>
             </div>
           </div>
         </div>
+      </header>
+
+      <div className="mx-auto max-w-[1600px] p-4 sm:p-8">
+        <section
+          className="mb-8 rounded-3xl border border-blue-100 bg-white/85 p-4 shadow-sm"
+          aria-label="Meeting lifecycle actions"
+        >
+          <p className="text-center text-xs font-semibold uppercase tracking-wide text-blue-600">
+            Meeting actions
+          </p>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <button
+              type="button"
+              onClick={handleMeetingAction}
+              disabled={!hasMeetingActionDate}
+              className="rounded-full bg-blue-600 px-5 py-2 font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {meetingActionLabel}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowEndMeetingConfirm(true)}
+              disabled={
+                isEndingMeeting ||
+                !authSession ||
+                !selectedMeetingId ||
+                !isCurrentCloudRouteWorkspace ||
+                !canEndMeeting
+              }
+              className="rounded-full border border-emerald-200 bg-emerald-50 px-5 py-2 font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isEndingMeeting ? "Ending Meeting…" : "End Meeting"}
+            </button>
+          </div>
+          {testingToolsEnabled ? (
+            <div className="mt-4 border-t border-amber-100 pt-3">
+              <label className="flex items-center justify-center gap-2 text-xs font-semibold text-amber-800">
+                <input
+                  type="checkbox"
+                  checked={isTestingModeActive}
+                  onChange={(event) =>
+                    setIsTestingModeActive(event.target.checked)
+                  }
+                  className="h-4 w-4 rounded border-amber-300 text-amber-600"
+                />
+                Testing Mode
+              </label>
+              {isTestingModeActive ? (
+                <label className="mx-auto mt-3 block max-w-xs text-xs font-semibold text-slate-600">
+                  Test meeting date
+                  <input
+                    type="date"
+                    required
+                    value={testingMeetingDate}
+                    onChange={(event) =>
+                      setTestingMeetingDate(event.target.value)
+                    }
+                    className="mt-1 block w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-slate-900"
+                  />
+                </label>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+
+        {isLocalRoute && shouldShowLocalToCloudMigrationPrompt ? (
+          <section className="mb-8 w-full rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">
+            <p className="font-semibold text-amber-950">
+              Local Workspace data is available to migrate.
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-amber-900">
+              You selected {selectedMeetingName || "a Cloud Meeting"}. Migration
+              is optional and will not happen automatically. Export a JSON backup
+              first if you want an extra rollback copy.
+            </p>
+            {selectedMeetingHasData ? (
+              <p className="mt-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700">
+                This will overwrite the saved cloud data for{" "}
+                {selectedMeetingName || "this workspace"} with the current
+                Local Workspace data.
+              </p>
+            ) : null}
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <button
+                type="button"
+                onClick={handleMigrateLocalWorkspaceToCloud}
+                disabled={
+                  isMigratingLocalWorkspace || isCheckingCloudWorkspaceData
+                }
+                className="rounded-xl bg-amber-600 px-3 py-2 font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isMigratingLocalWorkspace
+                  ? "Migrating…"
+                  : "Move Local Workspace to Cloud Meeting"}
+              </button>
+              <button
+                type="button"
+                onClick={handleSkipLocalWorkspaceMigration}
+                className="rounded-xl border border-amber-300 bg-white px-3 py-2 font-semibold text-amber-900 hover:bg-amber-100"
+              >
+                Keep existing Cloud Meeting unchanged
+              </button>
+              <button
+                type="button"
+                onClick={handleContinueLocalWorkspace}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Continue using Local Workspace
+              </button>
+            </div>
+          </section>
+        ) : null}
 
         <div className="mb-10 space-y-5">
           <PlaybookManagedSection
@@ -4755,7 +4877,7 @@ export default function MeetingWorkspace() {
             <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-6">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
-                  Meeting History
+                  Tactical History
                 </p>
                 <h2 className="mt-1 text-2xl font-bold text-slate-900">
                   Tactical History
