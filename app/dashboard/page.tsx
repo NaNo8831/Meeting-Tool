@@ -126,7 +126,11 @@ export default function DashboardPage() {
   const [profileMessage, setProfileMessage] = useState("");
   const [message, setMessage] = useState("");
   const [createMeetingError, setCreateMeetingError] = useState("");
+  const [meetingOverflowMenuId, setMeetingOverflowMenuId] = useState<
+    string | null
+  >(null);
   const dashboardMenuRef = useRef<HTMLDivElement>(null);
+  const meetingOverflowMenuRef = useRef<HTMLDivElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   useBodyScrollLock(
     showDashboardMenu ||
@@ -279,6 +283,22 @@ export default function DashboardPage() {
       window.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showDashboardMenu]);
+
+  useEffect(() => {
+    if (!meetingOverflowMenuId) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const menuElement = meetingOverflowMenuRef.current;
+      if (!menuElement || !(event.target instanceof Node)) return;
+      if (menuElement.contains(event.target)) return;
+      setMeetingOverflowMenuId(null);
+    };
+
+    window.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      window.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [meetingOverflowMenuId]);
 
   const profileDisplayName = profile?.display_name?.trim();
   const dashboardTitle = profileDisplayName
@@ -802,87 +822,158 @@ export default function DashboardPage() {
     return "No active shared meetings in this view.";
   };
 
-  const renderMeetingCard = (meeting: DashboardMeeting) => (
-    <article
-      key={meeting.id}
-      className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
-    >
-      <div>
-        <h3 className="text-lg font-semibold text-slate-900">{meeting.name}</h3>
-        <p className="mt-1 text-sm font-semibold text-slate-700">
-          Owner: {meeting.ownerDisplayName}
-        </p>
-        {meeting.memberCount !== null ? (
-          <p className="mt-1 text-sm font-semibold text-slate-700">
-            Members: {meeting.memberCount}
-          </p>
-        ) : null}
-        <p className="mt-1 text-sm text-slate-600">
-          Last updated {formatRelativeTimestamp(meeting.updated_at)}
-        </p>
-      </div>
+  const renderMeetingCard = (meeting: DashboardMeeting) => {
+    const showOverflowMenu = meetingOverflowMenuId === meeting.id;
+    const hasOverflowActions =
+      !meeting.archived_at && meeting.canManageMeetingLifecycle;
+    const hasArchivedOverflowActions =
+      Boolean(meeting.archived_at) && meeting.canManageMeetingLifecycle;
+    const showMembersAccess = !meeting.archived_at;
 
-      <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
-        {!meeting.archived_at ? (
-          <div className="flex flex-col items-stretch gap-2 sm:items-end">
-            <button
-              type="button"
-              onClick={() => void handleOpenAccess(meeting)}
-              className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-              disabled={isLoadingOwnedInvitations || isLoadingMeetingMembers}
-            >
-              {meeting.canManageMeetingLifecycle ? "Access" : "Members"}
-            </button>
-            {meeting.canManageMeetingLifecycle ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setMeetingPendingDuplicate(meeting)}
-                  className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                  disabled={Boolean(isDuplicating)}
-                >
-                  {isDuplicating === meeting.id ? "Duplicating…" : "Duplicate"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleArchiveMeeting(meeting)}
-                  className="rounded-xl border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50"
-                  disabled={isArchiving === meeting.id}
-                >
-                  {isArchiving === meeting.id ? "Archiving…" : "Archive"}
-                </button>
-              </>
+    return (
+      <article
+        key={meeting.id}
+        className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+      >
+        <div className="min-w-0 space-y-1">
+          <h3 className="text-xl font-semibold text-slate-900">{meeting.name}</h3>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-700">
+            <span className="font-semibold">
+              Owner: {meeting.ownerDisplayName}
+            </span>
+            {meeting.memberCount !== null ? (
+              <span className="font-semibold">
+                Members: {meeting.memberCount}
+              </span>
             ) : null}
           </div>
-        ) : meeting.canManageMeetingLifecycle ? (
-          <div className="flex flex-col items-stretch gap-2 sm:items-end">
-            <button
-              type="button"
-              onClick={() => void handleRestoreArchivedMeeting(meeting)}
-              className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={Boolean(isRestoringArchived)}
-            >
-              {isRestoringArchived === meeting.id ? "Restoring…" : "Restore"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMeetingPendingDelete(meeting)}
-              className="rounded-xl border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
-              disabled={Boolean(isDeletingArchived)}
-            >
-              {isDeletingArchived === meeting.id ? "Deleting…" : "Delete"}
-            </button>
+          <p className="text-sm text-slate-500">
+            Updated {formatRelativeTimestamp(meeting.updated_at)}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+          <Link
+            href={`/meeting/${meeting.id}`}
+            className="w-full rounded-xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700 sm:order-1 sm:w-auto sm:min-w-[7.5rem]"
+          >
+            Open
+          </Link>
+
+          <div className="grid grid-cols-2 gap-2 sm:order-2 sm:flex sm:items-center">
+            {showMembersAccess ? (
+              <button
+                type="button"
+                onClick={() => void handleOpenAccess(meeting)}
+                className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                disabled={isLoadingOwnedInvitations || isLoadingMeetingMembers}
+              >
+                {meeting.canManageMeetingLifecycle ? "Access" : "Members"}
+              </button>
+            ) : (
+              <span className="hidden sm:block sm:w-[7.5rem]" aria-hidden="true" />
+            )}
+
+            {hasOverflowActions || hasArchivedOverflowActions ? (
+              <div
+                ref={showOverflowMenu ? meetingOverflowMenuRef : undefined}
+                className="relative"
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMeetingOverflowMenuId((current) =>
+                      current === meeting.id ? null : meeting.id,
+                    )
+                  }
+                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                  aria-expanded={showOverflowMenu}
+                  aria-haspopup="menu"
+                  aria-label={`More actions for ${meeting.name}`}
+                >
+                  More
+                </button>
+
+                {showOverflowMenu ? (
+                  <div
+                    className="absolute right-0 z-40 mt-2 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
+                    role="menu"
+                    aria-label={`More actions for ${meeting.name}`}
+                  >
+                    {!meeting.archived_at && meeting.canManageMeetingLifecycle ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMeetingOverflowMenuId(null);
+                            setMeetingPendingDuplicate(meeting);
+                          }}
+                          className="block w-full px-4 py-2.5 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                          role="menuitem"
+                          disabled={Boolean(isDuplicating)}
+                        >
+                          {isDuplicating === meeting.id
+                            ? "Duplicating…"
+                            : "Duplicate"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMeetingOverflowMenuId(null);
+                            void handleArchiveMeeting(meeting);
+                          }}
+                          className="block w-full px-4 py-2.5 text-left text-sm font-semibold text-amber-700 hover:bg-amber-50"
+                          role="menuitem"
+                          disabled={isArchiving === meeting.id}
+                        >
+                          {isArchiving === meeting.id
+                            ? "Archiving…"
+                            : "Archive"}
+                        </button>
+                      </>
+                    ) : null}
+                    {meeting.archived_at && meeting.canManageMeetingLifecycle ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMeetingOverflowMenuId(null);
+                            void handleRestoreArchivedMeeting(meeting);
+                          }}
+                          className="block w-full px-4 py-2.5 text-left text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+                          role="menuitem"
+                          disabled={Boolean(isRestoringArchived)}
+                        >
+                          {isRestoringArchived === meeting.id
+                            ? "Restoring…"
+                            : "Restore"}
+                        </button>
+                        <div className="my-1 border-t border-slate-100" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMeetingOverflowMenuId(null);
+                            setMeetingPendingDelete(meeting);
+                          }}
+                          className="block w-full px-4 py-2.5 text-left text-sm font-semibold text-red-700 hover:bg-red-50"
+                          role="menuitem"
+                          disabled={Boolean(isDeletingArchived)}
+                        >
+                          {isDeletingArchived === meeting.id
+                            ? "Deleting…"
+                            : "Delete"}
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
-        ) : null}
-        <Link
-          href={`/meeting/${meeting.id}`}
-          className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-        >
-          Open
-        </Link>
-      </div>
-    </article>
-  );
+        </div>
+      </article>
+    );
+  };
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
