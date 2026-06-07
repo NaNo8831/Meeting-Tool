@@ -44,9 +44,6 @@ const getMemberDisplayName = (member: SupabaseMeetingMember) =>
   member.email?.trim() ||
   (member.role === "owner" ? "Owner" : "Team member");
 
-const getRoleLabel = (role: SupabaseMeetingMember["role"]) =>
-  role === "owner" ? "Owner" : "Editor";
-
 const formatRelativeTimestamp = (timestamp: string) => {
   const milliseconds = Date.parse(timestamp);
   if (Number.isNaN(milliseconds)) return "Unknown";
@@ -833,9 +830,9 @@ export default function DashboardPage() {
     return (
       <article
         key={meeting.id}
-        className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+        className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-start sm:justify-between"
       >
-        <div className="min-w-0 space-y-1">
+        <div className="min-w-0 flex-1 space-y-1">
           <h3 className="text-xl font-semibold text-slate-900">{meeting.name}</h3>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-700">
             <span className="font-semibold">
@@ -852,23 +849,27 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+        <div className="flex w-full flex-col gap-2 sm:w-56">
           <Link
             href={`/meeting/${meeting.id}`}
-            className="w-full rounded-xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700 sm:order-1 sm:w-auto sm:min-w-[7.5rem]"
+            className="w-full rounded-xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700"
           >
             Open
           </Link>
 
-          <div className="grid grid-cols-2 gap-2 sm:order-2 sm:flex sm:items-center">
+          <div className="grid grid-cols-2 gap-2">
             {showMembersAccess ? (
               <button
                 type="button"
                 onClick={() => void handleOpenAccess(meeting)}
-                className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                className={`rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 ${
+                  hasOverflowActions || hasArchivedOverflowActions
+                    ? ""
+                    : "col-span-2"
+                }`}
                 disabled={isLoadingOwnedInvitations || isLoadingMeetingMembers}
               >
-                {meeting.canManageMeetingLifecycle ? "Access" : "Members"}
+                Members
               </button>
             ) : (
               <span className="hidden sm:block sm:w-[7.5rem]" aria-hidden="true" />
@@ -889,16 +890,16 @@ export default function DashboardPage() {
                   className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
                   aria-expanded={showOverflowMenu}
                   aria-haspopup="menu"
-                  aria-label={`More actions for ${meeting.name}`}
+                  aria-label={`Actions for ${meeting.name}`}
                 >
-                  More
+                  Actions
                 </button>
 
                 {showOverflowMenu ? (
                   <div
                     className="absolute right-0 z-40 mt-2 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
                     role="menu"
-                    aria-label={`More actions for ${meeting.name}`}
+                    aria-label={`Actions for ${meeting.name}`}
                   >
                     {!meeting.archived_at && meeting.canManageMeetingLifecycle ? (
                       <>
@@ -1320,17 +1321,11 @@ export default function DashboardPage() {
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Meeting access
+                Members
               </p>
               <h2 className="mt-1 text-lg font-semibold text-slate-900">
-                {meetingPendingAccess.canManageMeetingLifecycle
-                  ? `Manage access for ${meetingPendingAccess.name}`
-                  : `Members for ${meetingPendingAccess.name}`}
+                {meetingPendingAccess.name}
               </h2>
-              <p className="mt-2 text-sm text-slate-600">
-                Owners manage access here. Editors see the same owner/editor
-                overview without invite or removal controls.
-              </p>
             </div>
 
             <div className="mt-5 space-y-5">
@@ -1338,6 +1333,32 @@ export default function DashboardPage() {
                 <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
                   {accessMessage}
                 </p>
+              ) : null}
+
+              {meetingPendingAccess.canManageMeetingLifecycle ? (
+                <section className="space-y-2" aria-label="Invite editor">
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    Invite editor
+                  </h3>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <input
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(event) => setInviteEmail(event.target.value)}
+                      placeholder="teammate@example.com"
+                      disabled={isCreatingInvitation}
+                      className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleCreateInvitation()}
+                      disabled={isCreatingInvitation}
+                      className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isCreatingInvitation ? "Inviting…" : "Invite"}
+                    </button>
+                  </div>
+                </section>
               ) : null}
 
               <section className="space-y-2" aria-label="Owner">
@@ -1354,9 +1375,6 @@ export default function DashboardPage() {
                       >
                         <p className="text-sm font-semibold text-slate-800">
                           {getMemberDisplayName(member)}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {getRoleLabel(member.role)}
                         </p>
                       </div>
                     ))
@@ -1386,9 +1404,6 @@ export default function DashboardPage() {
                         <div>
                           <p className="text-sm font-semibold text-slate-800">
                             {getMemberDisplayName(member)}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {getRoleLabel(member.role)}
                           </p>
                         </div>
                         {meetingPendingAccess.canManageMeetingLifecycle ? (
@@ -1433,9 +1448,6 @@ export default function DashboardPage() {
                             <p className="text-sm font-semibold text-slate-800">
                               {invitation.email}
                             </p>
-                            <p className="text-xs text-slate-500">
-                              Editor invite
-                            </p>
                           </div>
                           <button
                             type="button"
@@ -1456,30 +1468,6 @@ export default function DashboardPage() {
                         No pending invitations for this meeting.
                       </p>
                     )}
-                  </section>
-
-                  <section className="space-y-2" aria-label="Invite editor">
-                    <h3 className="text-sm font-semibold text-slate-900">
-                      Invite email
-                    </h3>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <input
-                        type="email"
-                        value={inviteEmail}
-                        onChange={(event) => setInviteEmail(event.target.value)}
-                        placeholder="teammate@example.com"
-                        disabled={isCreatingInvitation}
-                        className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => void handleCreateInvitation()}
-                        disabled={isCreatingInvitation}
-                        className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {isCreatingInvitation ? "Inviting…" : "Invite"}
-                      </button>
-                    </div>
                   </section>
                 </>
               ) : null}

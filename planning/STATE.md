@@ -7,9 +7,17 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings`, structured Strategic Topics, Topic Notes, topic ordering, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, and Standard Operating Objectives after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: **Before Main UX Follow-up Review** organizes post-PR #98 user testing notes into safe follow-up scopes: UX-2A Simple UI Cleanup, UX-2B Rich Text Editing UX Review, UX-3A Agenda/Decision Architecture Review, and UX-3B Agenda/Decision Implementation + First-Class Autosave.
-- Current branch note: `before-main-ux-followup-review` is documentation/planning-only against `phase-3-shared-access`. It must not change app code, runtime behavior, persistence, schema, migrations, RLS, auth, Manual Save, Local Mode, shared-access logic, or Agenda/Decision autosave.
+- Current focus: **UX-2A Simple UI Cleanup** implements low-risk before-main copy/layout polish against `phase-3-shared-access` without changing persistence, schema, migrations, RLS, auth, Manual Save, Local Mode, shared-access permissions, autosave behavior, or Agenda/Decision architecture.
+- Current branch note: `before-main-ux-2a-simple-cleanup` is an app-code UX cleanup branch for dashboard card hierarchy, Members panel copy/layout, sticky header/menu controls, Defining Objective copy, and display-only cloud meeting title alignment.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
+
+## UX-2A Simple UI Cleanup
+
+- Dashboard meeting cards now make Open the dominant two-thirds action where space allows, with Members and Actions retained beneath Open as secondary controls. Owner-only Duplicate, Archive, Restore, and Delete actions remain behind existing lifecycle gates.
+- The Members panel now puts owner invite entry at the top, removes redundant role captions under grouped users, and uses concise panel copy while preserving invite, revoke, remove, and read-only member-list behavior.
+- The meeting sticky header now keeps autosave status and Manual Save visible while moving Dashboard navigation back into the Meeting Menu and reusing existing Start/End/Test Mode handlers in the header. The separate meeting-actions strip was removed to avoid duplicate controls.
+- Defining Objective detail copy now uses Review wording and removes the redundant workflow helper sentence.
+- Cloud meeting header title alignment was handled as display-only: opened cloud meetings prefer the existing `meetings.name` value already used by dashboard cards, with no syncing or persistence changes between `meetings.name`, `meeting_settings.dashboard_title`, local workspace title, or cloud meeting title.
 
 ## Before Main UX Follow-up Review
 

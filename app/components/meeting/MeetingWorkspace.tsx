@@ -4091,8 +4091,9 @@ export default function MeetingWorkspace() {
   const selectedTacticalSessionSummary = buildTacticalSnapshotSummary(
     selectedTacticalSession,
   );
-  const stickyMeetingTitle =
-    dashboardTitle || selectedMeetingName || defaultDashboardTitle;
+  const stickyMeetingTitle = isCurrentCloudRouteWorkspace
+    ? selectedMeetingName || dashboardTitle || defaultDashboardTitle
+    : dashboardTitle || selectedMeetingName || defaultDashboardTitle;
   const structuredAutosaveStatuses: StructuredAutosaveStatus[] = [
     settingsAutosaveStatus,
     strategicTopicsAutosaveStatus,
@@ -4281,7 +4282,53 @@ export default function MeetingWorkspace() {
                 </p>
               ) : null}
 
-              <div className="flex items-center justify-end gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={handleMeetingAction}
+                  disabled={!hasMeetingActionDate}
+                  className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {meetingActionLabel}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEndMeetingConfirm(true)}
+                  disabled={
+                    isEndingMeeting ||
+                    !authSession ||
+                    !selectedMeetingId ||
+                    !isCurrentCloudRouteWorkspace ||
+                    !canEndMeeting
+                  }
+                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isEndingMeeting ? "Ending…" : "End Meeting"}
+                </button>
+                {testingToolsEnabled ? (
+                  <label className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+                    <input
+                      type="checkbox"
+                      checked={isTestingModeActive}
+                      onChange={(event) =>
+                        setIsTestingModeActive(event.target.checked)
+                      }
+                      className="h-4 w-4 rounded border-amber-300 text-amber-600"
+                    />
+                    Test Mode
+                  </label>
+                ) : null}
+                {isTestingModeActive && testingToolsEnabled ? (
+                  <input
+                    id="sticky-test-meeting-date"
+                    type="date"
+                    required
+                    value={testingMeetingDate}
+                    onChange={(event) => setTestingMeetingDate(event.target.value)}
+                    className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-slate-900"
+                    aria-label="Test meeting date"
+                  />
+                ) : null}
                 {isCurrentCloudRouteWorkspace ? (
                   <button
                     type="button"
@@ -4291,14 +4338,6 @@ export default function MeetingWorkspace() {
                   >
                     {isManualSaveInFlight ? "Saving…" : "Manual Save"}
                   </button>
-                ) : null}
-                {authSession ? (
-                  <Link
-                    href="/dashboard"
-                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    Dashboard
-                  </Link>
                 ) : null}
                 <div ref={settingsMenuRef} className="relative">
                   <button
@@ -4320,11 +4359,11 @@ export default function MeetingWorkspace() {
                       role="menu"
                       aria-label="Meeting menu"
                     >
-                      {!isLocalRoute ? (
+                      {authSession ? (
                         <Link
                           href="/dashboard"
                           onClick={() => setShowSettingsMenu(false)}
-                          className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700 lg:hidden"
+                          className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
                           role="menuitem"
                         >
                           Dashboard
@@ -4432,67 +4471,6 @@ export default function MeetingWorkspace() {
       </header>
 
       <div className="mx-auto max-w-[1600px] p-4 sm:p-8">
-        <section
-          className="mb-8 rounded-3xl border border-blue-100 bg-white/85 p-4 shadow-sm"
-          aria-label="Meeting lifecycle actions"
-        >
-          <p className="text-center text-xs font-semibold uppercase tracking-wide text-blue-600">
-            Meeting actions
-          </p>
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <button
-              type="button"
-              onClick={handleMeetingAction}
-              disabled={!hasMeetingActionDate}
-              className="rounded-full bg-blue-600 px-5 py-2 font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {meetingActionLabel}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowEndMeetingConfirm(true)}
-              disabled={
-                isEndingMeeting ||
-                !authSession ||
-                !selectedMeetingId ||
-                !isCurrentCloudRouteWorkspace ||
-                !canEndMeeting
-              }
-              className="rounded-full border border-emerald-200 bg-emerald-50 px-5 py-2 font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isEndingMeeting ? "Ending Meeting…" : "End Meeting"}
-            </button>
-          </div>
-          {testingToolsEnabled ? (
-            <div className="mt-4 border-t border-amber-100 pt-3">
-              <label className="flex items-center justify-center gap-2 text-xs font-semibold text-amber-800">
-                <input
-                  type="checkbox"
-                  checked={isTestingModeActive}
-                  onChange={(event) =>
-                    setIsTestingModeActive(event.target.checked)
-                  }
-                  className="h-4 w-4 rounded border-amber-300 text-amber-600"
-                />
-                Testing Mode
-              </label>
-              {isTestingModeActive ? (
-                <label className="mx-auto mt-3 block max-w-xs text-xs font-semibold text-slate-600">
-                  Test meeting date
-                  <input
-                    type="date"
-                    required
-                    value={testingMeetingDate}
-                    onChange={(event) =>
-                      setTestingMeetingDate(event.target.value)
-                    }
-                    className="mt-1 block w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-slate-900"
-                  />
-                </label>
-              ) : null}
-            </div>
-          ) : null}
-        </section>
 
         {isLocalRoute && shouldShowLocalToCloudMigrationPrompt ? (
           <section className="mb-8 w-full rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">
