@@ -137,7 +137,7 @@
 
 ## Before Main UX Follow-up Review Questions
 
-- For UX-2A, can Dashboard meeting title consistency be solved as display-only alignment, or would it require changing persistence semantics between `meetings.name` and `meeting_settings.dashboard_title`?
+- Resolved for UX-2A: Dashboard/opened cloud meeting title consistency was safe as display-only alignment by preferring the existing `meetings.name` value in the opened cloud meeting header. No persistence syncing was added between `meetings.name`, `meeting_settings.dashboard_title`, local workspace title, or cloud meeting title.
 - Which helper-copy removals are safe because the UI is self-explanatory, and which permission/data-loss warnings must remain explicit?
 - If Start Meeting, End Meeting, and Test Mode move into the sticky header, what is the smallest responsive layout that keeps Manual Save and autosave status visible?
 - For UX-2B, which rich text surfaces should keep modal/draft boundaries for intentional editing, and which should convert to inline Save/Cancel first?
