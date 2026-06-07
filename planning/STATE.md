@@ -7,9 +7,16 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings`, structured Strategic Topics, Topic Notes, topic ordering, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, and Standard Operating Objectives after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: **Before Main UX Sprint** implements approved visual polish from the UX Architecture Review: dashboard card hierarchy, sticky meeting header/autosave visibility, Tactical History naming, Manual Save/Backup wording, Local Mode browser-only fallback wording, and a non-functional Agenda/Decision workflow preview.
-- Current branch note: `before-main-ux-sprint` is a UI-only polish branch against `phase-3-shared-access`. It must not change persistence, schema, migrations, RLS, auth, shared-access logic, or Agenda/Decision autosave.
+- Current focus: **Before Main UX Follow-up Review** organizes post-PR #98 user testing notes into safe follow-up scopes: UX-2A Simple UI Cleanup, UX-2B Rich Text Editing UX Review, UX-3A Agenda/Decision Architecture Review, and UX-3B Agenda/Decision Implementation + First-Class Autosave.
+- Current branch note: `before-main-ux-followup-review` is documentation/planning-only against `phase-3-shared-access`. It must not change app code, runtime behavior, persistence, schema, migrations, RLS, auth, Manual Save, Local Mode, shared-access logic, or Agenda/Decision autosave.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
+
+## Before Main UX Follow-up Review
+
+- This review is documentation/planning-only and adds `planning/reviews/before-main-ux-followup-review.md`; it makes no app-code, runtime behavior, migration, RLS, persistence, Manual Save, Local Mode, or Agenda/Decision autosave changes.
+- User testing notes are classified into three lanes: simple before-main UI cleanup, later rich text editing UX review, and Agenda/Decision architecture before implementation.
+- Recommended sequence is UX-2A Simple UI Cleanup, UX-2B Rich Text Editing UX Review, UX-3A Agenda/Decision Architecture Review, and UX-3B Agenda/Decision Implementation + First-Class Autosave.
+- Before-main recommendation: only UX-2A is a candidate before main; rich text editor system changes and Agenda/Decision implementation should remain separate and post-main by default unless final validation identifies a blocker.
 
 ## Before Main UX Architecture Review
 

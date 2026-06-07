@@ -134,3 +134,13 @@
 - Should Local Mode be labeled `Browser-only fallback` in the UI before main, or should that wording wait for a broader cloud-first onboarding pass?
 - Should Strategic Topic lifecycle copy distinguish per-meeting `Reviewed this meeting` from durable `Completed` status before main?
 - Should the menu label `Meeting History` be renamed to `Tactical History` in the before-main UX sprint while owner/editor visibility remains unchanged?
+
+## Before Main UX Follow-up Review Questions
+
+- For UX-2A, can Dashboard meeting title consistency be solved as display-only alignment, or would it require changing persistence semantics between `meetings.name` and `meeting_settings.dashboard_title`?
+- Which helper-copy removals are safe because the UI is self-explanatory, and which permission/data-loss warnings must remain explicit?
+- If Start Meeting, End Meeting, and Test Mode move into the sticky header, what is the smallest responsive layout that keeps Manual Save and autosave status visible?
+- For UX-2B, which rich text surfaces should keep modal/draft boundaries for intentional editing, and which should convert to inline Save/Cancel first?
+- For UX-3A, should Agenda Item become the parent object for notes, Decision/Action outcome, completed state, cascade marker, and promote-to-Strategic-Topic conversion?
+- After Decisions/Actions is removed or replaced, should Cascading Communications remain a separate section, become an agenda-outcome rollup, or display only outcomes marked for cascade?
+- Should UX-3B happen before main only if final validation finds Agenda/Decision capture blocking, or remain post-main by default with Manual Save covering the current separate Agenda and Decisions/Actions lists?
