@@ -830,9 +830,9 @@ export default function DashboardPage() {
     return (
       <article
         key={meeting.id}
-        className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+        className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-start sm:justify-between"
       >
-        <div className="min-w-0 space-y-1">
+        <div className="min-w-0 flex-1 space-y-1">
           <h3 className="text-xl font-semibold text-slate-900">{meeting.name}</h3>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-700">
             <span className="font-semibold">
@@ -849,15 +849,15 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-3 sm:items-center">
+        <div className="flex w-full flex-col gap-2 sm:w-56">
           <Link
             href={`/meeting/${meeting.id}`}
-            className="w-full rounded-xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700 sm:col-span-2"
+            className="w-full rounded-xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700"
           >
             Open
           </Link>
 
-          <div className="grid grid-cols-2 gap-2 sm:col-span-2">
+          <div className="grid grid-cols-2 gap-2">
             {showMembersAccess ? (
               <button
                 type="button"
@@ -869,7 +869,7 @@ export default function DashboardPage() {
                 }`}
                 disabled={isLoadingOwnedInvitations || isLoadingMeetingMembers}
               >
-                {meeting.canManageMeetingLifecycle ? "Access" : "Members"}
+                Members
               </button>
             ) : (
               <span className="hidden sm:block sm:w-[7.5rem]" aria-hidden="true" />
@@ -890,16 +890,16 @@ export default function DashboardPage() {
                   className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
                   aria-expanded={showOverflowMenu}
                   aria-haspopup="menu"
-                  aria-label={`More actions for ${meeting.name}`}
+                  aria-label={`Actions for ${meeting.name}`}
                 >
-                  More
+                  Actions
                 </button>
 
                 {showOverflowMenu ? (
                   <div
                     className="absolute right-0 z-40 mt-2 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
                     role="menu"
-                    aria-label={`More actions for ${meeting.name}`}
+                    aria-label={`Actions for ${meeting.name}`}
                   >
                     {!meeting.archived_at && meeting.canManageMeetingLifecycle ? (
                       <>
@@ -1321,12 +1321,10 @@ export default function DashboardPage() {
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Meeting access
+                Members
               </p>
               <h2 className="mt-1 text-lg font-semibold text-slate-900">
-                {meetingPendingAccess.canManageMeetingLifecycle
-                  ? "Access"
-                  : "Members"}: {meetingPendingAccess.name}
+                {meetingPendingAccess.name}
               </h2>
             </div>
 
