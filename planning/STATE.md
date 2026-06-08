@@ -7,9 +7,16 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings`, structured Strategic Topics, Topic Notes, topic ordering, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, and Standard Operating Objectives after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: **Agenda Workspace Layout Review** is a docs/planning-only review against `phase-3-shared-access` to align the future meeting page hierarchy with Agenda Items as the primary workspace, Strategic Topics as the long-term follow-up surface, and Cascading Communication as the output surface.
-- Current branch note: `ux-agenda-workspace-layout-review` must not change app code, UI behavior, migrations, RLS, persistence, autosave, Manual Save, Local Mode, permissions, or runtime behavior.
+- Current focus: **Agenda Item UX Polish Review** is a docs/planning-only review against `phase-3-shared-access` to classify post-PR #102 Agenda Item card friction, covered-state behavior, editing patterns, Strategic Topic consistency, rollup noise, and before-main polish priorities.
+- Current branch note: `ux-agenda-item-polish-review` must not change app code, UI behavior, migrations, RLS, persistence, autosave, Manual Save, Local Mode, permissions, or runtime behavior.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
+
+## Agenda Item UX Polish Review
+
+- Added `planning/reviews/agenda-item-ux-polish-review.md` as a documentation-only UX review after PR #102 added Agenda Item persistence, Discussion Notes, Decision support, Action support, Covered state, Cascade Needed, and Strategic Topic promotion.
+- Recommendation: polish Agenda Item cards before main by moving Notes to a stable left-side/left-leading position, making Discussion Notes read-first with double-click editing, collapsing covered cards to title-only by default, and tightening Decision/Action readability.
+- Recommendation: do not keep the always-visible Decisions/Actions rollup as the default long-term pattern; replace it with an optional collapsed summary before main if feasible, or hide/remove it from the live workspace while preserving legacy data until a later migration/display decision.
+- Before-main classification: Notes placement, covered-card collapse, and rollup noise reduction should happen before main; broader card-system refactors, multiple outcomes, legacy migration tooling, and outcome-summary relocation can happen after main.
 
 ## Agenda Workspace Layout Review
 
