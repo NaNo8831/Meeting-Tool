@@ -160,3 +160,13 @@
 - Should future promotion use a dedicated transactional RPC so Agenda Item linkage, Strategic Topic creation, and seeded Topic Notes are committed atomically?
 - Should legacy `decisionItems` receive a one-time migration tool into Agenda Item outcomes after teams validate the rollup workflow?
 - Should Agenda Items eventually support multiple actions per item, or is one action text field sufficient for the main release?
+
+
+## Agenda Workspace Layout Review Questions
+
+- Resolved recommendation: Agenda Items should become the fixed full-width primary workspace, not a movable peer section.
+- Resolved recommendation: Strategic Topics should be treated as the planning/long-term follow-up surface and may remain movable only within the secondary follow-up area.
+- Resolved recommendation: Cascading Communication should be treated as the output/communication surface and may remain movable only within the secondary follow-up area.
+- Resolved recommendation: Option A is the preferred future desktop layout: Agenda Items full width, with Strategic Topics and Cascading Communication side-by-side beneath where screen width allows.
+- Open for implementation: where should the read-only Decisions / Actions summary live if it remains visible: inside the Agenda workspace, directly below Agenda Items, or below the secondary follow-up surfaces?
+- Open for implementation: how should existing persisted `meetingSectionOrder` values be normalized so older workspaces cannot place Agenda Items below secondary sections?

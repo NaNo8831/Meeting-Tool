@@ -7,9 +7,15 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings`, structured Strategic Topics, Topic Notes, topic ordering, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, and Standard Operating Objectives after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: **UX-3A Agenda / Decision Architecture Review** is a docs/planning-only review against `phase-3-shared-access` to define the future Agenda Item, Decision/Action, Cascading Communications, Promote-to-Strategic-Topic, persistence, RLS, backup/import, and before-main implementation scope before any Agenda/Decision autosave work.
-- Current branch note: `ux-3a-agenda-decision-architecture-review` must not change app code, UI behavior, migrations, RLS, persistence, Manual Save, Local Mode, or runtime behavior.
+- Current focus: **Agenda Workspace Layout Review** is a docs/planning-only review against `phase-3-shared-access` to align the future meeting page hierarchy with Agenda Items as the primary workspace, Strategic Topics as the long-term follow-up surface, and Cascading Communication as the output surface.
+- Current branch note: `ux-agenda-workspace-layout-review` must not change app code, UI behavior, migrations, RLS, persistence, autosave, Manual Save, Local Mode, permissions, or runtime behavior.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
+
+## Agenda Workspace Layout Review
+
+- Added `planning/reviews/agenda-workspace-layout-review.md` as a docs/planning-only review of the Meeting page hierarchy after first-class Agenda Item outcomes, Decisions/Actions rollup behavior, cascade-needed support, and Promote-to-Strategic-Topic support.
+- Recommended future layout direction: Agenda Items should become a fixed full-width primary workspace, with Strategic Topics and Cascading Communication beneath as secondary follow-up/output surfaces.
+- Recommended before-main stance: implement the layout alignment before main if Agenda outcome capture is part of the main candidate; expected future implementation complexity is low to moderate and should not require schema, migration, autosave, persistence, RLS, or permission changes.
 
 ## UX-3A Agenda / Decision Architecture Review
 
