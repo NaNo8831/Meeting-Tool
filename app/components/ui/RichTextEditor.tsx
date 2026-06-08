@@ -32,6 +32,7 @@ interface RichTextEditorProps {
   onEditingChange?: (isEditing: boolean) => void;
   disabled?: boolean;
   activationMode?: 'click' | 'doubleClick';
+  manualPresentation?: "overlay" | "inline";
 }
 
 interface RichTextRendererProps {
@@ -591,12 +592,14 @@ export function RichTextEditor({
   onEditingChange,
   disabled = false,
   activationMode = 'click',
+  manualPresentation = "overlay",
 }: RichTextEditorProps) {
   const documentValue = useMemo(() => normalizeRichTextValue(value), [value]);
   const isAlwaysEditing = editingMode === "always";
+  const isInlineManualEditing = !isAlwaysEditing && manualPresentation === "inline";
   const [draftDocument, setDraftDocument] = useState(documentValue);
   const [isEditing, setIsEditing] = useState(isAlwaysEditing);
-  useBodyScrollLock(isEditing && !isAlwaysEditing);
+  useBodyScrollLock(isEditing && !isAlwaysEditing && !isInlineManualEditing);
   const [hasDraftContent, setHasDraftContent] = useState(
     getRichTextPlainText(documentValue).length > 0,
   );
@@ -831,17 +834,17 @@ export function RichTextEditor({
 
   return (
     <>
-      {!isAlwaysEditing ? (
+      {!isAlwaysEditing && !isInlineManualEditing ? (
         <div
           className="fixed inset-0 z-[60] bg-slate-950/20"
           aria-hidden="true"
         />
       ) : null}
       <div
-        className={`relative z-[70] rounded-2xl border border-slate-300 bg-white shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 ${className}`}
-        role={!isAlwaysEditing ? "dialog" : undefined}
-        aria-modal={!isAlwaysEditing ? "true" : undefined}
-        aria-label={!isAlwaysEditing ? `Editing ${ariaLabel}` : undefined}
+        className={`relative ${isInlineManualEditing ? "z-0" : "z-[70]"} rounded-2xl border border-slate-300 bg-white shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 ${className}`}
+        role={!isAlwaysEditing && !isInlineManualEditing ? "dialog" : undefined}
+        aria-modal={!isAlwaysEditing && !isInlineManualEditing ? "true" : undefined}
+        aria-label={!isAlwaysEditing && !isInlineManualEditing ? `Editing ${ariaLabel}` : undefined}
         onMouseDown={(event) => event.stopPropagation()}
         onDragStart={(event) => event.stopPropagation()}
       >
