@@ -227,3 +227,11 @@
 - Existing `objectives`, `tasks`, and `standard_operating_objectives` tables exist but are not active runtime tables; they need schema reconciliation for numeric client IDs, ordering, color/rich-text fields, and nested task detail compatibility before implementation.
 - Recommended implementation scope for the next autosave slice is Defining Objectives + Tasks + SOOs together, while keeping Manual Save/export/import, Local Mode, Last Save Wins, and existing UI behavior unchanged.
 - Remaining before-main dependencies after this future implementation should be Agenda Items / Decisions/Actions redesign, Manual Save as full backup, sticky status/header UX, Forgot Password, and Documentation Refresh.
+
+## UX-3B Agenda / Decision Autosave Implementation
+
+- Current work: UX-3B implements structured Agenda Item persistence and autosave on `ux-3b-agenda-decision-autosave` from `phase-3-shared-access` context.
+- Agenda Items now support Discussion Notes, independent Decision and Action outcomes, Covered, Cascade Needed, and Promote to Strategic Topic in the meeting UI.
+- Decisions/Actions is converted to a read-only rollup from Agenda Item outcomes with legacy `decisionItems` still displayed for compatibility.
+- Cascading Communication keeps editable notes and adds a generated rollup for Agenda Items marked Cascade Needed.
+- Manual Save, export/import, Local Mode, and `meeting_notes.notes_json` compatibility remain in place while structured `agenda_items` becomes the Agenda source of truth.

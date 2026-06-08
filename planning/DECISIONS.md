@@ -138,3 +138,9 @@
 - Agenda Actions should not have due dates, owners, status tracking, or task-management fields; teams needing that structure should use Defining Objectives / Tasks.
 - The separate editable Decisions/Actions section should be replaced by a rollup/summary from Agenda Item outcomes after compatibility and validation, not preserved as a competing capture surface.
 - Agenda/Decision structured autosave is recommended before main if Agenda/Decision remains a visible stable meeting-workspace surface; Manual Save remains a safety backup, not the desired long-term persistence model for this area.
+
+## UX-3B Agenda Outcome Model
+
+- Agenda Items may contain Decision only, Action only, both Decision and Action, or neither. UX-3B must not use a mutually exclusive outcome selector.
+- Agenda Items are the primary discussion/outcome container for title, discussion notes, independent decision/action outcomes, covered state, cascade-needed state, and promote-to-Strategic-Topic linkage.
+- Decisions/Actions is a read-only rollup from Agenda Item outcomes during the compatibility transition; legacy `decisionItems` remain readable and backed up but are not the new edit surface.

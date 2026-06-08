@@ -437,3 +437,12 @@ When the future Agenda/Decision implementation PR is created, validate:
 - Editor can edit agenda item title, edit notes, choose/change outcome, mark cascade-needed, promote if allowed by the implementation, and owner refresh sees changes under Last Save Wins.
 - Non-members, pending invitees, and removed editors cannot read or write agenda rows; removed editors lose access after refresh/reload.
 - Regression coverage includes Strategic Topics autosave, Topic Notes autosave, Meeting Notes autosave, Cascading Communications behavior, Manual Save, Local Mode, backup/export/import, and legacy Decisions/Actions compatibility during transition.
+
+## UX-3B Agenda / Decision Validation
+
+Recommended validation for UX-3B:
+
+- Owner creates an Agenda Item, edits title, opens Notes, adds Discussion Notes, enables Decision and Action independently, enters both outcome texts, marks Covered, marks Cascade Needed, promotes to Strategic Topic, refreshes, opens a private window, runs Manual Save, exports, and imports. All Agenda fields, rollups, cascade markers, and promotion notes should persist.
+- Editor repeats Agenda edits, outcome edits, Covered/Cascade changes, and promotion. Owner refresh should see the editor's changes when existing meeting edit permissions allow the write.
+- Non-member and removed editor access should be blocked by existing Cloud Meeting route and RLS protections.
+- Regression checks should cover Strategic Topics autosave, Topic Notes autosave, Meeting Notes autosave, Cascading Communications editable notes, Objectives, Tasks, SOOs, Manual Save, Local Mode, and shared access.

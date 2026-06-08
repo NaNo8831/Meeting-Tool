@@ -288,3 +288,11 @@ Agenda Items should become the parent object for meeting discussion and outcomes
 The current separate editable Decisions/Actions section should not remain a competing capture surface. The safer transition is to keep compatibility for legacy `decisionItems`, introduce the Agenda Item outcome model first, then convert Decisions/Actions to a read-only rollup/summary from agenda outcomes before eventual removal.
 
 Cascading Communications should remain a separate meeting ritual during the transition, but its default source should become agenda outcomes marked cascade-needed plus an editable communication-ready notes area. Manual Save, Local Mode, export/import, and `meetings.meeting_data` backup compatibility must remain intact.
+
+## UX-3B Agenda / Decision Autosave
+
+UX-3B promotes Agenda Items into first-class structured autosave records backed by `public.agenda_items`. Cloud load still starts from the full workspace backup and existing structured tables, then overlays structured Agenda Item rows when present. Cloud autosave uses the same Last Save Wins debounce pattern as Strategic Topics, Meeting Notes, Objectives, Tasks, and SOOs.
+
+Agenda Items are now the primary discussion/outcome container. A single Agenda Item may have a Decision, an Action, both, or neither. Decisions/Actions is no longer a competing edit surface; it is a read-only rollup generated from Agenda Item decision/action text plus legacy `decisionItems` for compatibility. Cascading Communication keeps the existing editable communication notes and adds a generated rollup for Agenda Items marked Cascade Needed.
+
+Promote to Strategic Topic creates a new Strategic Topic, seeds Topic Notes from the Agenda title, discussion notes, decision text, and action text, leaves the Agenda Item in place, and stores promotion linkage to prevent duplicate promotion. Manual Save, export/import backup, Local Mode, and the `meeting_notes.notes_json` compatibility payload remain intact.

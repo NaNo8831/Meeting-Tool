@@ -154,3 +154,9 @@
 - Open for implementation: should Agenda discussion notes be stored directly on `agenda_items`, or should implementation use a one-to-one `agenda_item_notes` table if independent save status/history is needed?
 - Open for implementation: does Promote to Strategic Topic need a transactional RPC across `agenda_items`, `strategic_topics`, and `strategic_topic_notes`, or are client-side sequential writes acceptable for the first PR?
 - Open for post-main: do teams need multiple outcomes per Agenda Item or optional standalone decision/action entries, or is one primary Agenda Item outcome enough?
+
+## UX-3B Agenda / Decision Follow-up Questions
+
+- Should future promotion use a dedicated transactional RPC so Agenda Item linkage, Strategic Topic creation, and seeded Topic Notes are committed atomically?
+- Should legacy `decisionItems` receive a one-time migration tool into Agenda Item outcomes after teams validate the rollup workflow?
+- Should Agenda Items eventually support multiple actions per item, or is one action text field sufficient for the main release?
