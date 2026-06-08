@@ -130,3 +130,11 @@
 - Store rich descriptions as structured JSON plus plain text where available; store nested task subtasks, comments, and activity history as task-row JSON arrays.
 - Hydrate Cloud Meetings from `meetings.meeting_data` first and overlay structured PR 4D rows only when they exist, so old meetings continue loading without migration.
 - Keep active members readable and owner/active-editor writable via `user_can_access_meeting` and `user_can_edit_meeting`; keep Viewer UX, ownership transfer, realtime, merge UI, locking, and Local Mode changes deferred.
+
+
+## UX-3A Agenda / Decision Architecture Review Recommendations
+
+- Recommended future model: Agenda Items become the first-class parent for meeting discussion notes and captured outcomes, with one primary outcome selector (`Decision` or `Action`) per item for the before-main implementation.
+- Agenda Actions should not have due dates, owners, status tracking, or task-management fields; teams needing that structure should use Defining Objectives / Tasks.
+- The separate editable Decisions/Actions section should be replaced by a rollup/summary from Agenda Item outcomes after compatibility and validation, not preserved as a competing capture surface.
+- Agenda/Decision structured autosave is recommended before main if Agenda/Decision remains a visible stable meeting-workspace surface; Manual Save remains a safety backup, not the desired long-term persistence model for this area.

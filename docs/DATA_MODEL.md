@@ -418,3 +418,19 @@ This review is documentation-only and does not add migrations.
 ### Import and fallback direction
 
 Future cloud import should restore backup-compatible local state and then upsert/replace structured DO/task/SOO rows from the restored backup for authenticated valid Cloud Meeting routes. Existing Cloud Meetings should fall back to `meetings.meeting_data.localStorage` and scoped localStorage when structured rows are absent.
+
+## UX-3A Agenda / Decision Future Data Model Recommendation
+
+UX-3A is a planning-only recommendation and does not add tables or migrations.
+
+Current Agenda Items and Decisions/Actions remain runtime `MeetingItem[]` arrays inside `leadership-meetings`, are included in Manual Save/export/import through the workspace backup shape, and are carried through `meeting_notes.notes_json` for compatibility. Cascading Communications is still present in `leadership-meetings`, but also has first-class cloud storage through `meeting_notes.cascade_items`.
+
+Recommended future structured model:
+
+- Add `agenda_items` as the first before-main structured source of truth for Agenda Items and one primary agenda outcome.
+- Preserve numeric client IDs with `client_agenda_item_id` mapped from current `MeetingItem.id` and `client_meeting_id` mapped from current `MeetingRecord.id`.
+- Store ordering with `sort_order` scoped to the meeting and dated meeting record.
+- Store agenda discussion notes either directly on `agenda_items` as rich-text JSON/text fields or, if implementation requires independent note lifecycle, in a one-to-one `agenda_item_notes` table.
+- Store one before-main outcome on the Agenda Item with `outcome_type`, `outcome_text`, `is_covered`, and `cascade_needed` fields.
+- Defer `agenda_item_outcomes` until user testing proves multiple outcomes per Agenda Item are needed.
+- Keep `meeting_notes.notes_json`, `leadership-meetings`, and `meetings.meeting_data` as compatibility/backup paths during migration; do not make `notes_json` the long-term Agenda source of truth.

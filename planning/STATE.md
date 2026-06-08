@@ -7,9 +7,16 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings`, structured Strategic Topics, Topic Notes, topic ordering, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, and Standard Operating Objectives after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: **UX-2A Simple UI Cleanup** implements low-risk before-main copy/layout polish against `phase-3-shared-access` without changing persistence, schema, migrations, RLS, auth, Manual Save, Local Mode, shared-access permissions, autosave behavior, or Agenda/Decision architecture.
-- Current branch note: `before-main-ux-2a-simple-cleanup` is an app-code UX cleanup branch for dashboard card hierarchy, Members panel copy/layout, sticky header/menu controls, Defining Objective copy, and display-only cloud meeting title alignment.
+- Current focus: **UX-3A Agenda / Decision Architecture Review** is a docs/planning-only review against `phase-3-shared-access` to define the future Agenda Item, Decision/Action, Cascading Communications, Promote-to-Strategic-Topic, persistence, RLS, backup/import, and before-main implementation scope before any Agenda/Decision autosave work.
+- Current branch note: `ux-3a-agenda-decision-architecture-review` must not change app code, UI behavior, migrations, RLS, persistence, Manual Save, Local Mode, or runtime behavior.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
+
+## UX-3A Agenda / Decision Architecture Review
+
+- Added `planning/reviews/ux-3a-agenda-decision-architecture-review.md` as a documentation-only architecture review; no app code, migrations, RLS, persistence, Manual Save, Local Mode, or runtime behavior are changed.
+- Recommendation: Agenda Item should become the first-class parent object for discussion notes, one primary Decision/Action outcome selector, covered/completed state, cascade-needed marker, and promote-to-Strategic-Topic action. Agenda actions should not have due dates; ownership, due dates, status, and task tracking stay in Defining Objectives / Tasks.
+- Recommendation: the current separate Decisions/Actions capture section should eventually be removed as a competing input surface and replaced with a read-only rollup/summary from Agenda Item outcomes, with legacy `decisionItems` preserved during transition for backup/import compatibility.
+- Before-main recommendation: if the main release presents Agenda/Decision as part of the stable meeting workspace, Agenda/Decision first-class autosave should be completed before main; the next implementation PR should target Agenda Items + notes + outcome selector + covered + cascade-needed + read-only rollup, while preserving Manual Save and Local Mode.
 
 ## UX-2A Simple UI Cleanup
 
