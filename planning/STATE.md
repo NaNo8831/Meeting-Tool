@@ -7,9 +7,18 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings`, structured Strategic Topics, Topic Notes, topic ordering, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, and Standard Operating Objectives after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: **Agenda Workspace Layout + Agenda Item UX Polish Implementation** on `ux-agenda-workspace-polish` against `phase-3-shared-access`.
-- Current branch note: this UX refinement updates meeting workspace layout, Agenda Item card presentation, inline discussion-notes editing, covered-card collapse behavior, read-only Decisions/Actions summary visibility, and promotion feedback without changing persistence, autosave, schema, Manual Save, backup/import, permissions, RLS, shared access, or Local Mode behavior.
+- Current Project Status: **Transition Review Complete**.
+- Current focus: before-main transition/handoff from Phase 3 Shared Access into the final main-readiness path.
+- Current branch note: `transition-review-claude-handoff` is documentation-only and creates a Claude Code handoff package plus project history, README refresh, and before-main roadmap clarification. It does not change runtime behavior, schema, RLS, auth, persistence, or UI.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
+
+## Transition Review + Claude Handoff
+
+- Added `docs/HANDOFF_TO_CLAUDE_CODE.md` as the current handoff package for a future Claude Code transition, including executive summary, current product vision, architecture summary, data model summary, UX decisions, known technical debt, before-main roadmap, and recommended first Claude tasks.
+- Added `docs/PROJECT_HISTORY.md` as a chronological summary of major phases, architecture decisions, product decisions, UX evolution, and decision rationale.
+- Refreshed `README.md` to reflect the current Supabase/shared-access/structured-autosave state and link to the handoff/history documents.
+- Before-main roadmap is now prioritized as: Meeting State Review, Forgot Password, Documentation Refresh, and Main Readiness Review.
+- This transition review is documentation-only and intentionally does not modify runtime behavior, schema, RLS, auth, persistence, UI, Manual Save, Backup/Restore, or Local Mode.
 
 ## Agenda Workspace Layout + Agenda Item UX Polish Implementation
 
@@ -84,18 +93,11 @@
 
 ## Active Work
 
-- Keep the planning source of truth current, including the new deferred-scope registry in `planning/FUTURE_PHASES.md`.
-- Keep `main` stable for production and UX stabilization.
-- Treat the Meeting Setup flow as part of the current production baseline on `main` after PR #23.
-- First-Time Setup cleanup is stable on the `phase-2-cloud` flow: use cloud meeting row title as setup title fallback, remove setup filler defaults/placeholders, and keep manual save behavior unchanged.
-- Keep the `meeting_settings` structured persistence pilot intentionally narrow: dashboard/playbook-level settings hydrate after the manual backup loads and autosave after cloud-route bootstrap, unchanged payloads are skipped, and every non-pilot runtime read remains on the existing browser/workspace backup path.
-- Keep full-workspace JSONB autosave out of scope. Manual Save to `meetings.meeting_data` remains visible, available, and required as the full-workspace cloud backup safety net while structured surfaces are validated one at a time.
-- Document and sequence later migration slices without breaking current cloud save/load behavior or hardcoding owner-only client assumptions that would fight Phase 3 member roles.
-- Continue Phase 3 after the shared-access foundation with PR 2 dashboard discovery/listing/entry. PR 2A introduced the dashboard query/access abstraction; PR 2B adds the visible Owned by Me / Shared with Me sections, search across both sections, alphabetical sorting within each section, and shared-card owner display text without adding invite/member-management flows.
-- Keep membership architecture and long-term role direction (`owner`/`editor`/`viewer`) explicit. PR 1A migration `20260603090000_align_shared_access_schema.sql` aligns `meeting_members.role` to `owner`/`editor`/`viewer`, maps existing `admin` and `member` values to `editor`, and backfills owner membership rows while preserving `meetings.owner_id` as the runtime owner authority.
-- Support pending invitations for people who have not signed up yet. For the first Team Beta, expose only Owner and Editor behavior if needed and allow everyone with access to edit; defer Viewer enforcement until the permission surface is ready.
-- Keep Last Save Wins as the Team Beta concurrency model. Realtime collaboration, presence, cursors, websockets, CRDTs, and conflict resolution remain out of scope.
-- Next recommended action: run a Supabase-linked Phase 3 closeout validation with owner, editor, removed-editor, non-member, re-invite, member-count, Tactical History, Manual Save, and direct RPC/REST negative scenarios. Role editing, ownership transfer, owner self-removal, Viewer UX, organizations, Local Mode changes, autosave expansion, and realtime collaboration remain deferred.
+- Phase 3 Shared Access is effectively complete for the Team Beta owner/editor model.
+- Current transition status is documentation and handoff readiness, not runtime implementation.
+- Before-main work should stay narrow and prioritized: Meeting State Review, Forgot Password, Documentation Refresh, then Main Readiness Review.
+- Preserve the current transition architecture while those reviews happen: structured surface autosave, Manual Save full-workspace backup, JSON export/import, membership-aware RLS, owner-only lifecycle/container actions, and browser-only Local Mode.
+- Do not add schema, RLS, auth, persistence, or UI changes as part of transition-review documentation work.
 
 ## Phase 3 PR 3D lifecycle mutation hardening implementation
 
@@ -142,23 +144,19 @@
 
 ## Parked / Deferred Work
 
-- Full collaboration-grade Phase 2 remains deferred. Basic Cloud Meeting persistence stores the full backup JSON in `meetings.meeting_data`, but realtime collaboration, team sharing, editor/viewer roles, and forced migration remain out of scope.
-- Local Workspace remains supported and browser-only as a fallback during cloud persistence and shared-access stabilization. It must not autosave to cloud. After structured cloud autosave protects all valuable meeting data and Phase 3 shared meeting access is stable, evaluate retiring Local Workspace or demoting it to a developer/testing-only mode to reduce parallel-system duplication, test burden, and user confusion. Local Workspace cannot provide the shared cloud access that creates the product's team value.
-- Manual Save remains part of the primary workflow during migration because PR #72 autosaves only `meeting_settings`. After structured autosave reliably covers the core operational workspace, evaluate retiring Manual Save from the primary workflow or moving it into a secondary backup/export utility role.
-- Broader responsive/layout polish remains deferred; do not turn Phase 2.5 into a responsive redesign or sticky-header redesign.
-- Additional structured autosave surfaces remain deferred and should be sequenced independently after the existing pilot is validated.
-- Phase 3 shared meeting access is active implementation work. PR 1A schema alignment is complete, PR 1B adds the membership-aware RLS foundation, PR 2A adds the dashboard access abstraction, PR 2B adds visible owned/shared dashboard discovery, PR 3A adds the user profile foundation, PR 3B adds the invite flow, and the PR 3C member-management architecture review recommends a narrow member-list/removal/count implementation.
-- Documentation/user guide work remains deferred until the shared access foundation is established.
-- Deferred ideas are now tracked in `planning/FUTURE_PHASES.md` to prevent scope creep in active delivery work.
+- Local Mode decommission or demotion remains deferred until cloud structured autosave and shared access are validated as main-ready.
+- Manual Save demotion/removal remains deferred; it is still the required full-workspace cloud safety snapshot.
+- Ownership transfer, multiple owners, organizations, full Viewer UX, role editing, owner self-removal, realtime collaboration, presence, locks, cursors, websockets, CRDTs, conflict resolution, and merge UI remain post-main unless final validation identifies a blocker.
+- Transactional Promote to Strategic Topic RPC, legacy decision migration tooling, and multiple outcomes/actions per Agenda Item remain future follow-up candidates.
+- Deferred ideas are tracked in `planning/FUTURE_PHASES.md` to prevent scope creep in active delivery work.
 
 ## Next Actions
 
-- Use `planning/reviews/phase-3-member-management-review.md` as the PR 3C planning baseline for member-management implementation.
-- Next recommended action: implement **PR 3C — Member Management** with an Access panel active member list, owner-only active-editor removal, and dashboard member counts, while keeping role editing, ownership transfer, owner self-removal, Viewer UX, organizations, Local Mode, autosave, and realtime collaboration out of scope.
-- Use the planning files as the source of truth before future changes.
-- Validate the `meeting_settings` hydrate/autosave pilot and its separate Manual Save backup signaling on a Supabase-configured Phase 2 preview.
-- Validate Cloud Meeting Persistence on a Supabase-configured preview, including signed-out local mode, signed-in local mode staying browser-only, signed-in create/select/switch behavior from the dashboard, no auto-load or auto-migration from local mode, manual full-workspace save/load only on valid Cloud Meeting routes, soft-deleted meetings staying hidden/inaccessible, optional Local Workspace migration into empty and populated cloud meetings from a valid cloud route, migration cancel behavior, duplicate-prompt suppression, import while Cloud Meeting is selected, overwrite confirmation, user-scoped workspace selection, owner-only RLS, existing localStorage data, export/import, and Feedback Widget behavior.
-- Keep realtime collaboration and broader ownership models separate from Phase 3 Team Beta. Resolve shared-access schema alignment before expanding membership RLS or structured autosave surfaces.
+1. Complete **Meeting State Review** as a documentation/review PR that maps current local/cloud meeting state, hydration, active meeting IDs, setup/title state, section state, Manual Save fallback assumptions, and compatibility layers.
+2. Implement **Forgot Password** for Supabase account recovery after the state review confirms no meeting-state blocker should come first.
+3. Complete a broader **Documentation Refresh** so user-facing and developer docs match the final shared-access/structured-autosave architecture.
+4. Run the final **Main Readiness Review** on an integrated Vercel/Supabase preview before merging `phase-3-shared-access` to `main`.
+5. Keep realtime collaboration, ownership transfer, full Viewer UX, Local Mode decommission, and broader schema/RLS changes separate from the before-main path unless explicitly re-prioritized.
 
 ## PR 3A — User Profile Foundation
 

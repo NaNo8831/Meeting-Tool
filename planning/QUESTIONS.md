@@ -1,5 +1,16 @@
 # Open Questions
 
+## Remaining Open Questions Before Main
+
+- **Meeting State Review:** Are local/cloud route hydration, active meeting IDs, setup/title state, section order normalization, Manual Save fallback state, and structured overlay behavior coherent enough for main, or are there blocker inconsistencies to fix first?
+- **Forgot Password:** What exact Supabase password-reset redirect URL and production/preview email template behavior should be validated before main?
+- **Documentation Refresh:** Which user-facing docs need to be added or refreshed beyond README and architecture docs so the main release accurately explains Shared Access, structured autosave, Manual Save, Local Mode, and Backup/Restore?
+- **Main Readiness Review:** What is the final acceptance checklist for Vercel preview + Supabase validation before merging `phase-3-shared-access` to `main`?
+- **Local Mode:** Should Local Mode be labeled as a browser-only fallback before main, remain as-is until after main, or be hidden/demoted only after cloud readiness is confirmed?
+- **Legacy Agenda/Decision compatibility:** Should legacy standalone `decisionItems` remain available only through backup/import compatibility, be shown in a collapsed legacy drawer, or receive a later one-time migration into Agenda Item outcomes?
+- **Promote to Strategic Topic:** Is client-side sequential promotion acceptable through main, or does final validation identify a blocker requiring a transactional RPC before main?
+- **Viewer behavior:** Is the absence of polished Viewer read-only UI acceptable for main while owner/editor Team Beta remains the supported collaboration model?
+
 | Question                                                                                                                                                          | Area                           | Status                                                                                                                                                                                                                                                                            |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | What exact pending-invite table name, token strategy, expiration behavior, and acceptance transaction should PR 1A use?                                           | Phase 3 shared access          | Refined: PR 1A uses `meeting_invitations` with pending/accepted/revoked status and no token/expiration/acceptance transaction yet; PR 1B/follow-up invite UX must define token delivery and acceptance flow.                                                                      |
