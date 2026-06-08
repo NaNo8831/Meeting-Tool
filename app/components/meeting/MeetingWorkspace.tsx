@@ -1551,11 +1551,43 @@ export default function MeetingWorkspace() {
     isActiveMeetingHistorical ||
     (!isViewingTodayMeeting && !isViewingEditableTestMeeting);
   const meetingNotesReadOnlyMessage = isActiveMeetingHistorical
-    ? "Ended meeting notes are read-only."
-    : "Past meeting notes are read-only.";
+    ? "This meeting has been ended and captured in Tactical History. Dated meeting notes are read-only."
+    : "This is not the current meeting date. Dated meeting notes are read-only unless this is an enabled Test Mode record.";
+  const lifecycleStatusLabel = isActiveMeetingHistorical
+    ? "Closed meeting"
+    : isViewingEditableTestMeeting
+      ? "Test Mode meeting"
+      : isViewingTodayMeeting
+        ? "Open current meeting"
+        : "Past meeting";
+  const lifecycleStatusDescription = isActiveMeetingHistorical
+    ? "End Meeting captured this dated record in Tactical History. The active workspace remains available for review, but dated meeting notes, agenda, decisions, and cascading communications stay read-only after refresh."
+    : isViewingEditableTestMeeting
+      ? "Test Mode is only for preview/development validation. Test-dated records can be edited while Test Mode is enabled and remain marked as test records."
+      : isViewingTodayMeeting
+        ? "Today’s dated meeting is editable for owners and active editors with access. Refresh should return to an editable current meeting state."
+        : "Refresh restores the last active dated record for this workspace. Past real meeting records are review-only so Tactical History and current work stay distinct.";
+  const lifecycleStatusClassName = isActiveMeetingHistorical
+    ? "border-slate-300 bg-slate-50 text-slate-700"
+    : isViewingEditableTestMeeting
+      ? "border-amber-200 bg-amber-50 text-amber-900"
+      : isViewingTodayMeeting
+        ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+        : "border-slate-200 bg-white text-slate-700";
   const isActionDateMeetingHistorical = actionDateMeeting
     ? historicalMeetingIds.has(actionDateMeeting.id)
     : false;
+  const meetingActionHelpText = !actionDateMeeting
+    ? isTestingDateOverrideActive
+      ? "Start creates a test dated meeting for the selected Test Mode date."
+      : "Start creates today’s current meeting record."
+    : isActionDateMeetingHistorical
+      ? "View opens the ended dated record as read-only; Tactical History keeps the captured snapshot."
+      : isTestingDateOverrideActive
+        ? "Edit opens the existing test dated meeting while Test Mode is enabled."
+        : "Edit opens today’s current meeting record for continued work.";
+  const isActionDateDifferentFromActiveMeeting =
+    actionDateMeeting !== undefined && actionDateMeeting.id !== activeMeeting.id;
   const meetingActionLabel = !actionDateMeeting
     ? "Start Meeting"
     : isActionDateMeetingHistorical
@@ -3496,7 +3528,7 @@ export default function MeetingWorkspace() {
       setSelectedTacticalSessionId(created.id);
       setShowEndMeetingConfirm(false);
       setCloudMeetingMessage(
-        "Tactical session history snapshot saved. Current meeting workspace remains active.",
+        "Tactical History snapshot saved. This dated meeting is now read-only; autosave and Manual Save behavior are unchanged.",
       );
     } catch (error) {
       setCloudMeetingMessage(
@@ -4632,6 +4664,21 @@ export default function MeetingWorkspace() {
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between lg:flex-1 lg:justify-end lg:gap-3">
+              <div
+                className={`rounded-2xl border px-3 py-2 text-xs leading-relaxed shadow-sm sm:flex-1 lg:max-w-xl ${lifecycleStatusClassName}`}
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-bold">{lifecycleStatusLabel}</span>
+                  <span className="font-medium">{activeMeeting.date}</span>
+                  {isActionDateDifferentFromActiveMeeting ? (
+                    <span className="font-medium text-slate-500">
+                      Action date: {meetingActionDate}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-1">{lifecycleStatusDescription}</p>
+                <p className="mt-1 font-semibold">{meetingActionHelpText}</p>
+              </div>
               {isCurrentCloudRouteWorkspace ? (
                 <div
                   ref={autosaveStatusDetailRef}
@@ -4777,6 +4824,11 @@ export default function MeetingWorkspace() {
                     />
                     Test Mode
                   </label>
+                ) : null}
+                {isTestingModeActive && testingToolsEnabled ? (
+                  <p className="max-w-xs rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+                    Test Mode edits only test-dated records and is not a workaround for reopening ended real meetings.
+                  </p>
                 ) : null}
                 {isTestingModeActive && testingToolsEnabled ? (
                   <input
@@ -5171,7 +5223,7 @@ export default function MeetingWorkspace() {
               }`}
               aria-hidden={!isMeetingNotesReadOnly}
             >
-              Past meeting notes are read-only.
+              {meetingNotesReadOnlyMessage}
             </p>
           </div>
         </div>
@@ -5297,7 +5349,7 @@ export default function MeetingWorkspace() {
             </div>
             <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-600">
               <p>
-                This creates a historical Tactical History snapshot for the current cloud meeting.
+                This creates a historical Tactical History snapshot for the current cloud meeting and closes this dated meeting for editing.
               </p>
               {activeMeeting.isTestMeeting ? (
                 <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 font-semibold text-amber-900">
@@ -5307,9 +5359,10 @@ export default function MeetingWorkspace() {
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-emerald-950">
                 <p className="font-semibold">What stays unchanged</p>
                 <ul className="mt-2 list-disc space-y-1 pl-5">
-                  <li>Your current meeting workspace remains active.</li>
-                  <li>Dashboard, autosave, and manual save behavior are unchanged.</li>
-                  <li>No meeting data is reset or rewritten by this action.</li>
+                  <li>The active workspace remains available for review after the snapshot.</li>
+                  <li>Dated meeting notes, agenda, decisions, and cascading communications become read-only after End Meeting and refresh.</li>
+                  <li>Dashboard, autosave, and Manual Save behavior are unchanged; use Manual Save when you need a full-workspace backup.</li>
+                  <li>No meeting data is reset, advanced, or rewritten by this action.</li>
                 </ul>
               </div>
             </div>
@@ -5319,7 +5372,7 @@ export default function MeetingWorkspace() {
                 onClick={() => setShowEndMeetingConfirm(false)}
                 className="rounded-xl border border-slate-300 px-5 py-2 font-semibold text-slate-700 hover:bg-slate-50"
               >
-                Keep Meeting Open
+                Keep Editing
               </button>
               <button
                 type="button"

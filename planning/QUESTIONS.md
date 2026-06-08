@@ -2,7 +2,7 @@
 
 ## Remaining Open Questions Before Main
 
-- **Meeting State Review:** Are local/cloud route hydration, active meeting IDs, setup/title state, section order normalization, Manual Save fallback state, and structured overlay behavior coherent enough for main, or are there blocker inconsistencies to fix first?
+- **Meeting State Review:** Required before-main UX/copy clarification is implemented; remaining open decisions are limited to optional behavior changes such as refresh preference, Continue/Reopen, and End Meeting full-backup prompting.
 - **Forgot Password:** What exact Supabase password-reset redirect URL and production/preview email template behavior should be validated before main?
 - **Documentation Refresh:** Which user-facing docs need to be added or refreshed beyond README and architecture docs so the main release accurately explains Shared Access, structured autosave, Manual Save, Local Mode, and Backup/Restore?
 - **Main Readiness Review:** What is the final acceptance checklist for Vercel preview + Supabase validation before merging `phase-3-shared-access` to `main`?
@@ -194,6 +194,7 @@
 
 ## Meeting State Review Questions
 
+- Resolved implementation: before-main follow-up clarified Start/Edit/View/End/Test Mode lifecycle copy without schema, role, permission, persistence, or reopen-workflow changes.
 - Resolved recommendation: ended dated meeting records should remain read-only by default before main to protect Tactical History snapshot integrity.
 - Resolved recommendation: Test Mode should be treated as a testing-only tool, not the normal workaround for continuing real meetings after refresh.
 - Open before-main: should Cloud Meeting refresh keep restoring the last active dated meeting from `leadership-active-meeting-id`, or should it prefer today's editable meeting when one exists?
