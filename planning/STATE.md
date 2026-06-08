@@ -12,6 +12,14 @@
 - Current branch note: `transition-review-claude-handoff` is documentation-only and creates a Claude Code handoff package plus project history, README refresh, and before-main roadmap clarification. It does not change runtime behavior, schema, RLS, auth, persistence, or UI.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
 
+
+## Meeting State Review
+
+- Added `planning/reviews/meeting-state-review.md` as a documentation-only before-main review of meeting state sources, route hydration, lifecycle behavior, open/closed/Test Mode behavior, autosave/Manual Save interaction, Tactical History snapshots, Local Mode differences, and Shared Access effects.
+- Finding: the known refresh concern is consistent with current behavior because the active dated meeting is restored from `leadership-active-meeting-id`; past or Tactical History-captured records are read-only unless a test meeting is being viewed with Test Mode active.
+- Before-main recommendation: clarify lifecycle UX/copy and validation around Start/Edit/View/End/Test Mode, read-only ended meetings, refresh expectations, and End Meeting versus Manual Save before the final main-readiness pass.
+- This review is documentation/planning-only and intentionally does not modify app code, runtime behavior, schema, migrations, RLS, auth, persistence, UI, Manual Save, Backup/Restore, or Local Mode.
+
 ## Transition Review + Claude Handoff
 
 - Added `docs/HANDOFF_TO_CLAUDE_CODE.md` as the current handoff package for a future Claude Code transition, including executive summary, current product vision, architecture summary, data model summary, UX decisions, known technical debt, before-main roadmap, and recommended first Claude tasks.

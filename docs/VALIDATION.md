@@ -467,3 +467,19 @@ Regression:
 Implementation boundaries:
 
 - This PR is UX-only. It should not include database architecture, autosave architecture, backup architecture, permissions architecture, shared access architecture, schema, migration, RLS, Manual Save, or Local Mode changes.
+
+
+## Meeting State Review Validation Plan
+
+This review is documentation/planning-only. Validation for this PR is limited to confirming the diff is docs/planning only and that no app code, migrations, RLS, auth, persistence, UI, or runtime behavior changed.
+
+Recommended before-main validation for the next lifecycle UX/state PR:
+
+- Owner opens a Cloud Meeting, starts today’s meeting, edits Agenda Items/Meeting Notes/Cascading Communications, refreshes, and sees an understandable editable current meeting state.
+- Owner ends today’s meeting, refreshes, sees ended/read-only copy, can view Tactical History, and can navigate to or start the next current meeting path.
+- Editor repeats open/edit/read-only/Tactical History checks where shared-access permissions allow, without gaining owner-only container lifecycle controls.
+- Removed editor loses access after removal plus refresh/reload and cannot continue editing an open, ended, or test meeting route.
+- Test Mode remains clearly testing-only: test-dated records are editable only with Test Mode active, and this is not presented as the normal continuation path for real meetings.
+- Manual Save before/after End Meeting behaves as documented: End Meeting captures Tactical History, while Manual Save remains the full-workspace backup refresh.
+- Local Mode Start/Edit/View behavior remains browser-only and cloud-only lifecycle actions are not presented as available.
+

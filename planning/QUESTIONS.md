@@ -191,3 +191,13 @@
 - Open for implementation: should covered collapsed cards keep `Cascade Needed` and `Promoted` chips visible next to the title?
 - Open for implementation: should rich-text Discussion Notes use a new accessible read/edit wrapper for double-click editing, or reuse an existing editing component pattern?
 - Open for implementation: should legacy standalone `decisionItems` be hidden but preserved, shown in a collapsed legacy drawer, or only remain available through backup/import data after the live rollup is removed?
+
+## Meeting State Review Questions
+
+- Resolved recommendation: ended dated meeting records should remain read-only by default before main to protect Tactical History snapshot integrity.
+- Resolved recommendation: Test Mode should be treated as a testing-only tool, not the normal workaround for continuing real meetings after refresh.
+- Open before-main: should Cloud Meeting refresh keep restoring the last active dated meeting from `leadership-active-meeting-id`, or should it prefer today's editable meeting when one exists?
+- Open before-main: should the next UX PR add only clearer read-only/current-meeting navigation, or should it introduce an explicit Continue/Reopen Meeting action?
+- Open before-main: if Continue/Reopen Meeting is introduced, should active editors be allowed to use it as content editing, or should it be owner-only lifecycle control?
+- Open before-main: should End Meeting remain Tactical History snapshot-only, or should it also trigger/offer a full Manual Save backup refresh?
+
