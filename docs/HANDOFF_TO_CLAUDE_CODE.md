@@ -15,6 +15,13 @@ Current stack and operating model:
 
 This PR is documentation-only. It does not change runtime behavior, schema, RLS, auth, persistence, or UI.
 
+
+## Transition Support References
+
+- `docs/AI_AGENT_WORKFLOW.md` — recommended AI-agent workflow, PR types, red flags, and prompt pattern for safe future work.
+- `docs/CURRENT_PROJECT_STATUS.md` — concise snapshot of current project status, completed systems, before-main roadmap, and known before-main risks.
+- `docs/PROJECT_HISTORY.md` — chronological project and decision history.
+
 ## Current Product Vision
 
 The product is a meeting-centric leadership operating system. Its core job is to support the live weekly leadership meeting and the follow-through that comes out of that meeting.

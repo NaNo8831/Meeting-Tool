@@ -16,7 +16,9 @@
 
 - Added `docs/HANDOFF_TO_CLAUDE_CODE.md` as the current handoff package for a future Claude Code transition, including executive summary, current product vision, architecture summary, data model summary, UX decisions, known technical debt, before-main roadmap, and recommended first Claude tasks.
 - Added `docs/PROJECT_HISTORY.md` as a chronological summary of major phases, architecture decisions, product decisions, UX evolution, and decision rationale.
-- Refreshed `README.md` to reflect the current Supabase/shared-access/structured-autosave state and link to the handoff/history documents.
+- Added `docs/AI_AGENT_WORKFLOW.md` to document the AI-agent working process, PR types, red flags, expectations, and reusable prompt pattern that stabilized Phase 3 / Phase 4 work.
+- Added `docs/CURRENT_PROJECT_STATUS.md` as a concise status snapshot covering completed systems, current branch context, before-main roadmap, and known before-main risks.
+- Refreshed `README.md` to reflect the current Supabase/shared-access/structured-autosave state and link to the handoff/history/workflow/status documents.
 - Before-main roadmap is now prioritized as: Meeting State Review, Forgot Password, Documentation Refresh, and Main Readiness Review.
 - This transition review is documentation-only and intentionally does not modify runtime behavior, schema, RLS, auth, persistence, UI, Manual Save, Backup/Restore, or Local Mode.
 

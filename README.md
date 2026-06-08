@@ -118,4 +118,6 @@ Read these files before major implementation work:
 - `docs/PERMISSIONS.md` — shared access and RLS guidance.
 - `docs/VALIDATION.md` — validation expectations.
 - `docs/HANDOFF_TO_CLAUDE_CODE.md` — transition review and Claude Code handoff package.
+- `docs/AI_AGENT_WORKFLOW.md` — AI-agent workflow, PR types, red flags, and preferred prompt pattern.
+- `docs/CURRENT_PROJECT_STATUS.md` — current project status, completed systems, before-main roadmap, and known risks.
 - `docs/PROJECT_HISTORY.md` — chronological project and decision history.
