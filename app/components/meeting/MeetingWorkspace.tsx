@@ -53,6 +53,8 @@ import {
   supabaseMeetingClient,
   type SupabaseMeetingNote,
   type SupabaseMeetingNoteUpsert,
+  type SupabaseAgendaItem,
+  type SupabaseAgendaItemUpsert,
   type SupabaseMeetingSettings,
   type SupabaseMeetingSettingsUpsert,
   type SupabaseObjective,
@@ -196,6 +198,7 @@ const meetingSetupCompletedStorageKey = "leadership-meeting-setup-completed";
 const strategicTopicsAutosaveDebounceMs = 1200;
 const topicNotesAutosaveDebounceMs = 1000;
 const meetingNotesAutosaveDebounceMs = 1000;
+const agendaItemsAutosaveDebounceMs = 1000;
 const objectivesAutosaveDebounceMs = 1200;
 
 type StrategicTopicsAutosaveStatus =
@@ -206,6 +209,13 @@ type StrategicTopicsAutosaveStatus =
   | "error";
 
 type MeetingNotesAutosaveStatus =
+  | "ready"
+  | "pending"
+  | "saving"
+  | "saved"
+  | "error";
+
+type AgendaItemsAutosaveStatus =
   | "ready"
   | "pending"
   | "saving"
@@ -224,6 +234,14 @@ const toNullableNumber = (value: number | undefined) =>
 
 const toNullableString = (value: string | undefined) =>
   value && value.trim() ? value : null;
+
+const uuidOrNull = (value: string | undefined) =>
+  value &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  )
+    ? value
+    : null;
 
 const mapStrategicTopicFromSupabase = (
   topic: SupabaseStrategicTopic,
@@ -479,9 +497,98 @@ const mapSooFromSupabase = (
   color: normalizeObjectiveColor(soo.color),
 });
 
-// Agenda Items and Decisions/Actions currently live inside the same
-// MeetingRecord as Meeting Notes. PR 4C carries them through notes_json only
-// for compatibility; they are not first-class structured autosave surfaces.
+const getAgendaNotesValue = (item: MeetingItem): RichTextValue =>
+  item.discussionNotes ?? "";
+
+const normalizeAgendaItem = (item: MeetingItem): MeetingItem => ({
+  ...item,
+  hasDecision: item.hasDecision ?? Boolean(item.decisionText?.trim()),
+  hasAction: item.hasAction ?? Boolean(item.actionText?.trim()),
+  isCovered: item.isCovered ?? item.completed ?? false,
+  cascadeNeeded: item.cascadeNeeded ?? false,
+});
+
+const mapAgendaItemToSupabase = (
+  item: MeetingItem,
+  meeting: MeetingRecord,
+  meetingId: string,
+  sortOrder: number,
+): SupabaseAgendaItemUpsert => {
+  const normalizedItem = normalizeAgendaItem(item);
+  return {
+    meeting_id: meetingId,
+    client_agenda_item_id: normalizedItem.id,
+    client_meeting_id: meeting.id,
+    title: normalizedItem.text,
+    discussion_notes_json: richTextJsonOrNull(getAgendaNotesValue(normalizedItem)),
+    discussion_notes_text: richTextTextOrNull(getAgendaNotesValue(normalizedItem)),
+    has_decision: normalizedItem.hasDecision ?? false,
+    decision_text: toNullableString(normalizedItem.decisionText),
+    has_action: normalizedItem.hasAction ?? false,
+    action_text: toNullableString(normalizedItem.actionText),
+    is_covered: normalizedItem.isCovered ?? false,
+    cascade_needed: normalizedItem.cascadeNeeded ?? false,
+    promoted_strategic_topic_id: uuidOrNull(
+      normalizedItem.promotedStrategicTopicId,
+    ),
+    sort_order: sortOrder,
+  };
+};
+
+const mapAgendaItemFromSupabase = (row: SupabaseAgendaItem): MeetingItem => ({
+  id: row.client_agenda_item_id,
+  text: row.title,
+  discussionNotes: richTextFromStructured(
+    row.discussion_notes_json,
+    row.discussion_notes_text,
+  ),
+  hasDecision: row.has_decision,
+  decisionText: row.decision_text ?? "",
+  hasAction: row.has_action,
+  actionText: row.action_text ?? "",
+  isCovered: row.is_covered,
+  completed: row.is_covered,
+  cascadeNeeded: row.cascade_needed,
+  promotedStrategicTopicId: row.promoted_strategic_topic_id ?? undefined,
+});
+
+const buildAgendaItemsAutosavePayload = (
+  meetings: MeetingRecord[],
+  meetingId: string,
+) =>
+  meetings.flatMap((meeting) =>
+    meeting.agendaItems.map((item, index) =>
+      mapAgendaItemToSupabase(item, meeting, meetingId, index),
+    ),
+  );
+
+const mergeStructuredAgendaItems = (
+  currentMeetings: MeetingRecord[],
+  agendaRows: SupabaseAgendaItem[],
+): MeetingRecord[] => {
+  if (agendaRows.length === 0) return currentMeetings;
+
+  const rowsByClientMeetingId = new Map<number, SupabaseAgendaItem[]>();
+  agendaRows.forEach((row) => {
+    const rows = rowsByClientMeetingId.get(row.client_meeting_id) ?? [];
+    rows.push(row);
+    rowsByClientMeetingId.set(row.client_meeting_id, rows);
+  });
+
+  return currentMeetings.map((meeting) => {
+    const rows = rowsByClientMeetingId.get(meeting.id);
+    if (!rows) return meeting;
+
+    return {
+      ...meeting,
+      agendaItems: rows.map(mapAgendaItemFromSupabase),
+    };
+  });
+};
+
+// Agenda Items now have structured rows; notes_json still carries Agenda
+// Items and legacy Decisions/Actions for Manual Save/export/import
+// compatibility during the transition.
 const getMeetingNotePassThroughJson = (
   meeting: MeetingRecord,
 ): Record<string, unknown> => ({
@@ -797,6 +904,7 @@ type StructuredAutosaveStatus =
   | SettingsAutosaveStatus
   | StrategicTopicsAutosaveStatus
   | MeetingNotesAutosaveStatus
+  | AgendaItemsAutosaveStatus
   | ObjectivesAutosaveStatus;
 
 const getAutosaveSummaryStatus = ({
@@ -1172,6 +1280,15 @@ export default function MeetingWorkspace() {
     saved: "Meeting Notes and Cascading Communications saved to cloud",
     error: "Meeting Notes autosave failed",
   };
+  const [agendaItemsAutosaveStatus, setAgendaItemsAutosaveStatus] =
+    useState<AgendaItemsAutosaveStatus>("ready");
+  const agendaItemsAutosaveStatusLabel: Record<AgendaItemsAutosaveStatus, string> = {
+    ready: "Agenda Items autosave ready",
+    pending: "Agenda Items autosave pending…",
+    saving: "Saving Agenda Items…",
+    saved: "Agenda Items saved to cloud",
+    error: "Agenda Items autosave failed",
+  };
   const [objectivesAutosaveStatus, setObjectivesAutosaveStatus] =
     useState<ObjectivesAutosaveStatus>("ready");
   const objectivesAutosaveStatusLabel: Record<ObjectivesAutosaveStatus, string> = {
@@ -1318,6 +1435,10 @@ export default function MeetingWorkspace() {
   const meetingNotesAutosaveWorkspaceIdRef = useRef("");
   const pendingMeetingNotesAutosaveSignatureRef = useRef("");
   const isMeetingNotesAutosaveInFlightRef = useRef(false);
+  const lastAgendaItemsAutosaveSignatureRef = useRef("");
+  const pendingAgendaItemsAutosaveSignatureRef = useRef("");
+  const agendaItemsAutosaveWorkspaceIdRef = useRef("");
+  const isAgendaItemsAutosaveInFlightRef = useRef(false);
   const lastObjectivesAutosaveSignatureRef = useRef("");
   const objectivesAutosaveWorkspaceIdRef = useRef("");
   const pendingObjectivesAutosaveSignatureRef = useRef("");
@@ -1798,6 +1919,76 @@ export default function MeetingWorkspace() {
         item.id === itemId ? { ...item, text: value } : item,
       ),
     });
+  };
+
+  const updateAgendaItem = (
+    itemId: number,
+    updates: Partial<MeetingItem>,
+  ) => {
+    if (isMeetingNotesReadOnly) return;
+
+    updateActiveMeeting({
+      agendaItems: activeMeeting.agendaItems.map((item) =>
+        item.id === itemId ? normalizeAgendaItem({ ...item, ...updates }) : item,
+      ),
+    });
+  };
+
+  const promoteAgendaItemToStrategicTopic = (item: MeetingItem) => {
+    if (isMeetingNotesReadOnly || item.promotedStrategicTopicId) return;
+
+    const normalizedItem = normalizeAgendaItem(item);
+    const title = normalizedItem.text.trim() || "Promoted agenda item";
+    const nextTopic = normalizeStrategicTopic(
+      {
+        id: Date.now(),
+        text: title,
+      },
+      activeMeeting,
+      activeMeetingIndex,
+    );
+
+    const notesParts = [
+      `Agenda: ${title}`,
+      richTextTextOrNull(getAgendaNotesValue(normalizedItem))
+        ? `Discussion Notes:\n${richTextTextOrNull(getAgendaNotesValue(normalizedItem))}`
+        : "",
+      normalizedItem.hasDecision && normalizedItem.decisionText?.trim()
+        ? `Decision:\n${normalizedItem.decisionText.trim()}`
+        : "",
+      normalizedItem.hasAction && normalizedItem.actionText?.trim()
+        ? `Action:\n${normalizedItem.actionText.trim()}`
+        : "",
+    ].filter(Boolean);
+
+    setStrategicTopicItems((currentItems) => [...currentItems, nextTopic]);
+    setStrategicTopicNotesById((currentNotes) => ({
+      ...currentNotes,
+      [nextTopic.id]: {
+        strategic_topic_item_id: nextTopic.id,
+        content_json: null,
+        content_text: notesParts.join("\n\n"),
+        updated_at: new Date().toISOString(),
+      },
+    }));
+    updateAgendaItem(item.id, {
+      promotedStrategicTopicId: nextTopic.strategicTopicId ?? String(nextTopic.id),
+    });
+
+    if (authSession && selectedMeetingId && isCurrentCloudRouteWorkspace) {
+      void supabaseMeetingClient.saveStrategicTopicNote({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        strategicTopicItemId: nextTopic.id,
+        strategicTopicId: nextTopic.strategicTopicId ?? null,
+        contentText: notesParts.join("\n\n"),
+        contentJson: null,
+      }).catch(() => {
+        setCloudMeetingMessage(
+          "Agenda item promoted, but the seeded Strategic Topic note needs autosave/manual save retry.",
+        );
+      });
+    }
   };
 
   const deleteMeetingItem = (
@@ -2290,12 +2481,51 @@ export default function MeetingWorkspace() {
     selectedMeetingId,
   ]);
 
+  const decisionActionRollupItems: MeetingItem[] = [
+    ...activeMeeting.agendaItems
+      .map(normalizeAgendaItem)
+      .filter((item) => item.hasDecision && item.decisionText?.trim())
+      .map((item) => ({
+        id: item.id * 10 + 1,
+        text: `Decision: ${item.decisionText?.trim() ?? ""}`,
+      })),
+    ...activeMeeting.agendaItems
+      .map(normalizeAgendaItem)
+      .filter((item) => item.hasAction && item.actionText?.trim())
+      .map((item) => ({
+        id: item.id * 10 + 2,
+        text: `Action: ${item.actionText?.trim() ?? ""}`,
+      })),
+    ...activeMeeting.decisionItems.map((item) => ({
+      ...item,
+      text: `Legacy: ${item.text}`,
+    })),
+  ];
+
+  const cascadeRollupItems: MeetingItem[] = activeMeeting.agendaItems
+    .map(normalizeAgendaItem)
+    .filter((item) => item.cascadeNeeded)
+    .map((item) => ({
+      id: item.id,
+      text: [
+        item.text,
+        item.hasDecision && item.decisionText?.trim()
+          ? `Decision: ${item.decisionText.trim()}`
+          : "",
+        item.hasAction && item.actionText?.trim()
+          ? `Action: ${item.actionText.trim()}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    }));
+
   const meetingSections: Record<MeetingSectionKey, MeetingSectionConfig> = {
     agenda: {
       id: "agenda",
       title: "Agenda Items",
       description:
-        "List agenda items to cover. A future workflow will add discussion notes, decisions, and action items per item.",
+        "Capture discussion notes, decisions, actions, covered state, cascade needs, and Strategic Topic promotion per agenda item.",
       items: activeMeeting.agendaItems,
       newItem: newAgendaItem,
       setNewItem: setNewAgendaItem,
@@ -2304,6 +2534,8 @@ export default function MeetingWorkspace() {
       updateItem: (itemId, value) =>
         updateMeetingItem("agendaItems", itemId, value),
       deleteItem: (itemId) => deleteMeetingItem("agendaItems", itemId),
+      updateAgendaItem,
+      promoteAgendaItem: promoteAgendaItemToStrategicTopic,
       placeholder: "New agenda item",
       editPlaceholder: "Add agenda item",
       isReadOnly: isMeetingNotesReadOnly,
@@ -2334,8 +2566,8 @@ export default function MeetingWorkspace() {
       id: "decision",
       title: "Decisions / Actions",
       description:
-        "Meeting outcome summary. Future workflow will roll up decisions and actions from agenda items, with optional standalone entries.",
-      items: activeMeeting.decisionItems,
+        "Read-only rollup generated from Agenda Item decisions and actions. Edit outcomes on Agenda Items.",
+      items: decisionActionRollupItems,
       newItem: newDecisionItem,
       setNewItem: setNewDecisionItem,
       addItem: () =>
@@ -2345,13 +2577,13 @@ export default function MeetingWorkspace() {
       deleteItem: (itemId) => deleteMeetingItem("decisionItems", itemId),
       placeholder: "New decision or action",
       editPlaceholder: "Decision or action item",
-      isReadOnly: isMeetingNotesReadOnly,
-      readOnlyMessage: meetingNotesReadOnlyMessage,
+      isReadOnly: true,
+      readOnlyMessage: "Decisions/Actions are generated from Agenda Items. Legacy entries are shown read-only.",
     },
     cascade: {
       id: "cascade",
       title: "Cascading Communication",
-      description: "What does the Staff need to know",
+      description: "Generated cascade-needed agenda outcomes plus editable communication notes for Staff.",
       items: activeMeeting.cascadeItems,
       newItem: newCascadeItem,
       setNewItem: setNewCascadeItem,
@@ -2364,6 +2596,7 @@ export default function MeetingWorkspace() {
       editPlaceholder: "Cascading communication",
       isReadOnly: isMeetingNotesReadOnly,
       readOnlyMessage: meetingNotesReadOnlyMessage,
+      rollupItems: cascadeRollupItems,
     },
   };
 
@@ -2945,6 +3178,17 @@ export default function MeetingWorkspace() {
     [setMeetings],
   );
 
+  const applyAgendaItemsToState = useCallback(
+    (agendaRows: SupabaseAgendaItem[]) => {
+      if (agendaRows.length === 0) return;
+
+      setMeetings((currentMeetings) =>
+        mergeStructuredAgendaItems(currentMeetings, agendaRows),
+      );
+    },
+    [setMeetings],
+  );
+
   const saveMeetingNotesBackupToCloud = useCallback(
     async (meetingRecords: MeetingRecord[]) => {
       if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
@@ -2963,6 +3207,32 @@ export default function MeetingWorkspace() {
         accessToken: authSession.accessToken,
         workspaceId: selectedMeetingId,
         retainedClientMeetingIds: meetingRecords.map((meeting) => meeting.id),
+      });
+    },
+    [authSession, isCurrentCloudRouteWorkspace, selectedMeetingId],
+  );
+
+  const saveAgendaItemsBackupToCloud = useCallback(
+    async (meetingRecords: MeetingRecord[]) => {
+      if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
+        return;
+      }
+
+      const agendaRows = buildAgendaItemsAutosavePayload(
+        meetingRecords,
+        selectedMeetingId,
+      );
+      await supabaseMeetingClient.saveAgendaItems({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        agendaItems: agendaRows,
+      });
+      await supabaseMeetingClient.deleteMissingAgendaItems({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        retainedClientAgendaItemIds: agendaRows.map(
+          (item) => item.client_agenda_item_id,
+        ),
       });
     },
     [authSession, isCurrentCloudRouteWorkspace, selectedMeetingId],
@@ -2988,6 +3258,7 @@ export default function MeetingWorkspace() {
         meetingSettings,
         strategicTopics,
         meetingNotes,
+        agendaItems,
         objectiveRows,
         taskRows,
         sooRows,
@@ -3005,6 +3276,10 @@ export default function MeetingWorkspace() {
           workspaceId: selectedMeetingId,
         }),
         supabaseMeetingClient.loadMeetingNotes({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+        }),
+        supabaseMeetingClient.loadAgendaItems({
           accessToken: authSession.accessToken,
           workspaceId: selectedMeetingId,
         }),
@@ -3026,6 +3301,7 @@ export default function MeetingWorkspace() {
         applyMeetingSettingsToState(meetingSettings);
         applyStrategicTopicsToState(strategicTopics);
         applyMeetingNotesToState(meetingNotes);
+        applyAgendaItemsToState(agendaItems);
         applyObjectivesToState(objectiveRows, taskRows);
         applyStandardOperatingObjectivesToState(sooRows);
         setStrategicTopicNotesById({});
@@ -3034,6 +3310,7 @@ export default function MeetingWorkspace() {
         setCloudMeetingMessage(
           strategicTopics.length > 0 ||
             meetingNotes.length > 0 ||
+            agendaItems.length > 0 ||
             objectiveRows.length > 0 ||
             sooRows.length > 0
             ? "Cloud meeting loaded from structured autosave rows. Manual Save remains available for full workspace backup."
@@ -3051,13 +3328,14 @@ export default function MeetingWorkspace() {
       applyMeetingSettingsToState(meetingSettings);
       applyStrategicTopicsToState(strategicTopics);
       applyMeetingNotesToState(meetingNotes);
+      applyAgendaItemsToState(agendaItems);
       applyObjectivesToState(objectiveRows, taskRows);
       applyStandardOperatingObjectivesToState(sooRows);
       lastCloudAutosaveSignatureRef.current = signature;
       setHasUnsavedFullWorkspaceChanges(false);
       setCloudSaveStatus("idle");
       setCloudMeetingMessage(
-        "Cloud workspace loaded. Settings, Strategic Topics, Meeting Notes, Cascading Communications, Objectives, Tasks, and SOOs autosave to structured storage; Manual Save backs up the full workspace.",
+        "Cloud workspace loaded. Settings, Strategic Topics, Agenda Items, Meeting Notes, Cascading Communications, Objectives, Tasks, and SOOs autosave to structured storage; Manual Save backs up the full workspace.",
       );
       setIsRouteCloudBootstrapping(false);
     } catch (error) {
@@ -3070,6 +3348,7 @@ export default function MeetingWorkspace() {
       setIsRouteCloudBootstrapping(false);
     }
   }, [
+    applyAgendaItemsToState,
     applyMeetingNotesToState,
     applyMeetingSettingsToState,
     applyObjectivesToState,
@@ -3261,6 +3540,10 @@ export default function MeetingWorkspace() {
         "Full workspace saved to cloud backup.",
       );
       if (wasSaved) {
+        await saveAgendaItemsBackupToCloud(meetings);
+        lastAgendaItemsAutosaveSignatureRef.current = JSON.stringify(
+          buildAgendaItemsAutosavePayload(meetings, selectedMeetingId),
+        );
       }
     } catch (error) {
       setCloudSaveStatus("error");
@@ -3275,6 +3558,8 @@ export default function MeetingWorkspace() {
     getCurrentWorkspaceStorageForBackup,
     isCurrentCloudRouteWorkspace,
     isLocalRoute,
+    meetings,
+    saveAgendaItemsBackupToCloud,
     saveWorkspaceBackupToCloud,
     selectedMeetingId,
     selectedMeetingName,
@@ -3293,6 +3578,9 @@ export default function MeetingWorkspace() {
         lastMeetingNotesAutosaveSignatureRef.current = "";
         meetingNotesAutosaveWorkspaceIdRef.current = "";
         pendingMeetingNotesAutosaveSignatureRef.current = "";
+        lastAgendaItemsAutosaveSignatureRef.current = "";
+        agendaItemsAutosaveWorkspaceIdRef.current = "";
+        pendingAgendaItemsAutosaveSignatureRef.current = "";
         lastObjectivesAutosaveSignatureRef.current = "";
         objectivesAutosaveWorkspaceIdRef.current = "";
         pendingObjectivesAutosaveSignatureRef.current = "";
@@ -3302,6 +3590,7 @@ export default function MeetingWorkspace() {
         setSettingsAutosaveStatus("ready");
         setStrategicTopicsAutosaveStatus("ready");
         setMeetingNotesAutosaveStatus("ready");
+        setAgendaItemsAutosaveStatus("ready");
         setObjectivesAutosaveStatus("ready");
         setCloudSaveStatus("local");
         setCloudMeetingMessage(
@@ -3316,6 +3605,7 @@ export default function MeetingWorkspace() {
       setSettingsAutosaveStatus("ready");
       setStrategicTopicsAutosaveStatus("ready");
       setMeetingNotesAutosaveStatus("ready");
+      setAgendaItemsAutosaveStatus("ready");
       setObjectivesAutosaveStatus("ready");
       setCloudSaveStatus("idle");
       setCloudMeetingMessage(
@@ -3564,6 +3854,23 @@ export default function MeetingWorkspace() {
           setStrategicTopicItems((currentItems) =>
             mergeSavedStrategicTopicIds(currentItems, savedTopics),
           );
+          const savedTopicIdsByClientId = new Map(
+            savedTopics.map((topic) => [String(topic.client_item_id), topic.id]),
+          );
+          setMeetings((currentMeetings) =>
+            currentMeetings.map((meeting) => ({
+              ...meeting,
+              agendaItems: meeting.agendaItems.map((agendaItem) => {
+                const promotedStrategicTopicId = agendaItem.promotedStrategicTopicId
+                  ? savedTopicIdsByClientId.get(agendaItem.promotedStrategicTopicId)
+                  : undefined;
+
+                return promotedStrategicTopicId
+                  ? { ...agendaItem, promotedStrategicTopicId }
+                  : agendaItem;
+              }),
+            })),
+          );
         }
 
         if (
@@ -3614,6 +3921,7 @@ export default function MeetingWorkspace() {
     isCurrentCloudRouteWorkspace,
     isRouteCloudBootstrapping,
     selectedMeetingId,
+    setMeetings,
     setStrategicTopicItems,
     strategicTopicsAutosaveSignature,
     workspaceMode,
@@ -3753,6 +4061,137 @@ export default function MeetingWorkspace() {
     isCurrentCloudRouteWorkspace,
     isRouteCloudBootstrapping,
     meetingNotesAutosaveSignature,
+    selectedMeetingId,
+    workspaceMode,
+  ]);
+
+  const agendaItemsAutosavePayload = useMemo(
+    () => buildAgendaItemsAutosavePayload(meetings, selectedMeetingId),
+    [meetings, selectedMeetingId],
+  );
+  const agendaItemsAutosaveSignature = useMemo(
+    () => JSON.stringify(agendaItemsAutosavePayload),
+    [agendaItemsAutosavePayload],
+  );
+
+  useEffect(() => {
+    if (workspaceMode !== "cloud") return;
+    if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace)
+      return;
+    if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
+      return;
+    if (isRouteCloudBootstrapping || !hasLoadedDashboardStorage) return;
+
+    if (agendaItemsAutosaveWorkspaceIdRef.current !== selectedMeetingId) {
+      agendaItemsAutosaveWorkspaceIdRef.current = selectedMeetingId;
+      lastAgendaItemsAutosaveSignatureRef.current = agendaItemsAutosaveSignature;
+      pendingAgendaItemsAutosaveSignatureRef.current = "";
+      return;
+    }
+
+    if (
+      agendaItemsAutosaveSignature ===
+      lastAgendaItemsAutosaveSignatureRef.current
+    ) {
+      if (pendingAgendaItemsAutosaveSignatureRef.current) {
+        pendingAgendaItemsAutosaveSignatureRef.current = "";
+        setAgendaItemsAutosaveStatus("saved");
+        setCloudMeetingMessage("Agenda Items match the saved cloud version.");
+      }
+      return;
+    }
+
+    pendingAgendaItemsAutosaveSignatureRef.current = agendaItemsAutosaveSignature;
+    setAgendaItemsAutosaveStatus("pending");
+    setCloudMeetingMessage(
+      "Agenda Items autosave pending… Manual Save still backs up the full workspace.",
+    );
+
+    let isCancelled = false;
+    let timeoutId: number;
+    const flushPendingAgendaItems = async () => {
+      if (isCancelled) return;
+      if (isAgendaItemsAutosaveInFlightRef.current) {
+        timeoutId = window.setTimeout(
+          flushPendingAgendaItems,
+          agendaItemsAutosaveDebounceMs,
+        );
+        return;
+      }
+
+      const pendingSignature = pendingAgendaItemsAutosaveSignatureRef.current;
+      if (
+        !pendingSignature ||
+        pendingSignature === lastAgendaItemsAutosaveSignatureRef.current
+      )
+        return;
+
+      const pendingAgendaItems = JSON.parse(
+        pendingSignature,
+      ) as SupabaseAgendaItemUpsert[];
+
+      isAgendaItemsAutosaveInFlightRef.current = true;
+      pendingAgendaItemsAutosaveSignatureRef.current = "";
+      setAgendaItemsAutosaveStatus("saving");
+      setCloudMeetingMessage("Saving Agenda Items to cloud…");
+
+      try {
+        await supabaseMeetingClient.saveAgendaItems({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+          agendaItems: pendingAgendaItems,
+        });
+        await supabaseMeetingClient.deleteMissingAgendaItems({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+          retainedClientAgendaItemIds: pendingAgendaItems.map(
+            (item) => item.client_agenda_item_id,
+          ),
+        });
+        lastAgendaItemsAutosaveSignatureRef.current = pendingSignature;
+
+        if (!isCancelled && !pendingAgendaItemsAutosaveSignatureRef.current) {
+          setAgendaItemsAutosaveStatus("saved");
+          setCloudMeetingMessage(
+            "Agenda Items saved to cloud. Manual Save still backs up the full workspace.",
+          );
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setAgendaItemsAutosaveStatus("error");
+          setCloudMeetingMessage(
+            error instanceof Error
+              ? error.message
+              : "Agenda Items could not be saved to cloud.",
+          );
+        }
+      } finally {
+        isAgendaItemsAutosaveInFlightRef.current = false;
+        if (!isCancelled && pendingAgendaItemsAutosaveSignatureRef.current) {
+          timeoutId = window.setTimeout(
+            flushPendingAgendaItems,
+            agendaItemsAutosaveDebounceMs,
+          );
+        }
+      }
+    };
+
+    timeoutId = window.setTimeout(
+      flushPendingAgendaItems,
+      agendaItemsAutosaveDebounceMs,
+    );
+
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    activeCloudWorkspaceId,
+    agendaItemsAutosaveSignature,
+    authSession,
+    hasLoadedDashboardStorage,
+    isCurrentCloudRouteWorkspace,
+    isRouteCloudBootstrapping,
     selectedMeetingId,
     workspaceMode,
   ]);
@@ -4026,6 +4465,7 @@ export default function MeetingWorkspace() {
         await Promise.all([
           saveStrategicTopicNotesBackupToCloud(restoredStrategicTopicNotes),
           saveMeetingNotesBackupToCloud(restoredMeetings),
+          saveAgendaItemsBackupToCloud(restoredMeetings),
           saveObjectivesBackupToCloud(restoredObjectives),
           saveStandardOperatingObjectivesBackupToCloud(
             restoredStandardOperatingObjectives,
@@ -4098,6 +4538,7 @@ export default function MeetingWorkspace() {
     settingsAutosaveStatus,
     strategicTopicsAutosaveStatus,
     meetingNotesAutosaveStatus,
+    agendaItemsAutosaveStatus,
     objectivesAutosaveStatus,
   ];
   const autosaveSummaryStatus = getAutosaveSummaryStatus({
@@ -4220,6 +4661,14 @@ export default function MeetingWorkspace() {
                           {
                             strategicTopicsAutosaveStatusLabel[
                               strategicTopicsAutosaveStatus
+                            ]
+                          }
+                        </li>
+                        <li>
+                          <span className="font-semibold">Agenda:</span>{" "}
+                          {
+                            agendaItemsAutosaveStatusLabel[
+                              agendaItemsAutosaveStatus
                             ]
                           }
                         </li>

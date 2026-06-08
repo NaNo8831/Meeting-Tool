@@ -243,6 +243,44 @@ export type SupabaseMeetingNoteUpsert = {
   cascade_items: Record<string, unknown>[];
 };
 
+
+export type SupabaseAgendaItem = {
+  id: string;
+  meeting_id: string;
+  client_agenda_item_id: number;
+  client_meeting_id: number;
+  title: string;
+  discussion_notes_json: Record<string, unknown> | null;
+  discussion_notes_text: string | null;
+  has_decision: boolean;
+  decision_text: string | null;
+  has_action: boolean;
+  action_text: string | null;
+  is_covered: boolean;
+  cascade_needed: boolean;
+  promoted_strategic_topic_id: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupabaseAgendaItemUpsert = {
+  meeting_id: string;
+  client_agenda_item_id: number;
+  client_meeting_id: number;
+  title: string;
+  discussion_notes_json: Record<string, unknown> | null;
+  discussion_notes_text: string | null;
+  has_decision: boolean;
+  decision_text: string | null;
+  has_action: boolean;
+  action_text: string | null;
+  is_covered: boolean;
+  cascade_needed: boolean;
+  promoted_strategic_topic_id: string | null;
+  sort_order: number;
+};
+
 export type SupabaseTacticalSession = {
   id: string;
   meeting_id: string;
@@ -1112,6 +1150,93 @@ export const supabaseMeetingClient = {
     }
 
     return saved;
+  },
+
+
+  async loadAgendaItems({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("agenda_items")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}&select=*&order=client_meeting_id.asc,sort_order.asc,created_at.asc`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Agenda items load"));
+    }
+
+    return (await response.json()) as SupabaseAgendaItem[];
+  },
+
+  async saveAgendaItems({
+    accessToken,
+    workspaceId,
+    agendaItems,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    agendaItems: SupabaseAgendaItemUpsert[];
+  }) {
+    if (agendaItems.length === 0) return [];
+
+    const response = await fetch(
+      `${getRestUrl("agenda_items")}?on_conflict=meeting_id,client_agenda_item_id`,
+      {
+        method: "POST",
+        headers: {
+          ...getSupabaseHeaders(accessToken),
+          Prefer: "resolution=merge-duplicates,return=representation",
+        },
+        body: JSON.stringify(
+          agendaItems.map((item) => ({
+            ...item,
+            meeting_id: workspaceId,
+          })),
+        ),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Agenda items autosave"));
+    }
+
+    return (await response.json()) as SupabaseAgendaItem[];
+  },
+
+  async deleteMissingAgendaItems({
+    accessToken,
+    workspaceId,
+    retainedClientAgendaItemIds,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    retainedClientAgendaItemIds: number[];
+  }) {
+    const retainedFilter = retainedClientAgendaItemIds.length
+      ? `&client_agenda_item_id=not.in.(${retainedClientAgendaItemIds.join(",")})`
+      : "";
+    const response = await fetch(
+      `${getRestUrl("agenda_items")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}${retainedFilter}`,
+      {
+        method: "DELETE",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Agenda items cleanup"));
+    }
   },
 
   async loadMeetingNotes({

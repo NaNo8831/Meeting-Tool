@@ -434,3 +434,18 @@ Recommended future structured model:
 - Store one before-main outcome on the Agenda Item with `outcome_type`, `outcome_text`, `is_covered`, and `cascade_needed` fields.
 - Defer `agenda_item_outcomes` until user testing proves multiple outcomes per Agenda Item are needed.
 - Keep `meeting_notes.notes_json`, `leadership-meetings`, and `meetings.meeting_data` as compatibility/backup paths during migration; do not make `notes_json` the long-term Agenda source of truth.
+
+## UX-3B Agenda Items
+
+`public.agenda_items` is the structured cloud source of truth for Agenda Items. Each row is scoped to a Cloud Meeting (`meeting_id`) and the dated meeting-note record (`client_meeting_id`) while preserving the browser/client item identity in `client_agenda_item_id` for localStorage, Manual Save, export, and import compatibility.
+
+Fields added by UX-3B:
+
+- Identity/order: `id`, `meeting_id`, `client_agenda_item_id`, `client_meeting_id`, `sort_order`.
+- Discussion: `title`, `discussion_notes_json`, `discussion_notes_text`.
+- Independent outcomes: `has_decision`, `decision_text`, `has_action`, `action_text`. Decision and Action are intentionally not mutually exclusive.
+- Workflow: `is_covered`, `cascade_needed`.
+- Promotion linkage: `promoted_strategic_topic_id` references `strategic_topics.id` when a saved UUID is available.
+- Timestamps: `created_at`, `updated_at`.
+
+Legacy `decisionItems` remain readable in `leadership-meetings` and `meeting_notes.notes_json` during the transition, but new Agenda Item outcomes should be edited on Agenda Items and displayed through the read-only Decisions/Actions rollup.

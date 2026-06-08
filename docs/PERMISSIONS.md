@@ -300,3 +300,7 @@ Future Defining Objectives, Tasks, and SOOs autosave should reuse the existing m
 - Viewer read-only UX remains deferred; do not introduce new Viewer behavior in the DO/task/SOO implementation slice.
 
 Existing foundation policies on `objectives`, `tasks`, and `standard_operating_objectives` already use meeting member select and meeting editor insert/update/delete patterns, but the tables are not active runtime storage yet.
+
+## UX-3B Agenda Item Permissions
+
+Agenda Item structured rows use existing meeting helper boundaries. Reads use `public.user_can_access_meeting(meeting_id)`. Inserts, updates, and deletes use `public.user_can_edit_meeting(meeting_id)`. Owners and Editors can edit Agenda Items and promote them to Strategic Topics. Non-members and removed editors are blocked by the existing meeting access/edit checks after route refresh. Viewer behavior is not introduced in UX-3B.

@@ -21,6 +21,14 @@ export interface MeetingItem {
   id: number;
   strategicTopicId?: string;
   text: string;
+  discussionNotes?: RichTextValue;
+  hasDecision?: boolean;
+  decisionText?: string;
+  hasAction?: boolean;
+  actionText?: string;
+  isCovered?: boolean;
+  cascadeNeeded?: boolean;
+  promotedStrategicTopicId?: string;
   capturedDate?: string;
   capturedMeetingId?: number;
   capturedMeetingIndex?: number;
@@ -57,6 +65,8 @@ export interface MeetingSectionConfig {
   updateItem: (itemId: number, value: string) => void;
   deleteItem: (itemId: number) => void;
   updateCompleted?: (itemId: number, completed: boolean) => void;
+  updateAgendaItem?: (itemId: number, updates: Partial<MeetingItem>) => void;
+  promoteAgendaItem?: (item: MeetingItem) => void;
   openHistoryNotes?: (item: MeetingItem) => void;
   archiveItem?: (itemId: number) => void;
   unarchiveItem?: (itemId: number) => void;
@@ -68,6 +78,7 @@ export interface MeetingSectionConfig {
   editPlaceholder: string;
   isReadOnly?: boolean;
   readOnlyMessage?: string;
+  rollupItems?: MeetingItem[];
 }
 
 export interface TaskInput {
