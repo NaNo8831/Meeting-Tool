@@ -1867,11 +1867,13 @@ export default function MeetingWorkspace() {
   };
 
   const handleMeetingSectionDragStart = (id: MeetingSectionKey) => {
+    if (id === "agenda" || id === "decision") return;
     setDraggingMeetingSection(id);
   };
 
   const handleMeetingSectionDrop = (id: MeetingSectionKey) => {
-    if (draggingMeetingSection === null || draggingMeetingSection === id)
+    if (id === "agenda" || id === "decision") return;
+    if (draggingMeetingSection === null || draggingMeetingSection === id || draggingMeetingSection === "agenda" || draggingMeetingSection === "decision")
       return;
     const draggedIndex = meetingSectionOrder.indexOf(draggingMeetingSection);
     const droppedIndex = meetingSectionOrder.indexOf(id);
@@ -2540,6 +2542,7 @@ export default function MeetingWorkspace() {
       editPlaceholder: "Add agenda item",
       isReadOnly: isMeetingNotesReadOnly,
       readOnlyMessage: meetingNotesReadOnlyMessage,
+      isFixed: true,
     },
     topic: {
       id: "topic",
@@ -2599,6 +2602,14 @@ export default function MeetingWorkspace() {
       rollupItems: cascadeRollupItems,
     },
   };
+
+
+  const secondaryMeetingSectionOrder: MeetingSectionKey[] = [
+    ...meetingSectionOrder.filter((sectionKey) => sectionKey === "topic" || sectionKey === "cascade"),
+    ...(["topic", "cascade"] as MeetingSectionKey[]).filter(
+      (sectionKey) => !meetingSectionOrder.includes(sectionKey),
+    ),
+  ];
 
   const getCurrentWorkspaceStorage = useCallback(
     () =>
@@ -5165,16 +5176,41 @@ export default function MeetingWorkspace() {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          {meetingSectionOrder.map((sectionKey) => (
-            <MeetingSection
-              key={sectionKey}
-              section={meetingSections[sectionKey]}
-              onDragStart={handleMeetingSectionDragStart}
-              onDragOver={handleDragOver}
-              onDrop={handleMeetingSectionDrop}
-            />
-          ))}
+        <div className="space-y-6">
+          <MeetingSection
+            section={meetingSections.agenda}
+            onDragStart={handleMeetingSectionDragStart}
+            onDragOver={handleDragOver}
+            onDrop={handleMeetingSectionDrop}
+          />
+
+          <details className="rounded-3xl border border-amber-200 bg-amber-50/70 p-4 shadow-sm">
+            <summary className="cursor-pointer text-sm font-semibold text-amber-900">
+              Decisions / Actions Summary ({decisionActionRollupItems.length})
+            </summary>
+            <div className="mt-3 space-y-2">
+              <p className="text-sm text-amber-800">Read-only summary generated from Agenda Items. Edit decisions and actions on their Agenda Item cards.</p>
+              {decisionActionRollupItems.length > 0 ? (
+                decisionActionRollupItems.map((item) => (
+                  <p key={item.id} className="whitespace-pre-wrap rounded-xl bg-white px-3 py-2 text-sm text-slate-800 shadow-sm">{item.text}</p>
+                ))
+              ) : (
+                <p className="rounded-xl border border-dashed border-amber-300 bg-white/70 px-3 py-3 text-sm text-amber-800">No decisions or actions captured yet.</p>
+              )}
+            </div>
+          </details>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            {secondaryMeetingSectionOrder.map((sectionKey) => (
+              <MeetingSection
+                key={sectionKey}
+                section={meetingSections[sectionKey]}
+                onDragStart={handleMeetingSectionDragStart}
+                onDragOver={handleDragOver}
+                onDrop={handleMeetingSectionDrop}
+              />
+            ))}
+          </div>
         </div>
       </div>
 

@@ -79,6 +79,7 @@ export interface MeetingSectionConfig {
   isReadOnly?: boolean;
   readOnlyMessage?: string;
   rollupItems?: MeetingItem[];
+  isFixed?: boolean;
 }
 
 export interface TaskInput {

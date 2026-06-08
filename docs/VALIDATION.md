@@ -446,3 +446,24 @@ Recommended validation for UX-3B:
 - Editor repeats Agenda edits, outcome edits, Covered/Cascade changes, and promotion. Owner refresh should see the editor's changes when existing meeting edit permissions allow the write.
 - Non-member and removed editor access should be blocked by existing Cloud Meeting route and RLS protections.
 - Regression checks should cover Strategic Topics autosave, Topic Notes autosave, Meeting Notes autosave, Cascading Communications editable notes, Objectives, Tasks, SOOs, Manual Save, Local Mode, and shared access.
+## Agenda Workspace Layout + Agenda Item UX Polish Validation
+
+Recommended validation for this UX refinement PR:
+
+Owner:
+
+- Create an Agenda Item, edit the title, open Notes, double-click to edit Discussion Notes inline, add a Decision, add an Action, add Decision + Action together, mark Covered, confirm the card collapses, expand it again, uncheck Covered, mark Cascade Needed, promote to Strategic Topic, refresh, and verify from a private window.
+- Confirm the full-width Agenda Items section remains first, Strategic Topics appears before Cascading Communication on mobile/default ordering, and Agenda Items cannot be dragged as a workspace section.
+- Confirm the collapsed Decisions / Actions Summary is read-only and only expands when requested.
+
+Editor:
+
+- Edit an Agenda Item, edit Discussion Notes inline, mark Covered, and promote to Strategic Topic where existing permissions allow it. Confirm the owner sees changes after refresh/load.
+
+Regression:
+
+- Confirm Agenda Items autosave, Strategic Topics autosave, Topic Notes autosave, Meeting Notes autosave, Cascading Communications autosave, Objectives autosave, Tasks autosave, SOOs autosave, Manual Save, export/import, shared access, and Local Mode behavior remain unchanged.
+
+Implementation boundaries:
+
+- This PR is UX-only. It should not include database architecture, autosave architecture, backup architecture, permissions architecture, shared access architecture, schema, migration, RLS, Manual Save, or Local Mode changes.

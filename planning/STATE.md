@@ -7,9 +7,16 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings`, structured Strategic Topics, Topic Notes, topic ordering, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, and Standard Operating Objectives after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current focus: **Agenda Item UX Polish Review** is a docs/planning-only review against `phase-3-shared-access` to classify post-PR #102 Agenda Item card friction, covered-state behavior, editing patterns, Strategic Topic consistency, rollup noise, and before-main polish priorities.
-- Current branch note: `ux-agenda-item-polish-review` must not change app code, UI behavior, migrations, RLS, persistence, autosave, Manual Save, Local Mode, permissions, or runtime behavior.
+- Current focus: **Agenda Workspace Layout + Agenda Item UX Polish Implementation** on `ux-agenda-workspace-polish` against `phase-3-shared-access`.
+- Current branch note: this UX refinement updates meeting workspace layout, Agenda Item card presentation, inline discussion-notes editing, covered-card collapse behavior, read-only Decisions/Actions summary visibility, and promotion feedback without changing persistence, autosave, schema, Manual Save, backup/import, permissions, RLS, shared access, or Local Mode behavior.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
+
+## Agenda Workspace Layout + Agenda Item UX Polish Implementation
+
+- Implemented the approved meeting workspace hierarchy: full-width Agenda Items first, then Strategic Topics and Cascading Communication as secondary follow-up sections beneath. Agenda Items are fixed and no longer draggable by users; Strategic Topics and Cascading Communication remain ordered within the secondary area when existing section order supports it.
+- Polished Agenda Item cards with left-leading Notes controls, compact status badges, clearer Decision versus Action outcome panels, covered-card auto-collapse, read-first inline Discussion Notes editing on double-click, and promoted-to-Strategic-Topic feedback that disables duplicate promotion.
+- Replaced the always-visible Decisions/Actions rollup with a collapsed-by-default read-only summary so live meeting space stays focused on Agenda Items while preserving outcome visibility.
+- Intentionally did not change database architecture, autosave architecture, backup/import behavior, Manual Save behavior, permissions, shared access, schema, migrations, RLS, or Local Mode behavior.
 
 ## Agenda Item UX Polish Review
 
