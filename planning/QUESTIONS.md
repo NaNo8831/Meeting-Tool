@@ -144,3 +144,13 @@
 - For UX-3A, should Agenda Item become the parent object for notes, Decision/Action outcome, completed state, cascade marker, and promote-to-Strategic-Topic conversion?
 - After Decisions/Actions is removed or replaced, should Cascading Communications remain a separate section, become an agenda-outcome rollup, or display only outcomes marked for cascade?
 - Should UX-3B happen before main only if final validation finds Agenda/Decision capture blocking, or remain post-main by default with Manual Save covering the current separate Agenda and Decisions/Actions lists?
+
+
+## UX-3A Agenda / Decision Architecture Review Questions
+
+- Resolved recommendation: Agenda Item should become the parent object for discussion notes, one primary Decision/Action outcome selector, covered/completed state, cascade-needed marker, and promote-to-Strategic-Topic action.
+- Resolved recommendation: Agenda actions should not include due dates; ownership, due dates, status, and task tracking belong in Defining Objectives / Tasks.
+- Resolved recommendation: the separate Decisions/Actions capture section should eventually be replaced by a read-only rollup/summary from Agenda Item outcomes, with legacy `decisionItems` preserved during transition.
+- Open for implementation: should Agenda discussion notes be stored directly on `agenda_items`, or should implementation use a one-to-one `agenda_item_notes` table if independent save status/history is needed?
+- Open for implementation: does Promote to Strategic Topic need a transactional RPC across `agenda_items`, `strategic_topics`, and `strategic_topic_notes`, or are client-side sequential writes acceptable for the first PR?
+- Open for post-main: do teams need multiple outcomes per Agenda Item or optional standalone decision/action entries, or is one primary Agenda Item outcome enough?

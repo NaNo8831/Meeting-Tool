@@ -426,3 +426,14 @@ Regression:
 - Confirm Cascading Communications autosave still works.
 - Confirm Local Mode remains browser-only.
 - Confirm Manual Save remains the full workspace backup.
+
+## UX-3A Future Agenda / Decision Implementation Validation Plan
+
+UX-3A is documentation-only; validation for this PR is limited to confirming the diff is planning/docs only with no app code, migrations, RLS, persistence, Manual Save, Local Mode, or runtime behavior changes.
+
+When the future Agenda/Decision implementation PR is created, validate:
+
+- Owner can create an agenda item, edit title, add discussion notes, choose Decision outcome, choose Action outcome without any due date field, mark covered/completed, mark cascade-needed, promote to Strategic Topic, refresh, verify from a private window, and verify Manual Save/export/import compatibility.
+- Editor can edit agenda item title, edit notes, choose/change outcome, mark cascade-needed, promote if allowed by the implementation, and owner refresh sees changes under Last Save Wins.
+- Non-members, pending invitees, and removed editors cannot read or write agenda rows; removed editors lose access after refresh/reload.
+- Regression coverage includes Strategic Topics autosave, Topic Notes autosave, Meeting Notes autosave, Cascading Communications behavior, Manual Save, Local Mode, backup/export/import, and legacy Decisions/Actions compatibility during transition.

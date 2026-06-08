@@ -278,3 +278,13 @@ This review does not change runtime behavior. It records the target architecture
 - `meeting_settings` remains the settings/playbook table and should not absorb DOs, Tasks, or SOOs.
 - `meeting_notes` remains the dated Meeting Notes / Cascading Communications table and should not absorb DOs, Tasks, or SOOs.
 - Manual Save remains the full workspace backup/export safety net during and after this implementation slice.
+
+## UX-3A Agenda / Decision Architecture Recommendation
+
+UX-3A is a documentation-only architecture recommendation and does not change runtime behavior.
+
+Agenda Items should become the parent object for meeting discussion and outcomes. The recommended before-main implementation is a scoped structured autosave slice for Agenda Items with discussion notes, one primary Decision/Action outcome selector, covered/completed state, cascade-needed marker, and Promote to Strategic Topic linkage. Agenda Actions should remain meeting-level captured outcomes, not task-management records with due dates, owners, or status.
+
+The current separate editable Decisions/Actions section should not remain a competing capture surface. The safer transition is to keep compatibility for legacy `decisionItems`, introduce the Agenda Item outcome model first, then convert Decisions/Actions to a read-only rollup/summary from agenda outcomes before eventual removal.
+
+Cascading Communications should remain a separate meeting ritual during the transition, but its default source should become agenda outcomes marked cascade-needed plus an editable communication-ready notes area. Manual Save, Local Mode, export/import, and `meetings.meeting_data` backup compatibility must remain intact.
