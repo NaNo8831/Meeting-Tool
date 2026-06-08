@@ -170,3 +170,13 @@
 - Resolved recommendation: Option A is the preferred future desktop layout: Agenda Items full width, with Strategic Topics and Cascading Communication side-by-side beneath where screen width allows.
 - Open for implementation: where should the read-only Decisions / Actions summary live if it remains visible: inside the Agenda workspace, directly below Agenda Items, or below the secondary follow-up surfaces?
 - Open for implementation: how should existing persisted `meetingSectionOrder` values be normalized so older workspaces cannot place Agenda Items below secondary sections?
+
+## Agenda Item UX Polish Review Questions
+
+- Resolved recommendation: Agenda Item Notes should move to a stable left-side or left-leading card position aligned with the Strategic Topic note-control pattern.
+- Resolved recommendation: covered Agenda Items should collapse to title-only by default, remain re-expandable, and preserve covered state until explicitly unchecked.
+- Resolved recommendation: the always-visible Decisions/Actions rollup should not remain the default long-term pattern because it duplicates Agenda Item outcomes and adds live-workspace noise.
+- Open for implementation: should the optional Decisions/Actions summary be collapsed by default inside Agenda Items, moved to End Meeting, or omitted entirely from the live workspace?
+- Open for implementation: should covered collapsed cards keep `Cascade Needed` and `Promoted` chips visible next to the title?
+- Open for implementation: should rich-text Discussion Notes use a new accessible read/edit wrapper for double-click editing, or reuse an existing editing component pattern?
+- Open for implementation: should legacy standalone `decisionItems` be hidden but preserved, shown in a collapsed legacy drawer, or only remain available through backup/import data after the live rollup is removed?
