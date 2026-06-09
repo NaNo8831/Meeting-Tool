@@ -991,6 +991,37 @@ const readLegacyMeetingItems = (key: string): MeetingItem[] => {
   }
 };
 
+
+const getPreferredActiveMeetingId = (
+  meetingRecords: MeetingRecord[],
+  endedMeetingIds: Set<number>,
+  fallbackMeetingId: number,
+  todayDate = getTodayDate(),
+): number => {
+  const sortedNewestFirst = [...meetingRecords].sort(
+    (firstMeeting, secondMeeting) =>
+      secondMeeting.date.localeCompare(firstMeeting.date) ||
+      secondMeeting.id - firstMeeting.id,
+  );
+  const realMeetingsNewestFirst = sortedNewestFirst.filter(
+    (meeting) => meeting.isTestMeeting !== true,
+  );
+  const currentOpenMeeting = realMeetingsNewestFirst.find(
+    (meeting) =>
+      meeting.date === todayDate && !endedMeetingIds.has(meeting.id),
+  );
+  const mostRecentDatedMeeting =
+    realMeetingsNewestFirst.find((meeting) => meeting.date <= todayDate) ??
+    realMeetingsNewestFirst[0];
+
+  return (
+    currentOpenMeeting?.id ??
+    mostRecentDatedMeeting?.id ??
+    sortedNewestFirst[0]?.id ??
+    fallbackMeetingId
+  );
+};
+
 const getInitialMeetings = (): MeetingRecord[] => [createBlankMeeting()];
 
 const getLegacyMeeting = (): MeetingRecord => ({
@@ -1403,8 +1434,10 @@ export default function MeetingWorkspace() {
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showAutosaveStatusDetail, setShowAutosaveStatusDetail] =
     useState(false);
+  const [showLifecycleHelp, setShowLifecycleHelp] = useState(false);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
   const autosaveStatusDetailRef = useRef<HTMLDivElement>(null);
+  const lifecycleHelpRef = useRef<HTMLDivElement>(null);
   const meetingNotesRef = useRef<HTMLDivElement>(null);
   const [showMeetingSetup, setShowMeetingSetup] = useState(false);
   const [showPlaybookDefinitions, setShowPlaybookDefinitions] = useState(false);
@@ -1551,11 +1584,43 @@ export default function MeetingWorkspace() {
     isActiveMeetingHistorical ||
     (!isViewingTodayMeeting && !isViewingEditableTestMeeting);
   const meetingNotesReadOnlyMessage = isActiveMeetingHistorical
-    ? "Ended meeting notes are read-only."
-    : "Past meeting notes are read-only.";
+    ? "This meeting has been ended and captured in Tactical History. Dated meeting notes are read-only."
+    : "This is not the current meeting date. Dated meeting notes are read-only unless this is an enabled Test Mode record.";
+  const lifecycleStatusLabel = isActiveMeetingHistorical
+    ? "Closed Meeting"
+    : isViewingEditableTestMeeting
+      ? "Test Mode"
+      : isViewingTodayMeeting
+        ? "Open Meeting"
+        : "Past Meeting";
+  const lifecycleStatusDescription = isActiveMeetingHistorical
+    ? "Past meeting record. Review-only unless reopened through an approved workflow."
+    : isViewingEditableTestMeeting
+      ? "Test meeting. Safe for practice and validation."
+      : isViewingTodayMeeting
+        ? "Current meeting record."
+        : "Past meeting record. Review-only unless reopened through an approved workflow.";
+  const lifecycleStatusClassName = isActiveMeetingHistorical
+    ? "border-slate-300 bg-slate-50 text-slate-700"
+    : isViewingEditableTestMeeting
+      ? "border-amber-200 bg-amber-50 text-amber-900"
+      : isViewingTodayMeeting
+        ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+        : "border-slate-200 bg-white text-slate-700";
   const isActionDateMeetingHistorical = actionDateMeeting
     ? historicalMeetingIds.has(actionDateMeeting.id)
     : false;
+  const meetingActionHelpText = !actionDateMeeting
+    ? isTestingDateOverrideActive
+      ? "Start creates a test dated meeting for the selected Test Mode date."
+      : "Start creates today’s current meeting record."
+    : isActionDateMeetingHistorical
+      ? "View opens the ended dated record as read-only; Tactical History keeps the captured snapshot."
+      : isTestingDateOverrideActive
+        ? "Edit opens the existing test dated meeting while Test Mode is enabled."
+        : "Edit opens today’s current meeting record for continued work.";
+  const isActionDateDifferentFromActiveMeeting =
+    actionDateMeeting !== undefined && actionDateMeeting.id !== activeMeeting.id;
   const meetingActionLabel = !actionDateMeeting
     ? "Start Meeting"
     : isActionDateMeetingHistorical
@@ -1778,6 +1843,24 @@ export default function MeetingWorkspace() {
       document.removeEventListener("pointerdown", handleOutsidePointerDown);
     };
   }, [showAutosaveStatusDetail]);
+
+  useEffect(() => {
+    if (!showLifecycleHelp) return;
+
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      const panelElement = lifecycleHelpRef.current;
+      if (!panelElement || !(event.target instanceof Node)) return;
+      if (panelElement.contains(event.target)) return;
+
+      setShowLifecycleHelp(false);
+    };
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    };
+  }, [showLifecycleHelp]);
 
   useEffect(() => {
     if (workspaceMode === "cloud" || !hasLoadedMeetings) return;
@@ -2762,26 +2845,23 @@ export default function MeetingWorkspace() {
   );
 
   const applyWorkspaceBackupToState = useCallback(
-    (backup: WorkspaceBackupFile) => {
+    (backup: WorkspaceBackupFile, endedMeetingIds = new Set<number>()) => {
       const nextMeetings = readBackupEntry(
         backup,
         "leadership-meetings",
         initialMeetings,
       );
-      const fallbackActiveMeetingId =
-        nextMeetings[0]?.id ?? initialMeetings[0].id;
+      const fallbackActiveMeetingId = getPreferredActiveMeetingId(
+        nextMeetings,
+        endedMeetingIds,
+        initialMeetings[0].id,
+      );
 
       replaceObjectives(
         readBackupEntry(backup, "leadership-objectives", objectives),
       );
       setMeetings(nextMeetings);
-      setActiveMeetingId(
-        readBackupEntry(
-          backup,
-          "leadership-active-meeting-id",
-          fallbackActiveMeetingId,
-        ),
-      );
+      setActiveMeetingId(fallbackActiveMeetingId);
       setDashboardTitle(
         readBackupEntry(
           backup,
@@ -3179,14 +3259,22 @@ export default function MeetingWorkspace() {
   );
 
   const applyMeetingNotesToState = useCallback(
-    (notes: SupabaseMeetingNote[]) => {
+    (notes: SupabaseMeetingNote[], endedMeetingIds = new Set<number>()) => {
       if (notes.length === 0) return;
 
-      setMeetings((currentMeetings) =>
-        mergeStructuredMeetingNotes(currentMeetings, notes),
-      );
+      setMeetings((currentMeetings) => {
+        const nextMeetings = mergeStructuredMeetingNotes(currentMeetings, notes);
+        setActiveMeetingId(
+          getPreferredActiveMeetingId(
+            nextMeetings,
+            endedMeetingIds,
+            initialMeetings[0].id,
+          ),
+        );
+        return nextMeetings;
+      });
     },
-    [setMeetings],
+    [initialMeetings, setActiveMeetingId, setMeetings],
   );
 
   const applyAgendaItemsToState = useCallback(
@@ -3273,6 +3361,7 @@ export default function MeetingWorkspace() {
         objectiveRows,
         taskRows,
         sooRows,
+        loadedTacticalSessions,
       ] = await Promise.all([
         supabaseMeetingClient.loadWorkspaceData({
           accessToken: authSession.accessToken,
@@ -3306,12 +3395,33 @@ export default function MeetingWorkspace() {
           accessToken: authSession.accessToken,
           workspaceId: selectedMeetingId,
         }),
+        supabaseMeetingClient.listTacticalSessions({
+          accessToken: authSession.accessToken,
+          workspaceId: selectedMeetingId,
+        }),
       ]);
+
+      const loadedEndedMeetingIds = new Set(
+        loadedTacticalSessions
+          .map(getCapturedMeetingId)
+          .filter((meetingId): meetingId is number =>
+            typeof meetingId === "number",
+          ),
+      );
+      setTacticalSessions(loadedTacticalSessions);
+      const latestTacticalSessions = sortTacticalSessionsNewestFirst(
+        loadedTacticalSessions,
+      ).slice(0, 5);
+      setSelectedTacticalSessionId((current) =>
+        latestTacticalSessions.some((session) => session.id === current)
+          ? current
+          : latestTacticalSessions[0]?.id || "",
+      );
 
       if (!cloudData) {
         applyMeetingSettingsToState(meetingSettings);
         applyStrategicTopicsToState(strategicTopics);
-        applyMeetingNotesToState(meetingNotes);
+        applyMeetingNotesToState(meetingNotes, loadedEndedMeetingIds);
         applyAgendaItemsToState(agendaItems);
         applyObjectivesToState(objectiveRows, taskRows);
         applyStandardOperatingObjectivesToState(sooRows);
@@ -3335,10 +3445,10 @@ export default function MeetingWorkspace() {
       const signature = getWorkspaceStorageSignature(backup.localStorage);
       storeWorkspaceBackupInBrowser(backup, selectedMeetingId);
       setActiveCloudWorkspaceId(selectedMeetingId);
-      applyWorkspaceBackupToState(backup);
+      applyWorkspaceBackupToState(backup, loadedEndedMeetingIds);
       applyMeetingSettingsToState(meetingSettings);
       applyStrategicTopicsToState(strategicTopics);
-      applyMeetingNotesToState(meetingNotes);
+      applyMeetingNotesToState(meetingNotes, loadedEndedMeetingIds);
       applyAgendaItemsToState(agendaItems);
       applyObjectivesToState(objectiveRows, taskRows);
       applyStandardOperatingObjectivesToState(sooRows);
@@ -3496,7 +3606,7 @@ export default function MeetingWorkspace() {
       setSelectedTacticalSessionId(created.id);
       setShowEndMeetingConfirm(false);
       setCloudMeetingMessage(
-        "Tactical session history snapshot saved. Current meeting workspace remains active.",
+        "Tactical History snapshot saved. This dated meeting is now read-only; autosave and Manual Save behavior are unchanged.",
       );
     } catch (error) {
       setCloudMeetingMessage(
@@ -4632,6 +4742,46 @@ export default function MeetingWorkspace() {
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between lg:flex-1 lg:justify-end lg:gap-3">
+              <div
+                ref={lifecycleHelpRef}
+                className="relative flex min-w-0 flex-wrap items-center gap-2 text-xs"
+              >
+                <span
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 font-semibold ${lifecycleStatusClassName}`}
+                  title={lifecycleStatusDescription}
+                  aria-label={`${lifecycleStatusLabel}: ${lifecycleStatusDescription}`}
+                >
+                  {lifecycleStatusLabel}
+                  <span className="font-medium opacity-80">{activeMeeting.date}</span>
+                </span>
+                {isActionDateDifferentFromActiveMeeting ? (
+                  <span
+                    className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 font-medium text-slate-500"
+                    title={meetingActionHelpText}
+                  >
+                    Action date: {meetingActionDate}
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setShowLifecycleHelp((isOpen) => !isOpen)}
+                  onFocus={() => setShowLifecycleHelp(true)}
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white font-bold text-slate-500 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  title={`${lifecycleStatusDescription} ${meetingActionHelpText}`}
+                  aria-label="Meeting lifecycle help"
+                  aria-expanded={showLifecycleHelp}
+                >
+                  ?
+                </button>
+                {showLifecycleHelp ? (
+                  <div className="absolute right-0 top-full z-40 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-3 text-xs font-medium leading-relaxed text-slate-700 shadow-xl">
+                    <p className="font-semibold text-slate-900">
+                      {lifecycleStatusDescription}
+                    </p>
+                    <p className="mt-1">{meetingActionHelpText}</p>
+                  </div>
+                ) : null}
+              </div>
               {isCurrentCloudRouteWorkspace ? (
                 <div
                   ref={autosaveStatusDetailRef}
@@ -4747,6 +4897,7 @@ export default function MeetingWorkspace() {
                   type="button"
                   onClick={handleMeetingAction}
                   disabled={!hasMeetingActionDate}
+                  title={meetingActionHelpText}
                   className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {meetingActionLabel}
@@ -4761,12 +4912,16 @@ export default function MeetingWorkspace() {
                     !isCurrentCloudRouteWorkspace ||
                     !canEndMeeting
                   }
+                  title="End Meeting captures a Tactical History snapshot and closes this dated record for editing."
                   className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isEndingMeeting ? "Ending…" : "End Meeting"}
                 </button>
                 {testingToolsEnabled ? (
-                  <label className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+                  <label
+                    className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800"
+                    title="Test meeting. Safe for practice and validation."
+                  >
                     <input
                       type="checkbox"
                       checked={isTestingModeActive}
@@ -5171,7 +5326,7 @@ export default function MeetingWorkspace() {
               }`}
               aria-hidden={!isMeetingNotesReadOnly}
             >
-              Past meeting notes are read-only.
+              {meetingNotesReadOnlyMessage}
             </p>
           </div>
         </div>
@@ -5297,7 +5452,7 @@ export default function MeetingWorkspace() {
             </div>
             <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-600">
               <p>
-                This creates a historical Tactical History snapshot for the current cloud meeting.
+                This creates a historical Tactical History snapshot for the current cloud meeting and closes this dated meeting for editing.
               </p>
               {activeMeeting.isTestMeeting ? (
                 <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 font-semibold text-amber-900">
@@ -5307,9 +5462,10 @@ export default function MeetingWorkspace() {
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-emerald-950">
                 <p className="font-semibold">What stays unchanged</p>
                 <ul className="mt-2 list-disc space-y-1 pl-5">
-                  <li>Your current meeting workspace remains active.</li>
-                  <li>Dashboard, autosave, and manual save behavior are unchanged.</li>
-                  <li>No meeting data is reset or rewritten by this action.</li>
+                  <li>The active workspace remains available for review after the snapshot.</li>
+                  <li>Dated meeting notes, agenda, decisions, and cascading communications become read-only after End Meeting and refresh.</li>
+                  <li>Dashboard, autosave, and Manual Save behavior are unchanged; use Manual Save when you need a full-workspace backup.</li>
+                  <li>No meeting data is reset, advanced, or rewritten by this action.</li>
                 </ul>
               </div>
             </div>
@@ -5319,7 +5475,7 @@ export default function MeetingWorkspace() {
                 onClick={() => setShowEndMeetingConfirm(false)}
                 className="rounded-xl border border-slate-300 px-5 py-2 font-semibold text-slate-700 hover:bg-slate-50"
               >
-                Keep Meeting Open
+                Keep Editing
               </button>
               <button
                 type="button"

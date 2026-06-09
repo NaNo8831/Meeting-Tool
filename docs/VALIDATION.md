@@ -117,7 +117,6 @@ Manual validation:
 - Confirm legacy users with no first/last name fall back to email, then `Owner` if no display data is available.
 - Confirm direct profile editing is limited to the signed-in user's own row.
 
-
 ## PR 3B invite flow validation plan
 
 Manual validation for the invite implementation PR should cover:
@@ -290,7 +289,6 @@ Recommended validation for the next implementation PRs:
 - Import/restore still applies only to the current browser view until Manual Save writes the backup to `meetings.meeting_data`.
 - Direct REST/RPC negative tests continue to confirm editors cannot mutate owner-only meeting container/lifecycle fields.
 
-
 ## Phase 4 PR 4B Strategic Topics Autosave Review Validation
 
 This PR is documentation/review only.
@@ -310,7 +308,6 @@ Recommended validation for a future implementation PR:
 - Non-member and pending invitee cannot access topic/note rows; removed editor loses access after refresh/reload.
 - Manual Save still backs up the full workspace, and Local Mode remains browser-only.
 
-
 ## Phase 4 PR 4B Strategic Topics Autosave Validation
 
 Automated validation:
@@ -326,7 +323,6 @@ Manual validation:
 - Non-member cannot access topic or note rows; a removed editor loses topic/note access after refresh/reload.
 - Manual Save, export, import, workspace backup restore, Local Mode, and existing meetings backed only by `meeting_data` still load.
 - Last Save Wins remains expected for concurrent edits; do not validate realtime merge behavior because it is intentionally deferred.
-
 
 ## PR 4B Follow-up Strategic Topic Notes Backup Validation
 
@@ -468,7 +464,6 @@ Implementation boundaries:
 
 - This PR is UX-only. It should not include database architecture, autosave architecture, backup architecture, permissions architecture, shared access architecture, schema, migration, RLS, Manual Save, or Local Mode changes.
 
-
 ## Meeting State Review Validation Plan
 
 This review is documentation/planning-only. Validation for this PR is limited to confirming the diff is docs/planning only and that no app code, migrations, RLS, auth, persistence, UI, or runtime behavior changed.
@@ -483,3 +478,50 @@ Recommended before-main validation for the next lifecycle UX/state PR:
 - Manual Save before/after End Meeting behaves as documented: End Meeting captures Tactical History, while Manual Save remains the full-workspace backup refresh.
 - Local Mode Start/Edit/View behavior remains browser-only and cloud-only lifecycle actions are not presented as available.
 
+## Meeting State Follow-up Implementation Validation
+
+This implementation covers only the Meeting State Review items classified as Required Before Main. It clarifies lifecycle state, refresh expectations, Test Mode purpose, and End Meeting save expectations without adding schema, roles, permissions, persistence architecture, Forgot Password, or documentation-refresh scope.
+
+Owner validation:
+
+- Create a Cloud Meeting, start today's meeting, edit Agenda Items, Strategic Topics, Topic Notes, Meeting Notes, Cascading Communications, Objectives, Tasks, and SOOs where applicable, refresh, and confirm the sticky lifecycle banner shows an editable Open current meeting state.
+- End the meeting, refresh, and confirm the dated meeting shows Closed meeting/read-only copy, Agenda/Meeting Notes/Cascading Communications are blocked from editing, and Tactical History shows the captured session.
+- Confirm End Meeting copy explains that Tactical History is captured, Manual Save/autosave behavior is unchanged, and no dated meeting is advanced, reset, or rewritten.
+
+Editor validation:
+
+- Open a shared meeting as an active editor, refresh, and confirm the same Open/Past/Closed/Test Mode lifecycle state rules apply while allowed content editing still works for editable current meetings.
+- Confirm lifecycle clarification does not grant owner-only meeting container controls, access management, archive/restore/delete, or new roles/permissions.
+
+Security validation:
+
+- Removed editor is blocked after refresh/reload and cannot continue editing an open, closed, or test meeting route.
+- Non-member is blocked from opening the meeting route and cannot use lifecycle state to bypass access.
+
+Regression validation:
+
+- Agenda autosave remains intact.
+- Strategic Topics autosave remains intact.
+- Topic Notes autosave remains intact.
+- Meeting Notes autosave remains intact.
+- Cascading Communications autosave remains intact.
+- Objectives autosave remains intact.
+- Tasks autosave remains intact.
+- SOOs autosave remains intact.
+- Manual Save remains the full-workspace backup action.
+- Backup/import remains available.
+- Shared Access owner/editor behavior remains unchanged.
+- Local Mode remains browser-only and does not expose cloud-only End Meeting persistence.
+
+## PR #109 Follow-up Fixes Validation
+
+Scope: manual-testing follow-up only. This PR compacts the lifecycle header, fixes Cloud Meeting load/refresh dated-record selection, and removes inaccurate refresh wording. It does not change Manual Save, Backup/Restore, schema, RLS, persistence architecture, auth, roles, permissions, or shared-access rules.
+
+Required validation:
+
+- Start a meeting, refresh/open the Cloud Meeting route, and confirm the current open meeting record is selected and editing still works where the user has access.
+- End the meeting, refresh/open the Cloud Meeting route, and confirm the newest ended dated record is selected rather than the oldest record.
+- Create several dated meeting records, refresh/open the Cloud Meeting route, and confirm selection priority is current/open first, newest real dated historical record second, and legacy/default only when no dated records exist.
+- Check the sticky header at narrow width and confirm lifecycle state remains visible as a compact chip without a persistent explanatory panel.
+- Hover, focus, or click the lifecycle help control and relevant sticky-header controls to confirm explanatory lifecycle help is available without expanding the header layout.
+- Confirm Manual Save remains present and Backup/Restore behavior is unchanged.

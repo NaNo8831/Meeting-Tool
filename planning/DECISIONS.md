@@ -83,7 +83,6 @@
 - Owners and active editors may continue writing `meetings.meeting_data` through Manual Save while structured autosave is incomplete; this is an accepted temporary Team Beta safety net with Last Save Wins risk.
 - Strategic Topic notes require schema reconciliation before they are treated as a reliable structured autosave foundation because the reviewed repo migrations do not create `strategic_topic_notes`.
 
-
 ## Phase 4 PR 4B Strategic Topics Autosave Scope Recommendation
 
 - Recommended first Strategic Topic autosave implementation scope is Strategic Topics + Topic Notes + Ordering, not topics-only, and only after repository schema reconciliation for the topic-notes table.
@@ -91,14 +90,12 @@
 - Continue Last Save Wins for PR 4B structured topic/note writes; realtime merge, presence, and richer conflict handling remain deferred.
 - Preserve Manual Save, Local Mode, export/import backup, and `meetings.meeting_data` fallback through a dual-write/read-migration period.
 
-
 ## Phase 4 PR 4B Strategic Topics Autosave Decisions
 
 - `public.strategic_topics` is the structured autosave source of truth for cloud Strategic Topic list data, including title/text, lifecycle status, completed/archive timestamps, captured/removed meeting context, and ordering via `sort_order`.
 - `public.strategic_topic_notes` is the durable Topic Notes table. It is meeting-scoped, links to structured topics through nullable `strategic_topic_id`, keeps legacy `strategic_topic_item_id` for compatibility, and stores rich text JSON plus plain text.
 - Manual Save to `meetings.meeting_data`, Local Mode, export/import, and backup restore remain intact during this transition; structured Strategic Topics overlay the backup only when rows exist.
 - Last Save Wins remains the concurrency model for Strategic Topics and Topic Notes; realtime merge/conflict resolution remains deferred.
-
 
 ## PR 4B Follow-up Strategic Topic Notes Backup Decision
 
@@ -112,7 +109,6 @@
 - `tactical_sessions`, `tactical_items`, `strategic_sessions`, and `strategic_session_notes` remain archival/session-history tables and should not be reused for mutable active autosave.
 - Manual Save/export/import compatibility must remain intact through `leadership-meetings`, `leadership-active-meeting-id`, and `meetings.meeting_data` while structured autosave expands.
 - Last Save Wins remains the conflict model; realtime, merge, presence, and locking stay deferred.
-
 
 ## Phase 4 PR 4D Objectives / Tasks / SOOs Autosave Review Decisions
 
@@ -131,7 +127,6 @@
 - Hydrate Cloud Meetings from `meetings.meeting_data` first and overlay structured PR 4D rows only when they exist, so old meetings continue loading without migration.
 - Keep active members readable and owner/active-editor writable via `user_can_access_meeting` and `user_can_edit_meeting`; keep Viewer UX, ownership transfer, realtime, merge UI, locking, and Local Mode changes deferred.
 
-
 ## UX-3A Agenda / Decision Architecture Review Recommendations
 
 - Recommended future model: Agenda Items become the first-class parent for meeting discussion notes and captured outcomes, with one primary outcome selector (`Decision` or `Action`) per item for the before-main implementation.
@@ -144,3 +139,10 @@
 - Agenda Items may contain Decision only, Action only, both Decision and Action, or neither. UX-3B must not use a mutually exclusive outcome selector.
 - Agenda Items are the primary discussion/outcome container for title, discussion notes, independent decision/action outcomes, covered state, cascade-needed state, and promote-to-Strategic-Topic linkage.
 - Decisions/Actions is a read-only rollup from Agenda Item outcomes during the compatibility transition; legacy `decisionItems` remain readable and backed up but are not the new edit surface.
+
+## Meeting State Follow-up Decisions
+
+- Before main, Meeting Tool keeps the existing inferred meeting lifecycle model: today's dated meeting is editable, Tactical History-captured dated meetings are closed/read-only, past real dated meetings are review-only, and Test Mode only enables explicitly test-dated records in preview/development environments.
+- Meeting lifecycle follow-up should clarify UX/copy and validation without adding a new schema-backed open/closed field, new roles, new permissions, or a reopen/continue workflow.
+- Cloud Meeting load/refresh should select the current open dated meeting first, then the newest real dated meeting, and should not restore the oldest meeting or rely on stale legacy active pointers when dated records exist.
+- End Meeting remains a Tactical History snapshot action. It does not advance the active dated meeting, reset workspace data, or replace Manual Save as the full-workspace backup refresh.

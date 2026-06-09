@@ -12,6 +12,13 @@
 - Current branch note: `transition-review-claude-handoff` is documentation-only and creates a Claude Code handoff package plus project history, README refresh, and before-main roadmap clarification. It does not change runtime behavior, schema, RLS, auth, persistence, or UI.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
 
+## Meeting State Follow-up Implementation
+
+- Implemented the required before-main Meeting State Review follow-up as focused lifecycle UX/copy clarification rather than a schema, permissions, persistence, or reopen-workflow change.
+- The Meeting Workspace now surfaces the active dated record state as a compact Open Meeting, Closed Meeting, Past Meeting, or Test Mode chip in the sticky header, with explanatory help available from the adjacent help control instead of a persistent header panel.
+- Cloud Meeting load/refresh now prefers the current open dated record when one exists, then the newest real dated record, instead of defaulting to the oldest record or the stored legacy active pointer.
+- End Meeting copy now clarifies that the action captures Tactical History, makes the dated meeting read-only, leaves autosave/Manual Save behavior unchanged, and does not advance, reset, or rewrite the workspace.
+- Remaining meeting-state questions stay deferred: whether a future Continue/Reopen action is needed and whether End Meeting should optionally trigger a full Manual Save backup.
 
 ## Meeting State Review
 
@@ -190,7 +197,6 @@
 - Fixed the PR 3B create-meeting RLS regression by moving dashboard/selector meeting creation from direct `meetings` REST insert to `create_owned_meeting(meeting_name)`, which creates only meetings owned by the signed-in user and preserves owner membership setup through the existing trigger.
 - Cleaned up dashboard invite UX so the Pending Invitations section is hidden for normal dashboards with zero pending invites and appears only while loading or when matching pending invitations exist.
 
-
 ## Phase 3 PR 3C Member Management Architecture Review
 
 - Added a docs-only review at `planning/reviews/phase-3-member-management-review.md`.
@@ -246,7 +252,6 @@
 - Agenda Items and Decisions/Actions remain pass-through compatibility JSON inside `notes_json` because they currently live in the same `MeetingRecord`; their first-class structured schema and workflow redesign remain deferred.
 - Autosave status summaries now explicitly show Settings, Strategic Topics, and Meeting Notes/Cascading Communications statuses in cloud status clusters without adding a sticky header redesign.
 - Before `main`, Defining Objectives, Tasks, and SOOs remain the next required autosave dependencies for PR 4D.
-
 
 ## Phase 4 PR 4D Objectives / Tasks / SOOs Autosave Review Notes
 
