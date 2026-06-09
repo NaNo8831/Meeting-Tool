@@ -3,7 +3,7 @@
 ## Remaining Open Questions Before Main
 
 - **Meeting State Review:** Required before-main UX/copy clarification is implemented; refresh/open selection now prefers the current open record, then the newest real dated record. Remaining open decisions are limited to optional behavior changes such as Continue/Reopen and End Meeting full-backup prompting.
-- **Forgot Password:** What exact Supabase password-reset redirect URL and production/preview email template behavior should be validated before main?
+- **Forgot Password:** Implemented with an environment-aware `/reset-password` redirect. Remaining validation is environment setup: production Supabase Auth Site URL and Redirect URLs must be configured in the Supabase dashboard before main.
 - **Documentation Refresh:** Which user-facing docs need to be added or refreshed beyond README and architecture docs so the main release accurately explains Shared Access, structured autosave, Manual Save, Local Mode, and Backup/Restore?
 - **Main Readiness Review:** What is the final acceptance checklist for Vercel preview + Supabase validation before merging `phase-3-shared-access` to `main`?
 - **Local Mode:** Should Local Mode be labeled as a browser-only fallback before main, remain as-is until after main, or be hidden/demoted only after cloud readiness is confirmed?
@@ -11,22 +11,22 @@
 - **Promote to Strategic Topic:** Is client-side sequential promotion acceptable through main, or does final validation identify a blocker requiring a transactional RPC before main?
 - **Viewer behavior:** Is the absence of polished Viewer read-only UI acceptable for main while owner/editor Team Beta remains the supported collaboration model?
 
-| Question                                                                                                                                                          | Area                           | Status                                                                                                                                                                                                                                                                            |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What exact pending-invite table name, token strategy, expiration behavior, and acceptance transaction should PR 1A use?                                           | Phase 3 shared access          | Refined: PR 1A uses `meeting_invitations` with pending/accepted/revoked status and no token/expiration/acceptance transaction yet; PR 1B/follow-up invite UX must define token delivery and acceptance flow.                                                                      |
-| How should existing or test `meeting_members` rows using `admin` or `member` be migrated into the planned `editor` or `viewer` roles?                             | Phase 3 roles                  | Answered in PR 1A: `owner` stays `owner`; `admin` and `member` migrate to `editor`; future roles are constrained to `owner`, `editor`, `viewer`.                                                                                                                                  |
+| Question                                                                                                                                                          | Area                           | Status                                                                                                                                                                                                                                                                |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What exact pending-invite table name, token strategy, expiration behavior, and acceptance transaction should PR 1A use?                                           | Phase 3 shared access          | Refined: PR 1A uses `meeting_invitations` with pending/accepted/revoked status and no token/expiration/acceptance transaction yet; PR 1B/follow-up invite UX must define token delivery and acceptance flow.                                                          |
+| How should existing or test `meeting_members` rows using `admin` or `member` be migrated into the planned `editor` or `viewer` roles?                             | Phase 3 roles                  | Answered in PR 1A: `owner` stays `owner`; `admin` and `member` migrate to `editor`; future roles are constrained to `owner`, `editor`, `viewer`.                                                                                                                      |
 | Should Team Beta allow Editors to invoke Manual Save, duplicate, archive, and soft-delete, or reserve some meeting-container actions for Owners?                  | Phase 3 permissions            | Refined by PR 3D: Manual Save remains editor-supported while structured autosave is incomplete, but duplicate, archive, restore, soft-delete, and rename/title lifecycle mutations should be owner-only at both UI and database/API boundaries before Phase 3 closes. |
-| Should invitation revocation preserve an audit row, and when should re-inviting reuse or replace that row?                                                        | Phase 3 invites                | Answered for PR 3B planning: preserve revoked/accepted rows, mark revocation in place, make duplicate pending invites idempotent, block active-member invites, and allow a new pending row after revoked/accepted history only when there is no active member. |
-| Should shared-editor duplicate ever be allowed, and if so should it copy full workspace backup data, omit history, or require owner approval?                     | Phase 3 dashboard permissions  | Open                                                                                                                                                                                                                                                                              |
-| Should PR 2A retrieve membership role from `meeting_members`, or is `owner_id === auth.user.id` sufficient for first Owned by Me / Shared with Me classification? | Phase 3 dashboard architecture | Answered for PR 2B: dashboard grouping uses visible `meetings` rows from RLS plus `meeting.owner_id === auth.user.id`; owned rows get role `owner`, shared row role remains unknown, and lifecycle actions stay owner-only through `canManageMeetingLifecycle`.                   |
-| Should archived Shared with Me cards remain openable when archive visibility is enabled, matching current archived owned-card behavior?                           | Phase 3 dashboard UX           | Answered in PR 2B: archived shared meetings follow the same Show Archived toggle as owned meetings and remain Open-only when shown.                                                                                                                                               |
-| What Supabase schema should follow basic JSONB persistence if normalization is needed?                                                                            | Cloud data model               | Open                                                                                                                                                                                                                                                                              |
-| How long should workspace data remain JSONB before considering normalized tables?                                                                                 | Cloud data model               | Open                                                                                                                                                                                                                                                                              |
-| Should local-to-cloud migration state eventually move from browser-local signatures into cloud metadata?                                                          | Migration                      | Open                                                                                                                                                                                                                                                                              |
-| What precise behavior should owner, editor, and viewer roles have?                                                                                                | Permissions                    | Refined: PR 1B defines database-level access/edit/manage helpers: owner can access/edit/manage; active editor can access/edit but not manage access; active viewer can access/read, with Viewer UI/read-only enforcement deferred.                                                |
-| Is realtime collaboration required after basic cloud persistence?                                                                                                 | Collaboration                  | Open                                                                                                                                                                                                                                                                              |
-| How should archived/completed Strategic Topics be surfaced?                                                                                                       | Product UX                     | Answered: use a Strategic Topic History modal with Completed and Archived tabs.                                                                                                                                                                                                   |
-| What refinements, if any, should the merged Meeting Setup flow receive after team testing?                                                                        | Product UX                     | Open                                                                                                                                                                                                                                                                              |
+| Should invitation revocation preserve an audit row, and when should re-inviting reuse or replace that row?                                                        | Phase 3 invites                | Answered for PR 3B planning: preserve revoked/accepted rows, mark revocation in place, make duplicate pending invites idempotent, block active-member invites, and allow a new pending row after revoked/accepted history only when there is no active member.        |
+| Should shared-editor duplicate ever be allowed, and if so should it copy full workspace backup data, omit history, or require owner approval?                     | Phase 3 dashboard permissions  | Open                                                                                                                                                                                                                                                                  |
+| Should PR 2A retrieve membership role from `meeting_members`, or is `owner_id === auth.user.id` sufficient for first Owned by Me / Shared with Me classification? | Phase 3 dashboard architecture | Answered for PR 2B: dashboard grouping uses visible `meetings` rows from RLS plus `meeting.owner_id === auth.user.id`; owned rows get role `owner`, shared row role remains unknown, and lifecycle actions stay owner-only through `canManageMeetingLifecycle`.       |
+| Should archived Shared with Me cards remain openable when archive visibility is enabled, matching current archived owned-card behavior?                           | Phase 3 dashboard UX           | Answered in PR 2B: archived shared meetings follow the same Show Archived toggle as owned meetings and remain Open-only when shown.                                                                                                                                   |
+| What Supabase schema should follow basic JSONB persistence if normalization is needed?                                                                            | Cloud data model               | Open                                                                                                                                                                                                                                                                  |
+| How long should workspace data remain JSONB before considering normalized tables?                                                                                 | Cloud data model               | Open                                                                                                                                                                                                                                                                  |
+| Should local-to-cloud migration state eventually move from browser-local signatures into cloud metadata?                                                          | Migration                      | Open                                                                                                                                                                                                                                                                  |
+| What precise behavior should owner, editor, and viewer roles have?                                                                                                | Permissions                    | Refined: PR 1B defines database-level access/edit/manage helpers: owner can access/edit/manage; active editor can access/edit but not manage access; active viewer can access/read, with Viewer UI/read-only enforcement deferred.                                    |
+| Is realtime collaboration required after basic cloud persistence?                                                                                                 | Collaboration                  | Open                                                                                                                                                                                                                                                                  |
+| How should archived/completed Strategic Topics be surfaced?                                                                                                       | Product UX                     | Answered: use a Strategic Topic History modal with Completed and Archived tabs.                                                                                                                                                                                       |
+| What refinements, if any, should the merged Meeting Setup flow receive after team testing?                                                                        | Product UX                     | Open                                                                                                                                                                                                                                                                  |
 
 ## PR 3A follow-up questions
 
@@ -47,7 +47,6 @@
 - Resolved for PR 3B: former removed members are reactivated through explicit invite acceptance when a matching pending invitation is accepted.
 - Deferred: tokenized invite links, token expiration policy, automated email provider/sender domain, automatic invite expiration, member removal, role editing, Viewer UX, ownership transfer, multiple owners, organizations, and realtime collaboration.
 
-
 ## PR 3C member-management resolved/deferred notes
 
 - Resolved for PR 3C: no new member table is needed; use active `meeting_members` plus `meetings.owner_id`, `meeting_invitations` history, and `profiles` display metadata.
@@ -56,7 +55,6 @@
 - Resolved for PR 3C: Tactical History remains visible to owners and editors; no owner-only Tactical History restriction should be added in Phase 3.
 - Resolved for PR 3C implementation: member listing uses `list_meeting_members(target_meeting_id)`, member count uses `get_accessible_meeting_member_counts()`, and owner-only removal uses `remove_meeting_editor(target_meeting_id, target_user_id)`.
 - Open/deferred: role editing, ownership transfer, Viewer UX, organizations, multiple owners, avatars, Local Mode changes, autosave changes, and realtime collaboration.
-
 
 ## PR 3D shared-access hardening resolved/deferred notes
 
@@ -77,14 +75,12 @@
 - What UI copy is needed to prevent users from interpreting “Settings saved” as “full workspace saved” while Manual Save remains required?
 - What stale-state and conflict warnings are acceptable for Last Save Wins before realtime/presence/merge behavior exists?
 
-
 ## Phase 4 PR 4B Strategic Topics Autosave Follow-up Questions
 
 - What exact topic-note schema should be formalized: `strategic_topic_notes` keyed by `strategic_topic_id`, legacy `strategic_topic_item_id`, or both during migration?
 - Should the existing `strategic_topics.notes` text column remain unused, hold a plain-text summary of rich Topic Notes, or be deprecated in documentation once `strategic_topic_notes` is formalized?
 - Should the current Strategic Topic delete action become a real delete, archive, or hidden/removed state before structured autosave preserves it as durable behavior?
 - What UI status language should distinguish Strategic Topic autosave, Topic Notes save/autosave, settings autosave, and Manual Save while all coexist?
-
 
 ## Phase 4 PR 4B Strategic Topics Autosave Resolved/Deferred Notes
 
@@ -103,7 +99,6 @@
 - Deferred: exact migration/RLS/client implementation details for `meeting_notes`.
 - Deferred: Agenda Items and Decisions/Actions first-class structured autosave until the future agenda-discussion-decision-action workflow is decided.
 - Deferred: Manual Save removal/demotion, Local Mode changes, Viewer UX/read-only enforcement, and collaboration conflict-resolution features.
-
 
 ## Phase 4 PR 4C follow-up questions
 
@@ -130,11 +125,10 @@
 
 - What exact product copy should distinguish structured autosave from Manual Save in the main-era README, user guide, and in-app status text?
 - Should `docs/USER_GUIDE.md` and `docs/TESTING_GUIDE.md` both be added in the Documentation Refresh Sprint, or should testing guidance remain inside `docs/VALIDATION.md` until after main?
-- What is the minimum accepted Forgot Password flow for main: reset request only, full reset completion route, or reset plus explicit user-facing troubleshooting guidance?
+- Resolved: minimum accepted Forgot Password flow for main is full reset request plus `/reset-password` completion route, with documentation for Supabase Auth URL Configuration and production/localhost redirect allow-list setup.
 - Which Supabase/Vercel preview environment and test accounts should be treated as the canonical final Main Readiness Review environment?
 - Should Agenda Items and Decisions/Actions remain documented as Manual Save-backed through main, or does the main readiness reviewer require their redesign before launch?
 - Is Local Mode positioned as a supported browser-only mode for the main release, or should documentation call it a fallback mode pending future cloud-first onboarding?
-
 
 ## Before Main UX Architecture Review Questions
 
@@ -156,7 +150,6 @@
 - After Decisions/Actions is removed or replaced, should Cascading Communications remain a separate section, become an agenda-outcome rollup, or display only outcomes marked for cascade?
 - Should UX-3B happen before main only if final validation finds Agenda/Decision capture blocking, or remain post-main by default with Manual Save covering the current separate Agenda and Decisions/Actions lists?
 
-
 ## UX-3A Agenda / Decision Architecture Review Questions
 
 - Resolved recommendation: Agenda Item should become the parent object for discussion notes, one primary Decision/Action outcome selector, covered/completed state, cascade-needed marker, and promote-to-Strategic-Topic action.
@@ -171,7 +164,6 @@
 - Should future promotion use a dedicated transactional RPC so Agenda Item linkage, Strategic Topic creation, and seeded Topic Notes are committed atomically?
 - Should legacy `decisionItems` receive a one-time migration tool into Agenda Item outcomes after teams validate the rollup workflow?
 - Should Agenda Items eventually support multiple actions per item, or is one action text field sufficient for the main release?
-
 
 ## Agenda Workspace Layout Review Questions
 
@@ -201,4 +193,3 @@
 - Open before-main: should the next UX PR add only clearer read-only/current-meeting navigation, or should it introduce an explicit Continue/Reopen Meeting action?
 - Open before-main: if Continue/Reopen Meeting is introduced, should active editors be allowed to use it as content editing, or should it be owner-only lifecycle control?
 - Open before-main: should End Meeting remain Tactical History snapshot-only, or should it also trigger/offer a full Manual Save backup refresh?
-

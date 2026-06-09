@@ -12,6 +12,13 @@
 - Current branch note: `transition-review-claude-handoff` is documentation-only and creates a Claude Code handoff package plus project history, README refresh, and before-main roadmap clarification. It does not change runtime behavior, schema, RLS, auth, persistence, or UI.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
 
+## Forgot Password Implementation
+
+- Added the before-main Supabase Forgot Password flow on `forgot-password-implementation` without changing shared access, RLS, meeting persistence, autosave, dashboard behavior, or meeting workspace behavior.
+- The login auth panel now includes a Forgot password request path that sends Supabase recovery email requests with a generic success message so the UI does not reveal whether an email belongs to an account.
+- Added `/reset-password` as the recovery callback/update route. It reads the Supabase recovery session from the reset link, lets the user enter and confirm a new password, updates the password through Supabase Auth, and routes back to sign in.
+- Required deployment setup is documented: Supabase Auth Site URL must be the production Vercel/custom domain, and Redirect URLs must include both the production `/reset-password` route and the localhost development `/reset-password` route. Production Auth URL Configuration must not point to localhost, including signup confirmation redirects.
+
 ## Meeting State Follow-up Implementation
 
 - Implemented the required before-main Meeting State Review follow-up as focused lifecycle UX/copy clarification rather than a schema, permissions, persistence, or reopen-workflow change.

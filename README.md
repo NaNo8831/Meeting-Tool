@@ -87,6 +87,15 @@ In practice:
 
 Local Mode can run browser-only, but shared cloud access and structured cloud persistence require Supabase environment variables and an appropriately migrated Supabase project.
 
+### Supabase Auth URL Configuration
+
+Forgot Password and signup email confirmation links depend on Supabase Auth URL Configuration:
+
+- Set the Supabase Auth **Site URL** to the production Vercel/custom domain for the deployed app, not localhost.
+- Add the deployed reset route to Supabase Redirect URLs, for example `https://<production-domain>/reset-password`.
+- Add the local development reset route to Supabase Redirect URLs, for example `http://localhost:3000/reset-password`.
+- If production Supabase Auth URL Configuration points to localhost, signup confirmation emails can redirect users to localhost even when account creation succeeds.
+
 ## Validation Commands
 
 Run these checks for app-code changes and when doing a full maintenance verification:

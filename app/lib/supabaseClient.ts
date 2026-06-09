@@ -3,6 +3,12 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
+export const getPasswordResetRedirectUrl = () => {
+  if (typeof window === "undefined") return undefined;
+
+  return `${window.location.origin}/reset-password`;
+};
+
 export type SupabaseAuthUser = {
   id: string;
   email: string;
@@ -119,8 +125,6 @@ export type SupabaseMeetingSettingsUpsert = Pick<
   | "meeting_section_order"
   | "setup_completed"
 >;
-
-
 
 export type SupabaseObjective = {
   id: string;
@@ -242,7 +246,6 @@ export type SupabaseMeetingNoteUpsert = {
   notes_json: Record<string, unknown> | null;
   cascade_items: Record<string, unknown>[];
 };
-
 
 export type SupabaseAgendaItem = {
   id: string;
@@ -441,6 +444,21 @@ export const supabaseAuthClient = {
     return normalizeSession((await response.json()) as SupabaseAuthResponse);
   },
 
+  async requestPasswordReset(email: string, redirectTo?: string) {
+    const path = redirectTo
+      ? `/recover?redirect_to=${encodeURIComponent(redirectTo)}`
+      : "/recover";
+    const response = await fetch(getAuthUrl(path), {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getAuthErrorMessage(response));
+    }
+  },
+
   async signIn(email: string, password: string) {
     const response = await fetch(getAuthUrl("/token?grant_type=password"), {
       method: "POST",
@@ -505,6 +523,18 @@ export const supabaseAuthClient = {
       id: user.id,
       email: user.email ?? "Signed in user",
     } satisfies SupabaseAuthUser;
+  },
+
+  async updatePassword(accessToken: string, password: string) {
+    const response = await fetch(getAuthUrl("/user"), {
+      method: "PUT",
+      headers: getAuthHeaders(accessToken),
+      body: JSON.stringify({ password }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getAuthErrorMessage(response));
+    }
   },
 
   async signOut(accessToken: string) {
@@ -1152,7 +1182,6 @@ export const supabaseMeetingClient = {
     return saved;
   },
 
-
   async loadAgendaItems({
     accessToken,
     workspaceId,
@@ -1206,7 +1235,9 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(await getRestErrorMessage(response, "Agenda items autosave"));
+      throw new Error(
+        await getRestErrorMessage(response, "Agenda items autosave"),
+      );
     }
 
     return (await response.json()) as SupabaseAgendaItem[];
@@ -1235,7 +1266,9 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(await getRestErrorMessage(response, "Agenda items cleanup"));
+      throw new Error(
+        await getRestErrorMessage(response, "Agenda items cleanup"),
+      );
     }
   },
 
@@ -1257,7 +1290,9 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(await getRestErrorMessage(response, "Meeting notes load"));
+      throw new Error(
+        await getRestErrorMessage(response, "Meeting notes load"),
+      );
     }
 
     return (await response.json()) as SupabaseMeetingNote[];
@@ -1329,7 +1364,6 @@ export const supabaseMeetingClient = {
     }
   },
 
-
   async loadObjectives({
     accessToken,
     workspaceId,
@@ -1383,7 +1417,9 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(await getRestErrorMessage(response, "Objectives autosave"));
+      throw new Error(
+        await getRestErrorMessage(response, "Objectives autosave"),
+      );
     }
 
     return (await response.json()) as SupabaseObjective[];
@@ -1412,7 +1448,9 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(await getRestErrorMessage(response, "Objectives cleanup"));
+      throw new Error(
+        await getRestErrorMessage(response, "Objectives cleanup"),
+      );
     }
   },
 
@@ -1521,7 +1559,10 @@ export const supabaseMeetingClient = {
 
     if (!response.ok) {
       throw new Error(
-        await getRestErrorMessage(response, "Standard Operating Objectives load"),
+        await getRestErrorMessage(
+          response,
+          "Standard Operating Objectives load",
+        ),
       );
     }
 
@@ -1558,7 +1599,10 @@ export const supabaseMeetingClient = {
 
     if (!response.ok) {
       throw new Error(
-        await getRestErrorMessage(response, "Standard Operating Objectives autosave"),
+        await getRestErrorMessage(
+          response,
+          "Standard Operating Objectives autosave",
+        ),
       );
     }
 
@@ -1589,11 +1633,13 @@ export const supabaseMeetingClient = {
 
     if (!response.ok) {
       throw new Error(
-        await getRestErrorMessage(response, "Standard Operating Objectives cleanup"),
+        await getRestErrorMessage(
+          response,
+          "Standard Operating Objectives cleanup",
+        ),
       );
     }
   },
-
 
   async listTacticalSessions({
     accessToken,
@@ -1752,7 +1798,6 @@ export const supabaseMeetingClient = {
       );
     }
   },
-
 
   async listStrategicTopicNotes({
     accessToken,

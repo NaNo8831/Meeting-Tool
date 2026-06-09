@@ -442,6 +442,7 @@ Recommended validation for UX-3B:
 - Editor repeats Agenda edits, outcome edits, Covered/Cascade changes, and promotion. Owner refresh should see the editor's changes when existing meeting edit permissions allow the write.
 - Non-member and removed editor access should be blocked by existing Cloud Meeting route and RLS protections.
 - Regression checks should cover Strategic Topics autosave, Topic Notes autosave, Meeting Notes autosave, Cascading Communications editable notes, Objectives, Tasks, SOOs, Manual Save, Local Mode, and shared access.
+
 ## Agenda Workspace Layout + Agenda Item UX Polish Validation
 
 Recommended validation for this UX refinement PR:
@@ -525,3 +526,42 @@ Required validation:
 - Check the sticky header at narrow width and confirm lifecycle state remains visible as a compact chip without a persistent explanatory panel.
 - Hover, focus, or click the lifecycle help control and relevant sticky-header controls to confirm explanatory lifecycle help is available without expanding the header layout.
 - Confirm Manual Save remains present and Backup/Restore behavior is unchanged.
+
+## Forgot Password Implementation Validation
+
+Scope: Supabase Auth password recovery only. This validation does not change or retest shared access, RLS, meeting persistence, autosave, dashboard behavior, or meeting workspace behavior beyond confirming they remain out of scope.
+
+Implemented flow:
+
+- Login panel includes a `Forgot password?` path from Sign In.
+- Reset request accepts an email address and calls Supabase Auth recovery with an environment-aware redirect to `/reset-password`.
+- Reset request success copy is always generic: `If an account exists for this email, a password reset link has been sent.`
+- `/reset-password` reads the Supabase recovery session from the email link, lets the user enter and confirm a new password, submits the new password to Supabase Auth, then routes back to sign in.
+
+Required Supabase Auth URL Configuration:
+
+- Set the Supabase Auth **Site URL** to the production Vercel/custom domain for the deployed app, not localhost.
+- Add production redirect URLs for the deployed reset route, for example `https://<production-domain>/reset-password`.
+- Add localhost development redirect URLs for local validation, for example `http://localhost:3000/reset-password`.
+- Keep signup/login email confirmation URL settings aligned with production. If Supabase Auth URL Configuration points to localhost in production, signup email confirmation can redirect users to localhost even though account creation succeeds.
+
+Manual validation checklist:
+
+1. From login, click **Forgot password?**.
+2. Enter a valid account email.
+3. Confirm the reset email is sent.
+4. Click the reset email link.
+5. Confirm the app opens `/reset-password` on the deployed app URL, not localhost.
+6. Enter and confirm a new password.
+7. Confirm login works with the new password.
+8. Confirm the old password no longer works if practical.
+9. Enter an unknown email in Forgot Password and confirm the same generic success message is shown.
+10. Confirm signup/login still work after the Supabase Auth URL Configuration is corrected.
+
+Programmatic validation for this PR:
+
+```bash
+npm run lint
+npx tsc --noEmit
+npm run build
+```
