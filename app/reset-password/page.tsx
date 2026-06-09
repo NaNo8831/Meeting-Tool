@@ -10,6 +10,7 @@ import {
 
 type ResetSession = {
   accessToken: string;
+  refreshToken: string | null;
   type: string | null;
 };
 
@@ -27,6 +28,8 @@ const readRecoverySession = (): ResetSession | null => {
 
   return {
     accessToken,
+    refreshToken:
+      hashParams.get("refresh_token") ?? queryParams.get("refresh_token"),
     type: hashParams.get("type") ?? queryParams.get("type"),
   };
 };
@@ -90,10 +93,30 @@ export default function ResetPasswordPage() {
     setIsSubmitting(true);
 
     try {
-      await supabaseAuthClient.updatePassword(
-        recoverySession.accessToken,
-        newPassword,
-      );
+      // Exchange the recovery refresh token for a live session so that
+      // PUT /auth/v1/user has a fully-established session to commit the
+      // password change. Using the raw recovery access_token as Bearer
+      // directly can return 200 without actually updating the password.
+      let accessTokenForUpdate = recoverySession.accessToken;
+
+      if (recoverySession.refreshToken) {
+        let liveSession;
+        try {
+          liveSession = await supabaseAuthClient.refreshSession(
+            recoverySession.refreshToken,
+          );
+        } catch {
+          setFeedback({
+            type: "error",
+            message:
+              "This reset link has expired. Request a new password reset email from the sign-in screen.",
+          });
+          return;
+        }
+        accessTokenForUpdate = liveSession.accessToken;
+      }
+
+      await supabaseAuthClient.updatePassword(accessTokenForUpdate, newPassword);
       setNewPassword("");
       setConfirmPassword("");
       setFeedback({
