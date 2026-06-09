@@ -22,6 +22,54 @@ This PR is documentation-only. It does not change runtime behavior, schema, RLS,
 - `docs/CURRENT_PROJECT_STATUS.md` — concise snapshot of current project status, completed systems, before-main roadmap, and known before-main risks.
 - `docs/PROJECT_HISTORY.md` — chronological project and decision history.
 
+
+## Current Stopping Point: Forgot Password / Auth Email
+
+PR #110 implements Forgot Password using Supabase password reset. The implementation appears structurally correct, but final validation is paused because Supabase default auth email delivery hit its rate limit and redirect configuration still needs final environment confirmation.
+
+Current implementation state:
+
+- Forgot password request flow exists.
+- Generic success message exists and should not reveal whether an account exists.
+- `/reset-password` route exists.
+- Supabase reset helpers exist.
+- Lint, typecheck, and build passed during PR #110 validation.
+
+Current validation blockers:
+
+- Supabase default auth email provider appears limited to 2 emails/hour.
+- Testing reached `email rate limit exceeded`.
+- A reset email link still appeared to point to localhost before redirect configuration was fully confirmed.
+- Supabase Auth URL Configuration likely needs production and preview URLs added.
+- Custom SMTP, likely Resend, should be set up before main to avoid auth email testing and production email limits.
+
+Auth responsibility boundary:
+
+- Supabase still owns auth security, tokens, reset sessions, password updates, login sessions, and authorization.
+- Resend/custom SMTP would only deliver emails.
+- Resend does not handle passwords, login sessions, reset validation, or authorization.
+
+Supabase Auth URL Configuration must be corrected before new validation emails are trusted:
+
+- Site URL should be the production Vercel/custom domain.
+- Redirect URLs should include the production domain, preview Vercel wildcard, and localhost development URL.
+
+Suggested Redirect URLs:
+
+```text
+https://YOUR_PRODUCTION_DOMAIN/**
+https://*.vercel.app/**
+http://localhost:3000/**
+```
+
+Validation guidance:
+
+- Save Supabase Auth URL Configuration changes before requesting more auth emails.
+- Generate new reset emails after config changes.
+- Old reset emails may still contain old localhost redirects.
+- If the default Supabase email provider rate limit blocks testing again, stop testing, wait for reset, or configure custom SMTP before continuing.
+- See `docs/AUTH_EMAIL_SETUP.md` and `docs/VALIDATION.md` for the exact checklist.
+
 ## Current Product Vision
 
 The product is a meeting-centric leadership operating system. Its core job is to support the live weekly leadership meeting and the follow-through that comes out of that meeting.
@@ -284,10 +332,12 @@ Editors cannot:
 
 Priority order:
 
-1. **Meeting State Review — blocker.** Review local/cloud meeting state, route hydration, active meeting IDs, setup/title synchronization, section order normalization, Manual Save fallback assumptions, and compatibility state. This is the highest-priority before-main review because it validates that the integrated meeting workspace is internally coherent.
-2. **Forgot Password — blocker.** Account recovery is required before main for a cloud/shared-access product.
-3. **Documentation Refresh — blocker.** Refresh user-facing and developer docs to match shared access, Supabase cloud persistence, structured autosave, Manual Save, Local Mode status, and backup/import behavior.
-4. **Main Readiness Review — blocker/final gate.** Validate the integrated Vercel/Supabase preview after the above work, focusing on permissions, autosave, Manual Save, backup/import, invite/member flows, dashboard UX, agenda workflow, and regression risk.
+1. **Finish PR #110 Forgot Password validation — blocker.** Account recovery is implemented but final email-link validation is paused until Supabase email rate limit and Auth URL Configuration issues are resolved.
+2. **Fix/confirm Supabase Auth URL Configuration — blocker.** Production Site URL and production/preview/local Redirect URLs must be correct before auth email validation can be trusted.
+3. **Set up custom SMTP, likely Resend — blocker before main.** Supabase remains auth/security source of truth; custom SMTP should provide reliable auth email delivery and avoid default-provider limits.
+4. **Documentation Refresh — blocker.** Refresh user-facing and developer docs to match shared access, Supabase cloud persistence, structured autosave, Manual Save, Local Mode status, backup/import behavior, and auth email setup.
+5. **Main Readiness Review — blocker/final gate.** Validate the integrated Vercel/Supabase preview after the above work, focusing on permissions, autosave, Manual Save, backup/import, invite/member flows, dashboard UX, agenda workflow, Forgot Password/signup confirmation, and regression risk.
+6. **Merge to main.** Merge only after the final readiness gate passes.
 
 Nice-to-have or post-main unless final validation exposes a blocker:
 

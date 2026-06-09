@@ -4,6 +4,9 @@
 
 - **Meeting State Review:** Required before-main UX/copy clarification is implemented; refresh/open selection now prefers the current open record, then the newest real dated record. Remaining open decisions are limited to optional behavior changes such as Continue/Reopen and End Meeting full-backup prompting.
 - **Forgot Password:** What exact Supabase password-reset redirect URL and production/preview email template behavior should be validated before main?
+- **Supabase Auth Site URL:** Has Supabase Auth Site URL been changed from localhost to the production Vercel/custom domain?
+- **Supabase Redirect URLs:** Are preview URLs allowed with `https://*.vercel.app/**`, and are production and `http://localhost:3000/**` also present?
+- **Custom SMTP:** Will the project use Resend for custom SMTP before main, or is another provider preferred?
 - **Documentation Refresh:** Which user-facing docs need to be added or refreshed beyond README and architecture docs so the main release accurately explains Shared Access, structured autosave, Manual Save, Local Mode, and Backup/Restore?
 - **Main Readiness Review:** What is the final acceptance checklist for Vercel preview + Supabase validation before merging `phase-3-shared-access` to `main`?
 - **Local Mode:** Should Local Mode be labeled as a browser-only fallback before main, remain as-is until after main, or be hidden/demoted only after cloud readiness is confirmed?
@@ -27,6 +30,13 @@
 | Is realtime collaboration required after basic cloud persistence?                                                                                                 | Collaboration                  | Open                                                                                                                                                                                                                                                                              |
 | How should archived/completed Strategic Topics be surfaced?                                                                                                       | Product UX                     | Answered: use a Strategic Topic History modal with Completed and Archived tabs.                                                                                                                                                                                                   |
 | What refinements, if any, should the merged Meeting Setup flow receive after team testing?                                                                        | Product UX                     | Open                                                                                                                                                                                                                                                                              |
+
+## Auth Email / Forgot Password Open Questions
+
+- Has Supabase Auth Site URL been changed from localhost to production?
+- Are preview URLs allowed with `https://*.vercel.app/**`?
+- Will the project use Resend for custom SMTP before main?
+- Should Manual Save be demoted visually after documentation/main readiness review?
 
 ## PR 3A follow-up questions
 

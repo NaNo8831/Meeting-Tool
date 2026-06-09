@@ -29,6 +29,26 @@ Manual validation should cover owner/editor creation, edit, reorder, completion/
 - Verify Backup/Restore still works after persistence-related changes.
 - Use Vercel preview for user-facing changes before merge.
 
+
+## Forgot Password and Auth Email Validation
+
+Use this checklist for PR #110 Forgot Password validation and before-main auth email readiness.
+
+1. Login → Forgot Password.
+2. Enter valid account email.
+3. Confirm the UI shows a generic success message.
+4. Confirm reset email is received.
+5. Confirm link opens the deployed `/reset-password` route, not localhost.
+6. Enter new password and confirmation.
+7. Confirm login succeeds with the new password.
+8. Confirm old password fails if practical.
+9. Confirm unknown email shows the same generic success message.
+10. Confirm signup confirmation link uses the deployed route/domain, not localhost.
+
+Environment note: if the Supabase email rate limit is exceeded, stop testing, wait for the limit window to reset, or configure custom SMTP before continuing. Generate fresh reset or confirmation emails after Supabase Auth URL Configuration changes because old emails may still contain old localhost redirects.
+
+See `docs/AUTH_EMAIL_SETUP.md` for Site URL, Redirect URL, custom SMTP, and Resend guidance.
+
 ## Phase 3 Shared Access Validation Areas (Planned)
 
 Apply these checks incrementally as each Phase 3 implementation PR lands. PR 1A changes schema and documentation only; it does not change application runtime code.
