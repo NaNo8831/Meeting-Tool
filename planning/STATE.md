@@ -7,17 +7,23 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings`, structured Strategic Topics, Topic Notes, topic ordering, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, and Standard Operating Objectives after route bootstrap.
 - Backup: JSON export/import workspace backup.
-- Current Project Status: **Transition Review Complete**.
-- Current focus: before-main transition/handoff from Phase 3 Shared Access into the final main-readiness path.
-- Current branch note: `transition-review-claude-handoff` is documentation-only and creates a Claude Code handoff package plus project history, README refresh, and before-main roadmap clarification. It does not change runtime behavior, schema, RLS, auth, persistence, or UI.
+- Current Project Status: **Claude transition docs updated; Forgot Password validation paused by auth email environment/configuration blocker**.
+- Current focus: transition from Codex/ChatGPT-assisted development to Claude Code / Claude Chat with little downtime, then finish Forgot Password validation and main readiness.
+- Current branch note: `transition-docs-update-for-claude` is documentation-only and updates Claude Code / Claude Chat handoff, auth email setup, validation, status, README, and planning docs. It does not change runtime behavior, schema, migrations, RLS, auth implementation, persistence, or UI.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
 
-## Forgot Password Implementation
+## Codex to Claude Transition / Auth Email Stopping Point
 
-- Added the before-main Supabase Forgot Password flow on `forgot-password-implementation` without changing shared access, RLS, meeting persistence, autosave, dashboard behavior, or meeting workspace behavior.
-- The login auth panel now includes a Forgot password request path that sends Supabase recovery email requests with a generic success message so the UI does not reveal whether an email belongs to an account.
-- Added `/reset-password` as the recovery callback/update route. It reads the Supabase recovery session from the reset link, lets the user enter and confirm a new password, updates the password through Supabase Auth, and routes back to sign in.
-- Required deployment setup is documented: Supabase Auth Site URL must be the production Vercel/custom domain, and Redirect URLs must include both the production `/reset-password` route and the localhost development `/reset-password` route. Production Auth URL Configuration must not point to localhost, including signup confirmation redirects.
+- The project is transitioning from Codex/ChatGPT-assisted development to Claude Code / Claude Chat.
+- PR #107 added AI Agent Workflow and Current Project Status docs.
+- PR #108 added Meeting State Review.
+- PR #109 implemented Meeting State follow-up, was tested as merge-ready, and is reflected in this branch state.
+- PR #110 Forgot Password implementation appears structurally complete, including request flow, generic success message, `/reset-password` route, Supabase reset helpers, and passing lint/typecheck/build during the PR #110 validation pass.
+- PR #110 final validation is paused because Supabase default auth email delivery reached `email rate limit exceeded` and reset email redirect configuration still needs final production/preview environment confirmation.
+- Supabase Auth URL Configuration likely needs production Site URL plus production, Vercel preview wildcard, and localhost Redirect URLs confirmed before new validation emails are generated.
+- Custom SMTP, likely Resend, should be configured before main so Supabase remains the auth/security source of truth while email delivery avoids default-provider limits.
+- Next agent should either finish auth email validation after the limit resets/config is fixed or document the blocker and proceed to custom SMTP setup documentation/review.
+- Remaining roadmap: finish PR #110 validation, fix/confirm Auth URL Configuration, set up custom SMTP, Documentation Refresh, Main Readiness Review, then merge to `main`.
 
 ## Meeting State Follow-up Implementation
 
