@@ -15,9 +15,10 @@
 ## Meeting State Follow-up Implementation
 
 - Implemented the required before-main Meeting State Review follow-up as focused lifecycle UX/copy clarification rather than a schema, permissions, persistence, or reopen-workflow change.
-- The Meeting Workspace now surfaces the active dated record state as Open current meeting, Closed meeting, Past meeting, or Test Mode meeting, with refresh expectations and Start/Edit/View action guidance visible in the sticky header.
+- The Meeting Workspace now surfaces the active dated record state as a compact Open Meeting, Closed Meeting, Past Meeting, or Test Mode chip in the sticky header, with explanatory help available from the adjacent help control instead of a persistent header panel.
+- Cloud Meeting load/refresh now prefers the current open dated record when one exists, then the newest real dated record, instead of defaulting to the oldest record or the stored legacy active pointer.
 - End Meeting copy now clarifies that the action captures Tactical History, makes the dated meeting read-only, leaves autosave/Manual Save behavior unchanged, and does not advance, reset, or rewrite the workspace.
-- Remaining meeting-state questions stay deferred: whether refresh should prefer today's meeting over the last active dated record, whether a future Continue/Reopen action is needed, and whether End Meeting should optionally trigger a full Manual Save backup.
+- Remaining meeting-state questions stay deferred: whether a future Continue/Reopen action is needed and whether End Meeting should optionally trigger a full Manual Save backup.
 
 ## Meeting State Review
 

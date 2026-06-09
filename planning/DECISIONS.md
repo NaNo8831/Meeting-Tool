@@ -144,4 +144,5 @@
 
 - Before main, Meeting Tool keeps the existing inferred meeting lifecycle model: today's dated meeting is editable, Tactical History-captured dated meetings are closed/read-only, past real dated meetings are review-only, and Test Mode only enables explicitly test-dated records in preview/development environments.
 - Meeting lifecycle follow-up should clarify UX/copy and validation without adding a new schema-backed open/closed field, new roles, new permissions, or a reopen/continue workflow.
+- Cloud Meeting load/refresh should select the current open dated meeting first, then the newest real dated meeting, and should not restore the oldest meeting or rely on stale legacy active pointers when dated records exist.
 - End Meeting remains a Tactical History snapshot action. It does not advance the active dated meeting, reset workspace data, or replace Manual Save as the full-workspace backup refresh.

@@ -512,3 +512,16 @@ Regression validation:
 - Backup/import remains available.
 - Shared Access owner/editor behavior remains unchanged.
 - Local Mode remains browser-only and does not expose cloud-only End Meeting persistence.
+
+## PR #109 Follow-up Fixes Validation
+
+Scope: manual-testing follow-up only. This PR compacts the lifecycle header, fixes Cloud Meeting load/refresh dated-record selection, and removes inaccurate refresh wording. It does not change Manual Save, Backup/Restore, schema, RLS, persistence architecture, auth, roles, permissions, or shared-access rules.
+
+Required validation:
+
+- Start a meeting, refresh/open the Cloud Meeting route, and confirm the current open meeting record is selected and editing still works where the user has access.
+- End the meeting, refresh/open the Cloud Meeting route, and confirm the newest ended dated record is selected rather than the oldest record.
+- Create several dated meeting records, refresh/open the Cloud Meeting route, and confirm selection priority is current/open first, newest real dated historical record second, and legacy/default only when no dated records exist.
+- Check the sticky header at narrow width and confirm lifecycle state remains visible as a compact chip without a persistent explanatory panel.
+- Hover, focus, or click the lifecycle help control and relevant sticky-header controls to confirm explanatory lifecycle help is available without expanding the header layout.
+- Confirm Manual Save remains present and Backup/Restore behavior is unchanged.

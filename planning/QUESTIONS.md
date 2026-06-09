@@ -2,7 +2,7 @@
 
 ## Remaining Open Questions Before Main
 
-- **Meeting State Review:** Required before-main UX/copy clarification is implemented; remaining open decisions are limited to optional behavior changes such as refresh preference, Continue/Reopen, and End Meeting full-backup prompting.
+- **Meeting State Review:** Required before-main UX/copy clarification is implemented; refresh/open selection now prefers the current open record, then the newest real dated record. Remaining open decisions are limited to optional behavior changes such as Continue/Reopen and End Meeting full-backup prompting.
 - **Forgot Password:** What exact Supabase password-reset redirect URL and production/preview email template behavior should be validated before main?
 - **Documentation Refresh:** Which user-facing docs need to be added or refreshed beyond README and architecture docs so the main release accurately explains Shared Access, structured autosave, Manual Save, Local Mode, and Backup/Restore?
 - **Main Readiness Review:** What is the final acceptance checklist for Vercel preview + Supabase validation before merging `phase-3-shared-access` to `main`?
@@ -197,7 +197,7 @@
 - Resolved implementation: before-main follow-up clarified Start/Edit/View/End/Test Mode lifecycle copy without schema, role, permission, persistence, or reopen-workflow changes.
 - Resolved recommendation: ended dated meeting records should remain read-only by default before main to protect Tactical History snapshot integrity.
 - Resolved recommendation: Test Mode should be treated as a testing-only tool, not the normal workaround for continuing real meetings after refresh.
-- Open before-main: should Cloud Meeting refresh keep restoring the last active dated meeting from `leadership-active-meeting-id`, or should it prefer today's editable meeting when one exists?
+- Resolved before-main: Cloud Meeting refresh/open should prefer today's current open dated meeting when one exists, then the newest real dated meeting, and only fall back to legacy/default data when no dated records exist.
 - Open before-main: should the next UX PR add only clearer read-only/current-meeting navigation, or should it introduce an explicit Continue/Reopen Meeting action?
 - Open before-main: if Continue/Reopen Meeting is introduced, should active editors be allowed to use it as content editing, or should it be owner-only lifecycle control?
 - Open before-main: should End Meeting remain Tactical History snapshot-only, or should it also trigger/offer a full Manual Save backup refresh?
