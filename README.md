@@ -117,7 +117,10 @@ Read these files before major implementation work:
 - `docs/DATA_MODEL.md` — current and target data model notes.
 - `docs/PERMISSIONS.md` — shared access and RLS guidance.
 - `docs/VALIDATION.md` — validation expectations.
+- `docs/CLAUDE_CODE_START_HERE.md` — direct Claude Code start guide for the current before-main stopping point.
+- `docs/CLAUDE_CHAT_HANDOFF.md` — plain-language Claude Chat handoff for reasoning, planning, and prompt writing.
+- `docs/AUTH_EMAIL_SETUP.md` — Supabase Auth URL, custom SMTP/Resend, and auth email validation guidance.
+- `docs/CURRENT_PROJECT_STATUS.md` — current project status, completed systems, before-main roadmap, and known risks.
 - `docs/HANDOFF_TO_CLAUDE_CODE.md` — transition review and Claude Code handoff package.
 - `docs/AI_AGENT_WORKFLOW.md` — AI-agent workflow, PR types, red flags, and preferred prompt pattern.
-- `docs/CURRENT_PROJECT_STATUS.md` — current project status, completed systems, before-main roadmap, and known risks.
 - `docs/PROJECT_HISTORY.md` — chronological project and decision history.
