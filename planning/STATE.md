@@ -3,11 +3,11 @@
 ## Current Snapshot
 
 - Product: Meeting Tool by LyArk in the `Meeting-Tool` repo.
-- Status: live/deployed operational beta.
-- Deployment: Vercel.
+- Status: **live Team Beta — phase-3-shared-access merged to main on 2026-06-10.**
+- Deployment: Vercel (main branch).
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings have structured autosave for `meeting_settings`, Strategic Topics, Topic Notes, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, Standard Operating Objectives, and Agenda Items, with `meetings.meeting_data` full-workspace Manual Save as the safety net and fallback hydration source.
 - Backup: JSON export/import workspace backup (full workspace + structured rows).
-- Current Project Status: **PR #110 Forgot Password validation complete. All checklist items passed (Resend SMTP confirmed, reset link opens deployed /reset-password, password update and re-login work). PR #110 is ready to merge to phase-3-shared-access. Next: merge PR #110, then Main Readiness Review.**
+- Current Project Status: **phase-3-shared-access merged to main. All Phase 3 Shared Access and Phase 4 Structured Persistence work is now on main. Project is in Team Beta. Post-main backlog tracks deferred items (Viewer UX, realtime collaboration, ownership transfer, client meeting ID deduplication, Local Mode decommission).**
 
 ## Documentation Refresh Sprint
 
@@ -192,11 +192,12 @@
 
 ## Next Actions
 
-1. **Merge Forgot Password (PR #110)** — validation complete. All checklist items passed: Resend SMTP delivering email, reset link opens deployed `/reset-password`, password update and re-login work. Merge `codex/add-forgot-password-implementation` to `phase-3-shared-access`.
+1. ~~**Merge Forgot Password (PR #110)**~~ — complete. Merged to `phase-3-shared-access`.
 2. ~~**Fix/confirm Supabase Auth URL Configuration**~~ — confirmed correct.
 3. ~~**Set up custom SMTP (Resend)**~~ — complete.
-4. **Run Main Readiness Review** — full validation checklist in `docs/VALIDATION.md` on an integrated Vercel/Supabase preview with dedicated test accounts. Merge to `main` only after this gate passes.
-5. Keep realtime collaboration, ownership transfer, full Viewer UX, Local Mode decommission, and broader schema/RLS changes separate from the before-main path.
+4. ~~**Run Main Readiness Review**~~ — complete. All gates passed. See Main Readiness Review session notes.
+5. ~~**Merge phase-3-shared-access to main**~~ — **complete on 2026-06-10.** Duplicate migration `20260609000000_add_create_owned_meeting_rpc.sql` removed from main before merge; `supabaseClient.ts` conflict resolved in favor of phase-3 version. Lint, TypeScript, and build all pass.
+6. **Post-main:** Continue Team Beta validation. Track deferred work in `planning/FUTURE_PHASES.md`: Viewer UX enforcement, realtime collaboration, ownership transfer, client meeting ID deduplication (duplicate meeting notes records across browser sessions), Local Mode decommission.
 
 ## PR 3A — User Profile Foundation
 
