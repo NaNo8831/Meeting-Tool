@@ -1,29 +1,32 @@
 # Meeting Tool
 
-Meeting Tool by LyArk is a lightweight operational leadership meeting tool for structured weekly leadership meetings. It helps leadership teams keep the current top priority visible, run agenda-driven meetings, capture decisions/actions, identify cascading communication, preserve strategic topics, and track defining objectives, tasks, and standard operating objectives without becoming a heavyweight project-management system.
+Meeting Tool by LyArk is a lightweight operational leadership meeting tool for structured weekly leadership meetings. It helps leadership teams keep the current top priority visible, run agenda-driven meetings, capture decisions and actions, identify cascading communication, preserve strategic topics, and track defining objectives, tasks, and standard operating objectives without becoming a heavyweight project-management system.
 
 ## Current Feature Set
 
-- Cloud Meeting dashboard with owned and shared meetings.
-- Supabase email/password authentication and shared meeting access.
-- Owner/editor collaboration model for Team Beta.
-- Meeting Setup and Playbook Definitions.
-- Top Priority / Thematic Goal.
-- Defining Objectives with embedded Tasks, task details, subtasks, comments, and activity history.
-- Standard Operating Objectives.
-- Full-width Agenda Items as the primary meeting workspace.
-- Agenda Item discussion notes, Decision support, Action support, Covered state, Cascade Needed, and Promote to Strategic Topic.
-- Strategic Topics and Topic Notes as the secondary planning surface.
-- Meeting Notes and Cascading Communications as meeting output/communication surfaces.
-- Manual Save to cloud full-workspace backup JSON.
-- JSON workspace export/import backup and restore.
-- Browser-only Local Mode fallback.
+- **Cloud Meeting dashboard** with Owned by Me and Shared with Me sections.
+- **Supabase email/password authentication**: sign up, sign in, sign out, profile display names.
+  - Forgot Password is planned (PR #110 scope); implementation is pending merge to this branch.
+- **Owner/editor collaboration model** for Team Beta: owners manage meeting lifecycle; owners and editors edit meeting content.
+- **Meeting Setup and Playbook Definitions**: dashboard title, organization info, section order, setup state.
+- **Top Priority / Thematic Goal** with rich text support.
+- **Defining Objectives** with embedded Tasks, task details, subtasks, comments, and activity history.
+- **Standard Operating Objectives** with ordering and color indicators.
+- **Full-width Agenda Items** as the primary live-meeting workspace: discussion notes, Decision support, Action support, Covered state, Cascade Needed, and Promote to Strategic Topic.
+- **Strategic Topics and Topic Notes** as the secondary planning surface.
+- **Meeting Notes and Cascading Communications** as meeting output and communication surfaces.
+- **Structured autosave** for all major surfaces (meeting settings, Strategic Topics, Topic Notes, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, Standard Operating Objectives, Agenda Items). Autosave is debounced, per-surface, and Last Save Wins.
+- **Manual Save** to cloud full-workspace backup JSON — the cloud safety net while autosave stabilizes.
+- **JSON workspace export/import** backup and restore.
+- **Browser-only Local Mode** as a signed-out fallback (no cloud sync).
+- **Meeting lifecycle**: Start Meeting, End Meeting (creates Tactical History snapshot), read-only closed and past meetings, Test Mode date override for preview/development.
+- **Tactical History** of past ended meetings.
 
-## Current Workflow
+## Workflow
 
 The product is organized around the live leadership meeting and the follow-through it creates:
 
-```text
+```
 Meeting
 ↓
 Agenda Items
@@ -40,25 +43,33 @@ Defining Objectives / Tasks / SOOs
 In practice:
 
 1. Open a Cloud Meeting from the dashboard.
-2. Run the meeting from full-width Agenda Items.
+2. Run the meeting from the full-width Agenda Items workspace.
 3. Capture discussion notes and mark Decision and/or Action outcomes on Agenda Items.
 4. Mark Cascade Needed when an outcome must be communicated after the meeting.
-5. Promote deeper agenda items to Strategic Topics when they need strategic follow-up.
+5. Promote deeper agenda items to Strategic Topics for strategic follow-up.
 6. Use Defining Objectives, Tasks, and SOOs for execution and ongoing operating standards.
-7. Keep Manual Save and JSON Backup/Restore available as recovery paths while structured autosave continues to mature.
+7. Use Manual Save and JSON Backup/Restore as recovery paths alongside structured autosave.
 
-## Current Architecture
+## Access and Roles
 
-- Next.js app using TypeScript and Tailwind CSS.
-- Deployed on Vercel from the production/stable `main` branch.
-- Supabase provides auth, cloud meeting containers, shared access, RLS, RPCs, and structured persistence tables.
-- Cloud Meeting routes hydrate `meetings.meeting_data` full-workspace backup first, then overlay structured rows when available.
-- Structured autosave is debounced, Last Save Wins, and rolled out surface-by-surface.
-- Current structured autosave coverage includes meeting settings, Strategic Topics, Topic Notes, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, Standard Operating Objectives, and Agenda Items.
-- Manual Save writes full workspace backup JSON to `meetings.meeting_data` and remains the cloud safety net.
-- JSON export/import remains the user-facing backup and recovery path.
-- Local Mode remains browser-only and does not autosave to cloud.
-- Realtime collaboration, locks, presence, CRDTs, conflict resolution, ownership transfer, full Viewer UX, and organizations are deferred.
+| Role | Create meetings | Edit content | Lifecycle actions | Manage members |
+|------|----------------|-------------|------------------|----------------|
+| Owner | Yes | Yes | Yes (archive, rename, delete, duplicate) | Yes (invite, remove editors) |
+| Editor | No | Yes | No | No |
+| Viewer | No | No (read-only; UI enforcement deferred for post-main) | No | No |
+
+Authorization is enforced at the database level through Supabase RLS. See `docs/PERMISSIONS.md`.
+
+## Architecture
+
+- **Framework:** Next.js 16 + TypeScript + Tailwind CSS 4.
+- **Deployment:** Vercel, from the production `main` branch.
+- **Auth and database:** Supabase — email/password auth, cloud meeting containers, structured persistence tables, row-level security, and owner-only RPCs.
+- **Cloud persistence:** Structured autosave covers all major meeting surfaces. Cloud routes hydrate `meetings.meeting_data` full-workspace backup first, then overlay structured rows per surface.
+- **Autosave model:** Debounced, per-surface, Last Save Wins. No realtime collaboration, presence, locks, or conflict resolution.
+- **Local Mode:** `/meeting/local` route — browser `localStorage` only, no cloud sync.
+- **Manual Save:** Writes the full workspace backup JSON to `meetings.meeting_data`. Mandatory as the cloud rollback and backup/import path.
+- **JSON export/import:** Full workspace backup and restore, compatible with `meetings.meeting_data` and structured rows.
 
 ## Environment Setup
 
@@ -68,28 +79,41 @@ In practice:
    npm install
    ```
 
-2. Create an uncommitted `.env.local` for Supabase-backed cloud/auth flows:
+2. Create `.env.local` (not committed) with Supabase credentials:
 
-   ```bash
+   ```
    NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
    ```
 
-   Do not commit `.env.local` or service-role secrets.
+   Optionally, enable testing tools on preview/development deployments only:
 
-3. Start the local development server:
+   ```
+   NEXT_PUBLIC_ENABLE_TESTING_TOOLS=true
+   ```
+
+   Never set `NEXT_PUBLIC_ENABLE_TESTING_TOOLS=true` on production.
+
+3. Start the development server:
 
    ```bash
    npm run dev
    ```
 
-4. Open [http://localhost:3000](http://localhost:3000) in a browser.
+4. Open [http://localhost:3000](http://localhost:3000).
 
-Local Mode can run browser-only, but shared cloud access and structured cloud persistence require Supabase environment variables and an appropriately migrated Supabase project.
+Local Mode runs without Supabase credentials. Cloud meetings and shared access require a Supabase project with all migrations in `supabase/migrations/` applied in timestamp order.
+
+## Supabase Auth URL Configuration
+
+Before validating auth emails (password reset, signup confirmation) in any non-development environment:
+
+- Set **Site URL** to the production domain (not localhost).
+- Add **Redirect URLs** for production, Vercel previews (`https://*.vercel.app/**`), and local development (`http://localhost:3000/**`).
+
+See `docs/AUTH_EMAIL_SETUP.md` for the full checklist.
 
 ## Validation Commands
-
-Run these checks for app-code changes and when doing a full maintenance verification:
 
 ```bash
 npm run lint
@@ -97,15 +121,15 @@ npx tsc --noEmit
 npm run build
 ```
 
-For documentation-only changes, confirm the diff is limited to docs/planning/instruction files unless a full validation run is explicitly requested.
+For documentation-only changes, confirm the diff is limited to `docs/`, `planning/`, or instruction files.
 
 ## Deployment
 
-Vercel uses the default Next.js install, build, and output settings. `main` is production/stable. `phase-3-shared-access` is the current shared-access/pre-main integration branch. Keep JSON export/import and Manual Save available until a deliberate future architecture decision replaces those safety paths.
+Vercel uses the default Next.js build and output settings. `main` is the production/stable branch. Keep JSON export/import and Manual Save available until a deliberate future architecture decision replaces those paths.
 
-## Architecture and Handoff References
+## Key Reference Documents
 
-Read these files before major implementation work:
+Before making implementation changes, read:
 
 - `AGENTS.md` — repository operating instructions.
 - `planning/STATE.md` — current project state and active roadmap.
@@ -113,14 +137,12 @@ Read these files before major implementation work:
 - `planning/DOMAIN.md` — terminology and meeting model.
 - `planning/RISKS.md` — known risks and mitigations.
 - `planning/QUESTIONS.md` — open questions.
-- `docs/ARCHITECTURE.md` — architecture notes and persistence direction.
-- `docs/DATA_MODEL.md` — current and target data model notes.
-- `docs/PERMISSIONS.md` — shared access and RLS guidance.
-- `docs/VALIDATION.md` — validation expectations.
-- `docs/CLAUDE_CODE_START_HERE.md` — direct Claude Code start guide for the current before-main stopping point.
-- `docs/CLAUDE_CHAT_HANDOFF.md` — plain-language Claude Chat handoff for reasoning, planning, and prompt writing.
-- `docs/AUTH_EMAIL_SETUP.md` — Supabase Auth URL, custom SMTP/Resend, and auth email validation guidance.
-- `docs/CURRENT_PROJECT_STATUS.md` — current project status, completed systems, before-main roadmap, and known risks.
-- `docs/HANDOFF_TO_CLAUDE_CODE.md` — transition review and Claude Code handoff package.
-- `docs/AI_AGENT_WORKFLOW.md` — AI-agent workflow, PR types, red flags, and preferred prompt pattern.
-- `docs/PROJECT_HISTORY.md` — chronological project and decision history.
+- `docs/ARCHITECTURE.md` — system architecture, routes, data flow, key file structure.
+- `docs/DATA_MODEL.md` — Supabase tables, columns, relationships, RLS approach.
+- `docs/PERMISSIONS.md` — owner/editor/viewer roles, RLS helpers, what each role can/cannot do.
+- `docs/VALIDATION.md` — validation checklists and pre-merge process.
+- `docs/AUTH_EMAIL_SETUP.md` — Supabase Auth URL, custom SMTP/Resend guidance.
+- `docs/CURRENT_PROJECT_STATUS.md` — current status, completed systems, before-main roadmap.
+- `docs/HANDOFF_TO_CLAUDE_CODE.md` — transition review and detailed handoff package.
+- `docs/AI_AGENT_WORKFLOW.md` — AI-agent workflow, PR types, red flags.
+- `docs/CLAUDE_CODE_START_HERE.md` — Claude Code direct start guide.
