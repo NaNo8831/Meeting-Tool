@@ -5,9 +5,22 @@
 - Product: Meeting Tool by LyArk in the `Meeting-Tool` repo.
 - Status: live/deployed operational beta.
 - Deployment: Vercel.
-- Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings can manually save/load full workspace backup JSON in Supabase, optionally receive explicit Local Workspace migration, and now hydrate/autosave `meeting_settings`, structured Strategic Topics, Topic Notes, topic ordering, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, and Standard Operating Objectives after route bootstrap.
-- Backup: JSON export/import workspace backup.
-- Current Project Status: **Claude transition docs updated; Forgot Password validation paused by auth email environment/configuration blocker**.
+- Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings have structured autosave for `meeting_settings`, Strategic Topics, Topic Notes, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, Standard Operating Objectives, and Agenda Items, with `meetings.meeting_data` full-workspace Manual Save as the safety net and fallback hydration source.
+- Backup: JSON export/import workspace backup (full workspace + structured rows).
+- Current Project Status: **PR #110 Forgot Password validation complete. All checklist items passed (Resend SMTP confirmed, reset link opens deployed /reset-password, password update and re-login work). PR #110 is ready to merge to phase-3-shared-access. Next: merge PR #110, then Main Readiness Review.**
+
+## Documentation Refresh Sprint
+
+- Completed a docs-only sprint refreshing all major developer/agent reference documents to reflect the actual pre-main state of the app.
+- README.md refreshed: current feature set, roles table, architecture summary, setup instructions, key reference links.
+- docs/ARCHITECTURE.md rewritten as a clean reference document covering tech stack, routes, key file structure, Supabase integration, cloud persistence, autosave, Local Mode, auth model, RLS helpers, meeting lifecycle, and dashboard UX.
+- docs/DATA_MODEL.md rewritten as a clean reference document covering all Supabase tables, key columns, relationships, RLS approach, structured autosave tables, archival tables, source-of-truth summary, and compatibility notes.
+- docs/PERMISSIONS.md rewritten as a clean reference document covering role matrix, RLS helper functions, table-level policy summary, owner-only RPCs, invitation flow, lifecycle mutation hardening, and ownership invariants.
+- docs/VALIDATION.md updated with current validation approach, pre-merge checklist, Forgot Password validation checklist, Main Readiness Review checklist, and shared access regression reference.
+- planning/QUESTIONS.md updated: closed all resolved questions, left only genuine open questions (auth email config, Forgot Password merge/validation, Continue/Reopen lifecycle, custom SMTP provider, post-main deferred items).
+- docs/CURRENT_PROJECT_STATUS.md updated: Documentation Refresh marked complete; Forgot Password PR #110 (implementation complete, pending merge and email-link validation) documented; merge concern for PR #112 hotfix documented.
+- This STATE.md updated to reflect the documentation sprint completion and current next actions.
+- No app code, schema, migrations, RLS, auth, persistence, UI, or runtime behavior was changed in this sprint.
 - Current focus: transition from Codex/ChatGPT-assisted development to Claude Code / Claude Chat with little downtime, then finish Forgot Password validation and main readiness.
 - Current branch note: `transition-docs-update-for-claude` is documentation-only and updates Claude Code / Claude Chat handoff, auth email setup, validation, status, README, and planning docs. It does not change runtime behavior, schema, migrations, RLS, auth implementation, persistence, or UI.
 - Workspace modal/menu polish now locks background page scroll while overlays or popups are open, keeps signed-in user details and sign out inside the Meeting Menu, and uses icon-only Meeting Menu and Dashboard Menu triggers. Dashboard archive visibility is a standalone control, Dashboard Import Backup is inside the Dashboard Menu, and visible placeholder coming-soon items are hidden.
@@ -18,12 +31,9 @@
 - PR #107 added AI Agent Workflow and Current Project Status docs.
 - PR #108 added Meeting State Review.
 - PR #109 implemented Meeting State follow-up, was tested as merge-ready, and is reflected in this branch state.
-- PR #110 Forgot Password implementation appears structurally complete, including request flow, generic success message, `/reset-password` route, Supabase reset helpers, and passing lint/typecheck/build during the PR #110 validation pass.
-- PR #110 final validation is paused because Supabase default auth email delivery reached `email rate limit exceeded` and reset email redirect configuration still needs final production/preview environment confirmation.
-- Supabase Auth URL Configuration likely needs production Site URL plus production, Vercel preview wildcard, and localhost Redirect URLs confirmed before new validation emails are generated.
-- Custom SMTP, likely Resend, should be configured before main so Supabase remains the auth/security source of truth while email delivery avoids default-provider limits.
-- Next agent should either finish auth email validation after the limit resets/config is fixed or document the blocker and proceed to custom SMTP setup documentation/review.
-- Remaining roadmap: finish PR #110 validation, fix/confirm Auth URL Configuration, set up custom SMTP, Documentation Refresh, Main Readiness Review, then merge to `main`.
+- PR #110 Forgot Password implementation is complete and fully validated. Supabase Auth URL Configuration is confirmed correct. Custom SMTP (Resend) is configured and confirmed delivering email. All PR #110 validation checklist items passed: reset link opens deployed `/reset-password`, password update succeeds, re-login with new password works.
+- A recovery token session-exchange bug was found and fixed during audit: the raw `access_token` from the URL hash was being used directly as Bearer for `PUT /auth/v1/user`, which can return 200 without committing the change. Fix exchanges the recovery `refresh_token` for a live session first.
+- PR #110 is ready to merge to `phase-3-shared-access`. Remaining roadmap: merge PR #110, Main Readiness Review, then merge to `main`.
 
 ## Meeting State Follow-up Implementation
 
@@ -182,11 +192,11 @@
 
 ## Next Actions
 
-1. Complete **Meeting State Review** as a documentation/review PR that maps current local/cloud meeting state, hydration, active meeting IDs, setup/title state, section state, Manual Save fallback assumptions, and compatibility layers.
-2. Implement **Forgot Password** for Supabase account recovery after the state review confirms no meeting-state blocker should come first.
-3. Complete a broader **Documentation Refresh** so user-facing and developer docs match the final shared-access/structured-autosave architecture.
-4. Run the final **Main Readiness Review** on an integrated Vercel/Supabase preview before merging `phase-3-shared-access` to `main`.
-5. Keep realtime collaboration, ownership transfer, full Viewer UX, Local Mode decommission, and broader schema/RLS changes separate from the before-main path unless explicitly re-prioritized.
+1. **Merge Forgot Password (PR #110)** — validation complete. All checklist items passed: Resend SMTP delivering email, reset link opens deployed `/reset-password`, password update and re-login work. Merge `codex/add-forgot-password-implementation` to `phase-3-shared-access`.
+2. ~~**Fix/confirm Supabase Auth URL Configuration**~~ — confirmed correct.
+3. ~~**Set up custom SMTP (Resend)**~~ — complete.
+4. **Run Main Readiness Review** — full validation checklist in `docs/VALIDATION.md` on an integrated Vercel/Supabase preview with dedicated test accounts. Merge to `main` only after this gate passes.
+5. Keep realtime collaboration, ownership transfer, full Viewer UX, Local Mode decommission, and broader schema/RLS changes separate from the before-main path.
 
 ## PR 3A — User Profile Foundation
 
