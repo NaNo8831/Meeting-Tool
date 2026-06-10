@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useBodyScrollLock } from "@/app/hooks/useBodyScrollLock";
 import type { SupabaseAuthSession } from "@/app/lib/supabaseClient";
 
-type AuthMode = "signIn" | "signUp";
+type AuthMode = "signIn" | "signUp" | "forgotPassword";
 
 type AuthModalProps = {
   isOpen: boolean;
@@ -17,6 +17,7 @@ type AuthModalProps = {
     email: string,
     password: string,
   ) => Promise<SupabaseAuthSession | null>;
+  onRequestPasswordReset: (email: string) => Promise<void>;
   onSignOut: () => Promise<void>;
   onContinueLocally?: () => void;
 };
@@ -29,6 +30,7 @@ export function AuthModal({
   onClose,
   onSignIn,
   onSignUp,
+  onRequestPasswordReset,
   onSignOut,
   onContinueLocally,
 }: AuthModalProps) {
@@ -53,7 +55,8 @@ export function AuthModal({
       if (mode === "signIn") {
         await onSignIn(email.trim(), password);
         setFeedback({ type: "success", message: "Signed in successfully." });
-      } else {
+        setPassword("");
+      } else if (mode === "signUp") {
         const nextSession = await onSignUp(email.trim(), password);
         setMode("signIn");
         setFeedback({
@@ -62,8 +65,16 @@ export function AuthModal({
             ? "Account created and signed in."
             : "Account created. Check your email if confirmation is required before signing in.",
         });
+        setPassword("");
+      } else {
+        await onRequestPasswordReset(email.trim());
+        setMode("signIn");
+        setFeedback({
+          type: "success",
+          message:
+            "If an account exists for this email, a password reset link has been sent.",
+        });
       }
-      setPassword("");
     } catch (error) {
       setFeedback({
         type: "error",
@@ -114,7 +125,13 @@ export function AuthModal({
               Supabase Auth
             </p>
             <h2 className="mt-1 text-2xl font-bold text-slate-900">
-              {session ? "Account" : mode === "signIn" ? "Sign In" : "Sign Up"}
+              {session
+                ? "Account"
+                : mode === "signIn"
+                  ? "Sign In"
+                  : mode === "signUp"
+                    ? "Sign Up"
+                    : "Reset Password"}
             </h2>
           </div>
           <button
@@ -175,20 +192,27 @@ export function AuthModal({
                 placeholder="you@example.com"
               />
             </label>
-            <label className="block">
-              <span className="mb-1 block text-sm font-semibold text-slate-700">
-                Password
-              </span>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-                minLength={6}
-                className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                placeholder="Password"
-              />
-            </label>
+            {mode === "forgotPassword" ? (
+              <div className="rounded-2xl border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900">
+                Enter your account email and we&apos;ll send a password reset
+                link if an account exists.
+              </div>
+            ) : (
+              <label className="block">
+                <span className="mb-1 block text-sm font-semibold text-slate-700">
+                  Password
+                </span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  minLength={6}
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  placeholder="Password"
+                />
+              </label>
+            )}
             <button
               type="submit"
               disabled={isSubmitting || isLoading}
@@ -197,15 +221,33 @@ export function AuthModal({
               {isSubmitting
                 ? mode === "signIn"
                   ? "Signing in…"
-                  : "Creating account…"
+                  : mode === "signUp"
+                    ? "Creating account…"
+                    : "Sending reset link…"
                 : mode === "signIn"
                   ? "Sign In"
-                  : "Sign Up"}
+                  : mode === "signUp"
+                    ? "Sign Up"
+                    : "Send reset link"}
             </button>
+            {mode === "signIn" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("forgotPassword");
+                  setPassword("");
+                  setFeedback(null);
+                }}
+                className="w-full text-sm font-semibold text-blue-700 hover:text-blue-900"
+              >
+                Forgot password?
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => {
                 setMode(mode === "signIn" ? "signUp" : "signIn");
+                setPassword("");
                 setFeedback(null);
               }}
               className="w-full rounded-full border border-slate-300 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-50"

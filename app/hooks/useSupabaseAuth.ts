@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  getPasswordResetRedirectUrl,
   isSupabaseConfigured,
   supabaseAuthClient,
   type SupabaseAuthSession,
@@ -97,6 +98,13 @@ export const useSupabaseAuth = () => {
     [saveSession],
   );
 
+  const requestPasswordReset = useCallback(async (email: string) => {
+    await supabaseAuthClient.requestPasswordReset(
+      email,
+      getPasswordResetRedirectUrl(),
+    );
+  }, []);
+
   const signOut = useCallback(async () => {
     const currentAccessToken = session?.accessToken;
     saveSession(null);
@@ -112,6 +120,7 @@ export const useSupabaseAuth = () => {
     isLoading,
     signUp,
     signIn,
+    requestPasswordReset,
     signOut,
   };
 };

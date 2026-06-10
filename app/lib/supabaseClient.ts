@@ -3,6 +3,12 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
+export const getPasswordResetRedirectUrl = () => {
+  if (typeof window === "undefined") return undefined;
+
+  return `${window.location.origin}/reset-password`;
+};
+
 export type SupabaseAuthUser = {
   id: string;
   email: string;
@@ -13,6 +19,80 @@ export type SupabaseAuthSession = {
   refreshToken: string;
   expiresAt: number;
   user: SupabaseAuthUser;
+};
+
+export type SupabaseProfile = {
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  display_name: string | null;
+  email: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupabaseMeetingOwnerProfile = Pick<
+  SupabaseProfile,
+  "user_id" | "display_name" | "email"
+> & {
+  meeting_id: string;
+};
+
+export type SupabaseProfileUpdate = Pick<
+  SupabaseProfile,
+  "first_name" | "last_name"
+>;
+
+export type SupabaseMeetingInvitation = {
+  id: string;
+  meeting_id: string;
+  email: string;
+  normalized_email: string;
+  role: "editor" | "viewer";
+  status: "pending" | "accepted" | "revoked";
+  invited_by: string | null;
+  accepted_by: string | null;
+  created_at: string;
+  updated_at: string;
+  accepted_at: string | null;
+  revoked_at: string | null;
+};
+
+export type SupabaseMeetingMember = {
+  meeting_id: string;
+  user_id: string;
+  role: "owner" | "editor";
+  display_name: string | null;
+  email: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupabaseMeetingMemberCount = {
+  meeting_id: string;
+  member_count: number;
+};
+
+export type SupabaseRemovedMeetingMember = {
+  meeting_id: string;
+  user_id: string;
+  role: "editor";
+  removed_at: string;
+};
+
+export type SupabasePendingMeetingInvitation = Pick<
+  SupabaseMeetingInvitation,
+  | "id"
+  | "meeting_id"
+  | "email"
+  | "normalized_email"
+  | "role"
+  | "status"
+  | "invited_by"
+  | "created_at"
+> & {
+  meeting_name: string;
+  owner_display_name: string;
 };
 
 export type SupabaseMeeting = {
@@ -46,6 +126,164 @@ export type SupabaseMeetingSettingsUpsert = Pick<
   | "setup_completed"
 >;
 
+export type SupabaseObjective = {
+  id: string;
+  meeting_id: string;
+  client_objective_id: number;
+  title: string;
+  description: string | null;
+  description_json: Record<string, unknown> | null;
+  status: "planning" | "in-progress" | "completed" | string | null;
+  priority: "high" | "medium" | "low" | string | null;
+  due_date: string | null;
+  color: string | null;
+  sort_order: number;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupabaseObjectiveUpsert = {
+  meeting_id: string;
+  client_objective_id: number;
+  title: string;
+  description: string | null;
+  description_json: Record<string, unknown> | null;
+  status: string;
+  priority: string;
+  due_date: string | null;
+  color: string;
+  sort_order: number;
+  metadata_json: Record<string, unknown> | null;
+};
+
+export type SupabaseTask = {
+  id: string;
+  meeting_id: string;
+  objective_id: string | null;
+  client_objective_id: number | null;
+  client_task_id: number;
+  title: string;
+  description: string | null;
+  description_text: string | null;
+  description_json: Record<string, unknown> | null;
+  status: "planning" | "in-progress" | "completed" | string | null;
+  assignee: string | null;
+  assigned_to: string | null;
+  due_date: string | null;
+  sort_order: number;
+  subtasks_json: Record<string, unknown>[];
+  comments_json: Record<string, unknown>[];
+  activity_history_json: Record<string, unknown>[];
+  metadata_json: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupabaseTaskUpsert = {
+  meeting_id: string;
+  objective_id: string | null;
+  client_objective_id: number;
+  client_task_id: number;
+  title: string;
+  description: string | null;
+  description_text: string | null;
+  description_json: Record<string, unknown> | null;
+  status: string;
+  assignee: string | null;
+  assigned_to: string | null;
+  due_date: string | null;
+  sort_order: number;
+  subtasks_json: Record<string, unknown>[];
+  comments_json: Record<string, unknown>[];
+  activity_history_json: Record<string, unknown>[];
+  metadata_json: Record<string, unknown> | null;
+};
+
+export type SupabaseStandardOperatingObjective = {
+  id: string;
+  meeting_id: string;
+  client_soo_id: number;
+  title: string;
+  description: string | null;
+  description_json: Record<string, unknown> | null;
+  status: string | null;
+  color: string | null;
+  sort_order: number;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupabaseStandardOperatingObjectiveUpsert = {
+  meeting_id: string;
+  client_soo_id: number;
+  title: string;
+  description: string | null;
+  description_json: Record<string, unknown> | null;
+  color: string;
+  sort_order: number;
+  metadata_json: Record<string, unknown> | null;
+};
+
+export type SupabaseMeetingNote = {
+  id: string;
+  meeting_id: string;
+  client_meeting_id: number;
+  meeting_date: string;
+  is_test_meeting: boolean;
+  notes_json: Record<string, unknown> | null;
+  cascade_items: Record<string, unknown>[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupabaseMeetingNoteUpsert = {
+  meeting_id: string;
+  client_meeting_id: number;
+  meeting_date: string;
+  is_test_meeting: boolean;
+  notes_json: Record<string, unknown> | null;
+  cascade_items: Record<string, unknown>[];
+};
+
+export type SupabaseAgendaItem = {
+  id: string;
+  meeting_id: string;
+  client_agenda_item_id: number;
+  client_meeting_id: number;
+  title: string;
+  discussion_notes_json: Record<string, unknown> | null;
+  discussion_notes_text: string | null;
+  has_decision: boolean;
+  decision_text: string | null;
+  has_action: boolean;
+  action_text: string | null;
+  is_covered: boolean;
+  cascade_needed: boolean;
+  promoted_strategic_topic_id: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupabaseAgendaItemUpsert = {
+  meeting_id: string;
+  client_agenda_item_id: number;
+  client_meeting_id: number;
+  title: string;
+  discussion_notes_json: Record<string, unknown> | null;
+  discussion_notes_text: string | null;
+  has_decision: boolean;
+  decision_text: string | null;
+  has_action: boolean;
+  action_text: string | null;
+  is_covered: boolean;
+  cascade_needed: boolean;
+  promoted_strategic_topic_id: string | null;
+  sort_order: number;
+};
+
 export type SupabaseTacticalSession = {
   id: string;
   meeting_id: string;
@@ -57,9 +295,51 @@ export type SupabaseTacticalSession = {
   ended_at: string | null;
 };
 
+export type SupabaseStrategicTopic = {
+  id: string;
+  meeting_id: string;
+  client_item_id: number;
+  title: string;
+  notes: string | null;
+  status: "active" | "completed" | "archived";
+  archived_at: string | null;
+  completed_at: string | null;
+  completed_date: string | null;
+  captured_date: string | null;
+  captured_meeting_id: number | null;
+  captured_meeting_index: number | null;
+  removed_meeting_id: number | null;
+  removed_meeting_index: number | null;
+  removed_date: string | null;
+  sort_order: number;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupabaseStrategicTopicUpsert = {
+  id?: string;
+  meeting_id: string;
+  client_item_id: number;
+  title: string;
+  status: "active" | "completed" | "archived";
+  archived_at: string | null;
+  completed_at: string | null;
+  completed_date: string | null;
+  captured_date: string | null;
+  captured_meeting_id: number | null;
+  captured_meeting_index: number | null;
+  removed_meeting_id: number | null;
+  removed_meeting_index: number | null;
+  removed_date: string | null;
+  sort_order: number;
+  metadata_json: Record<string, unknown> | null;
+};
+
 export type SupabaseStrategicTopicNote = {
   id: string;
   meeting_id: string;
+  strategic_topic_id: string | null;
   strategic_topic_item_id: number;
   content_json: Record<string, unknown> | null;
   content_text: string | null;
@@ -164,6 +444,21 @@ export const supabaseAuthClient = {
     return normalizeSession((await response.json()) as SupabaseAuthResponse);
   },
 
+  async requestPasswordReset(email: string, redirectTo?: string) {
+    const path = redirectTo
+      ? `/recover?redirect_to=${encodeURIComponent(redirectTo)}`
+      : "/recover";
+    const response = await fetch(getAuthUrl(path), {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getAuthErrorMessage(response));
+    }
+  },
+
   async signIn(email: string, password: string) {
     const response = await fetch(getAuthUrl("/token?grant_type=password"), {
       method: "POST",
@@ -230,6 +525,18 @@ export const supabaseAuthClient = {
     } satisfies SupabaseAuthUser;
   },
 
+  async updatePassword(accessToken: string, password: string) {
+    const response = await fetch(getAuthUrl("/user"), {
+      method: "PUT",
+      headers: getAuthHeaders(accessToken),
+      body: JSON.stringify({ password }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getAuthErrorMessage(response));
+    }
+  },
+
   async signOut(accessToken: string) {
     const response = await fetch(getAuthUrl("/logout"), {
       method: "POST",
@@ -241,7 +548,6 @@ export const supabaseAuthClient = {
     }
   },
 };
-
 
 export type SupabaseFeedbackType =
   | "Bug"
@@ -303,6 +609,257 @@ const getRestErrorMessage = async (response: Response, fallback: string) => {
   }
 };
 
+export const supabaseProfileClient = {
+  async ensureOwnProfile(accessToken: string) {
+    const response = await fetch(getRestUrl("rpc/ensure_own_profile"), {
+      method: "POST",
+      headers: getSupabaseHeaders(accessToken),
+      body: JSON.stringify({}),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Profile bootstrap"));
+    }
+
+    return (await response.json()) as SupabaseProfile;
+  },
+
+  async updateOwnProfile({
+    accessToken,
+    userId,
+    profile,
+  }: {
+    accessToken: string;
+    userId: string;
+    profile: SupabaseProfileUpdate;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("profiles")}?user_id=eq.${encodeURIComponent(userId)}`,
+      {
+        method: "PATCH",
+        headers: {
+          ...getSupabaseHeaders(accessToken),
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify(profile),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Profile update"));
+    }
+
+    const profiles = (await response.json()) as SupabaseProfile[];
+    const updatedProfile = profiles[0];
+    if (!updatedProfile) {
+      throw new Error("Supabase did not return the updated profile.");
+    }
+
+    return updatedProfile;
+  },
+
+  async listAccessibleMeetingOwnerProfiles(accessToken: string) {
+    const response = await fetch(
+      getRestUrl("rpc/get_accessible_meeting_owner_profiles"),
+      {
+        method: "POST",
+        headers: getSupabaseHeaders(accessToken),
+        body: JSON.stringify({}),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Meeting owner profile list"),
+      );
+    }
+
+    return (await response.json()) as SupabaseMeetingOwnerProfile[];
+  },
+};
+
+export const supabaseInvitationClient = {
+  async createInvitation({
+    accessToken,
+    meetingId,
+    email,
+  }: {
+    accessToken: string;
+    meetingId: string;
+    email: string;
+  }) {
+    const response = await fetch(getRestUrl("rpc/create_meeting_invitation"), {
+      method: "POST",
+      headers: getSupabaseHeaders(accessToken),
+      body: JSON.stringify({
+        target_meeting_id: meetingId,
+        invite_email: email,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Invitation create"));
+    }
+
+    return (await response.json()) as SupabaseMeetingInvitation;
+  },
+
+  async listMeetingPendingInvitations({
+    accessToken,
+    meetingId,
+  }: {
+    accessToken: string;
+    meetingId: string;
+  }) {
+    const response = await fetch(
+      getRestUrl("rpc/list_meeting_pending_invitations"),
+      {
+        method: "POST",
+        headers: getSupabaseHeaders(accessToken),
+        body: JSON.stringify({ target_meeting_id: meetingId }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Invitation list"));
+    }
+
+    return (await response.json()) as SupabaseMeetingInvitation[];
+  },
+
+  async revokeInvitation({
+    accessToken,
+    invitationId,
+  }: {
+    accessToken: string;
+    invitationId: string;
+  }) {
+    const response = await fetch(getRestUrl("rpc/revoke_meeting_invitation"), {
+      method: "POST",
+      headers: getSupabaseHeaders(accessToken),
+      body: JSON.stringify({ target_invitation_id: invitationId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Invitation revoke"));
+    }
+
+    return (await response.json()) as SupabaseMeetingInvitation;
+  },
+
+  async listMyPendingInvitations(accessToken: string) {
+    const response = await fetch(
+      getRestUrl("rpc/list_my_pending_meeting_invitations"),
+      {
+        method: "POST",
+        headers: getSupabaseHeaders(accessToken),
+        body: JSON.stringify({}),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Pending invitations list"),
+      );
+    }
+
+    return (await response.json()) as SupabasePendingMeetingInvitation[];
+  },
+
+  async acceptInvitation({
+    accessToken,
+    invitationId,
+  }: {
+    accessToken: string;
+    invitationId: string;
+  }) {
+    const response = await fetch(getRestUrl("rpc/accept_meeting_invitation"), {
+      method: "POST",
+      headers: getSupabaseHeaders(accessToken),
+      body: JSON.stringify({ target_invitation_id: invitationId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Invitation accept"));
+    }
+
+    return (await response.json()) as SupabaseMeetingInvitation;
+  },
+};
+
+export const supabaseMemberClient = {
+  async listMeetingMembers({
+    accessToken,
+    meetingId,
+  }: {
+    accessToken: string;
+    meetingId: string;
+  }) {
+    const response = await fetch(getRestUrl("rpc/list_meeting_members"), {
+      method: "POST",
+      headers: getSupabaseHeaders(accessToken),
+      body: JSON.stringify({ target_meeting_id: meetingId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Member list"));
+    }
+
+    return (await response.json()) as SupabaseMeetingMember[];
+  },
+
+  async removeMeetingEditor({
+    accessToken,
+    meetingId,
+    userId,
+  }: {
+    accessToken: string;
+    meetingId: string;
+    userId: string;
+  }) {
+    const response = await fetch(getRestUrl("rpc/remove_meeting_editor"), {
+      method: "POST",
+      headers: getSupabaseHeaders(accessToken),
+      body: JSON.stringify({
+        target_meeting_id: meetingId,
+        target_user_id: userId,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Member removal"));
+    }
+
+    const removedMembers =
+      (await response.json()) as SupabaseRemovedMeetingMember[];
+    const removedMember = removedMembers[0];
+    if (!removedMember) {
+      throw new Error("Supabase did not return the removed member.");
+    }
+
+    return removedMember;
+  },
+
+  async listAccessibleMeetingMemberCounts(accessToken: string) {
+    const response = await fetch(
+      getRestUrl("rpc/get_accessible_meeting_member_counts"),
+      {
+        method: "POST",
+        headers: getSupabaseHeaders(accessToken),
+        body: JSON.stringify({}),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Meeting member count list"),
+      );
+    }
+
+    return (await response.json()) as SupabaseMeetingMemberCount[];
+  },
+};
+
 export const supabaseFeedbackClient = {
   async submitFeedback({
     accessToken,
@@ -348,15 +905,11 @@ export const supabaseMeetingClient = {
     name,
   }: {
     accessToken: string;
-    ownerId: string;
     name: string;
   }) {
     const response = await fetch(getRestUrl("rpc/create_owned_meeting"), {
       method: "POST",
-      headers: {
-        ...getSupabaseHeaders(accessToken),
-        Prefer: "return=representation",
-      },
+      headers: getSupabaseHeaders(accessToken),
       body: JSON.stringify({ meeting_name: name }),
     });
 
@@ -364,12 +917,7 @@ export const supabaseMeetingClient = {
       throw new Error(await getRestErrorMessage(response, "Workspace create"));
     }
 
-    const meeting = (await response.json()) as SupabaseMeeting;
-    if (!meeting) {
-      throw new Error("Supabase did not return the created meeting.");
-    }
-
-    return meeting;
+    return (await response.json()) as SupabaseMeeting;
   },
 
   async getWorkspace({
@@ -400,8 +948,6 @@ export const supabaseMeetingClient = {
     return meetings[0] ?? null;
   },
 
-
-
   async duplicateWorkspace({
     accessToken,
     ownerId,
@@ -413,35 +959,28 @@ export const supabaseMeetingClient = {
     sourceMeeting: SupabaseMeeting;
     duplicateName?: string;
   }) {
-    const response = await fetch(getRestUrl("meetings"), {
+    if (sourceMeeting.owner_id !== ownerId) {
+      throw new Error(
+        "Only owned meetings can be duplicated from the dashboard.",
+      );
+    }
+
+    const response = await fetch(getRestUrl("rpc/duplicate_owned_meeting"), {
       method: "POST",
-      headers: {
-        ...getSupabaseHeaders(accessToken),
-        Prefer: "return=representation",
-      },
+      headers: getSupabaseHeaders(accessToken),
       body: JSON.stringify({
-        owner_id: ownerId,
-        name:
-          duplicateName ??
-          (sourceMeeting.name.trim().endsWith("Copy")
-            ? `${sourceMeeting.name.trim()} 2`
-            : `${sourceMeeting.name.trim()} Copy`),
-        metadata_json: sourceMeeting.metadata_json,
-        meeting_data: sourceMeeting.meeting_data,
+        source_meeting_id: sourceMeeting.id,
+        duplicate_name: duplicateName,
       }),
     });
 
     if (!response.ok) {
-      throw new Error(await getRestErrorMessage(response, "Workspace duplicate"));
+      throw new Error(
+        await getRestErrorMessage(response, "Workspace duplicate"),
+      );
     }
 
-    const meetings = (await response.json()) as SupabaseMeeting[];
-    const meeting = meetings[0];
-    if (!meeting) {
-      throw new Error("Supabase did not return the duplicated meeting.");
-    }
-
-    return meeting;
+    return (await response.json()) as SupabaseMeeting;
   },
 
   async archiveWorkspace({
@@ -451,29 +990,17 @@ export const supabaseMeetingClient = {
     accessToken: string;
     workspaceId: string;
   }) {
-    const response = await fetch(
-      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}&deleted_at=is.null`,
-      {
-        method: "PATCH",
-        headers: {
-          ...getSupabaseHeaders(accessToken),
-          Prefer: "return=representation",
-        },
-        body: JSON.stringify({ archived_at: new Date().toISOString() }),
-      },
-    );
+    const response = await fetch(getRestUrl("rpc/archive_owned_meeting"), {
+      method: "POST",
+      headers: getSupabaseHeaders(accessToken),
+      body: JSON.stringify({ target_meeting_id: workspaceId }),
+    });
 
     if (!response.ok) {
       throw new Error(await getRestErrorMessage(response, "Workspace archive"));
     }
 
-    const meetings = (await response.json()) as SupabaseMeeting[];
-    const meeting = meetings[0];
-    if (!meeting) {
-      throw new Error("Cloud meeting was not found or is not accessible.");
-    }
-
-    return meeting;
+    return (await response.json()) as SupabaseMeeting;
   },
 
   async restoreArchivedWorkspace({
@@ -484,14 +1011,11 @@ export const supabaseMeetingClient = {
     workspaceId: string;
   }) {
     const response = await fetch(
-      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}&archived_at=not.is.null&deleted_at=is.null`,
+      getRestUrl("rpc/restore_owned_archived_meeting"),
       {
-        method: "PATCH",
-        headers: {
-          ...getSupabaseHeaders(accessToken),
-          Prefer: "return=representation",
-        },
-        body: JSON.stringify({ archived_at: null }),
+        method: "POST",
+        headers: getSupabaseHeaders(accessToken),
+        body: JSON.stringify({ target_meeting_id: workspaceId }),
       },
     );
 
@@ -499,15 +1023,7 @@ export const supabaseMeetingClient = {
       throw new Error(await getRestErrorMessage(response, "Workspace restore"));
     }
 
-    const meetings = (await response.json()) as SupabaseMeeting[];
-    const meeting = meetings[0];
-    if (!meeting) {
-      throw new Error(
-        "Only archived meetings can be restored, or this meeting is no longer accessible.",
-      );
-    }
-
-    return meeting;
+    return (await response.json()) as SupabaseMeeting;
   },
 
   async softDeleteArchivedWorkspace({
@@ -518,14 +1034,11 @@ export const supabaseMeetingClient = {
     workspaceId: string;
   }) {
     const response = await fetch(
-      `${getRestUrl("meetings")}?id=eq.${encodeURIComponent(workspaceId)}&archived_at=not.is.null&deleted_at=is.null`,
+      getRestUrl("rpc/soft_delete_owned_archived_meeting"),
       {
-        method: "PATCH",
-        headers: {
-          ...getSupabaseHeaders(accessToken),
-          Prefer: "return=representation",
-        },
-        body: JSON.stringify({ deleted_at: new Date().toISOString() }),
+        method: "POST",
+        headers: getSupabaseHeaders(accessToken),
+        body: JSON.stringify({ target_meeting_id: workspaceId }),
       },
     );
 
@@ -534,16 +1047,6 @@ export const supabaseMeetingClient = {
         await getRestErrorMessage(response, "Archived meeting delete"),
       );
     }
-
-    const meetings = (await response.json()) as SupabaseMeeting[];
-    const meeting = meetings[0];
-    if (!meeting) {
-      throw new Error(
-        "Only archived meetings can be deleted, or this meeting is no longer accessible.",
-      );
-    }
-
-    return meeting;
   },
 
   async loadWorkspaceData({
@@ -679,6 +1182,465 @@ export const supabaseMeetingClient = {
     return saved;
   },
 
+  async loadAgendaItems({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("agenda_items")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}&select=*&order=client_meeting_id.asc,sort_order.asc,created_at.asc`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Agenda items load"));
+    }
+
+    return (await response.json()) as SupabaseAgendaItem[];
+  },
+
+  async saveAgendaItems({
+    accessToken,
+    workspaceId,
+    agendaItems,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    agendaItems: SupabaseAgendaItemUpsert[];
+  }) {
+    if (agendaItems.length === 0) return [];
+
+    const response = await fetch(
+      `${getRestUrl("agenda_items")}?on_conflict=meeting_id,client_agenda_item_id`,
+      {
+        method: "POST",
+        headers: {
+          ...getSupabaseHeaders(accessToken),
+          Prefer: "resolution=merge-duplicates,return=representation",
+        },
+        body: JSON.stringify(
+          agendaItems.map((item) => ({
+            ...item,
+            meeting_id: workspaceId,
+          })),
+        ),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Agenda items autosave"),
+      );
+    }
+
+    return (await response.json()) as SupabaseAgendaItem[];
+  },
+
+  async deleteMissingAgendaItems({
+    accessToken,
+    workspaceId,
+    retainedClientAgendaItemIds,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    retainedClientAgendaItemIds: number[];
+  }) {
+    const retainedFilter = retainedClientAgendaItemIds.length
+      ? `&client_agenda_item_id=not.in.(${retainedClientAgendaItemIds.join(",")})`
+      : "";
+    const response = await fetch(
+      `${getRestUrl("agenda_items")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}${retainedFilter}`,
+      {
+        method: "DELETE",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Agenda items cleanup"),
+      );
+    }
+  },
+
+  async loadMeetingNotes({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("meeting_notes")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}&select=*&order=meeting_date.asc,client_meeting_id.asc`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Meeting notes load"),
+      );
+    }
+
+    return (await response.json()) as SupabaseMeetingNote[];
+  },
+
+  async saveMeetingNotes({
+    accessToken,
+    workspaceId,
+    notes,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    notes: SupabaseMeetingNoteUpsert[];
+  }) {
+    if (notes.length === 0) return [];
+
+    const response = await fetch(
+      `${getRestUrl("meeting_notes")}?on_conflict=meeting_id,client_meeting_id`,
+      {
+        method: "POST",
+        headers: {
+          ...getSupabaseHeaders(accessToken),
+          Prefer: "resolution=merge-duplicates,return=representation",
+        },
+        body: JSON.stringify(
+          notes.map((note) => ({
+            ...note,
+            meeting_id: workspaceId,
+          })),
+        ),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Meeting notes autosave"),
+      );
+    }
+
+    return (await response.json()) as SupabaseMeetingNote[];
+  },
+
+  async deleteMissingMeetingNotes({
+    accessToken,
+    workspaceId,
+    retainedClientMeetingIds,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    retainedClientMeetingIds: number[];
+  }) {
+    const retainedFilter = retainedClientMeetingIds.length
+      ? `&client_meeting_id=not.in.(${retainedClientMeetingIds.join(",")})`
+      : "";
+    const response = await fetch(
+      `${getRestUrl("meeting_notes")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}${retainedFilter}`,
+      {
+        method: "DELETE",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Meeting notes cleanup"),
+      );
+    }
+  },
+
+  async loadObjectives({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("objectives")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}&select=*&order=sort_order.asc,created_at.asc`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Objectives load"));
+    }
+
+    return (await response.json()) as SupabaseObjective[];
+  },
+
+  async saveObjectives({
+    accessToken,
+    workspaceId,
+    objectives,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    objectives: SupabaseObjectiveUpsert[];
+  }) {
+    if (objectives.length === 0) return [];
+
+    const response = await fetch(
+      `${getRestUrl("objectives")}?on_conflict=meeting_id,client_objective_id`,
+      {
+        method: "POST",
+        headers: {
+          ...getSupabaseHeaders(accessToken),
+          Prefer: "resolution=merge-duplicates,return=representation",
+        },
+        body: JSON.stringify(
+          objectives.map((objective) => ({
+            ...objective,
+            meeting_id: workspaceId,
+          })),
+        ),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Objectives autosave"),
+      );
+    }
+
+    return (await response.json()) as SupabaseObjective[];
+  },
+
+  async deleteMissingObjectives({
+    accessToken,
+    workspaceId,
+    retainedClientObjectiveIds,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    retainedClientObjectiveIds: number[];
+  }) {
+    const retainedFilter = retainedClientObjectiveIds.length
+      ? `&client_objective_id=not.in.(${retainedClientObjectiveIds.join(",")})`
+      : "";
+    const response = await fetch(
+      `${getRestUrl("objectives")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}${retainedFilter}`,
+      {
+        method: "DELETE",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Objectives cleanup"),
+      );
+    }
+  },
+
+  async loadTasks({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("tasks")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}&select=*&order=client_objective_id.asc,sort_order.asc,created_at.asc`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Tasks load"));
+    }
+
+    return (await response.json()) as SupabaseTask[];
+  },
+
+  async saveTasks({
+    accessToken,
+    workspaceId,
+    tasks,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    tasks: SupabaseTaskUpsert[];
+  }) {
+    if (tasks.length === 0) return [];
+
+    const response = await fetch(
+      `${getRestUrl("tasks")}?on_conflict=meeting_id,client_task_id`,
+      {
+        method: "POST",
+        headers: {
+          ...getSupabaseHeaders(accessToken),
+          Prefer: "resolution=merge-duplicates,return=representation",
+        },
+        body: JSON.stringify(
+          tasks.map((task) => ({
+            ...task,
+            meeting_id: workspaceId,
+          })),
+        ),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Tasks autosave"));
+    }
+
+    return (await response.json()) as SupabaseTask[];
+  },
+
+  async deleteMissingTasks({
+    accessToken,
+    workspaceId,
+    retainedClientTaskIds,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    retainedClientTaskIds: number[];
+  }) {
+    const retainedFilter = retainedClientTaskIds.length
+      ? `&client_task_id=not.in.(${retainedClientTaskIds.join(",")})`
+      : "";
+    const response = await fetch(
+      `${getRestUrl("tasks")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}${retainedFilter}`,
+      {
+        method: "DELETE",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await getRestErrorMessage(response, "Tasks cleanup"));
+    }
+  },
+
+  async loadStandardOperatingObjectives({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("standard_operating_objectives")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}&select=*&order=sort_order.asc,created_at.asc`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(
+          response,
+          "Standard Operating Objectives load",
+        ),
+      );
+    }
+
+    return (await response.json()) as SupabaseStandardOperatingObjective[];
+  },
+
+  async saveStandardOperatingObjectives({
+    accessToken,
+    workspaceId,
+    standardOperatingObjectives,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    standardOperatingObjectives: SupabaseStandardOperatingObjectiveUpsert[];
+  }) {
+    if (standardOperatingObjectives.length === 0) return [];
+
+    const response = await fetch(
+      `${getRestUrl("standard_operating_objectives")}?on_conflict=meeting_id,client_soo_id`,
+      {
+        method: "POST",
+        headers: {
+          ...getSupabaseHeaders(accessToken),
+          Prefer: "resolution=merge-duplicates,return=representation",
+        },
+        body: JSON.stringify(
+          standardOperatingObjectives.map((soo) => ({
+            ...soo,
+            meeting_id: workspaceId,
+          })),
+        ),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(
+          response,
+          "Standard Operating Objectives autosave",
+        ),
+      );
+    }
+
+    return (await response.json()) as SupabaseStandardOperatingObjective[];
+  },
+
+  async deleteMissingStandardOperatingObjectives({
+    accessToken,
+    workspaceId,
+    retainedClientSooIds,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    retainedClientSooIds: number[];
+  }) {
+    const retainedFilter = retainedClientSooIds.length
+      ? `&client_soo_id=not.in.(${retainedClientSooIds.join(",")})`
+      : "";
+    const response = await fetch(
+      `${getRestUrl("standard_operating_objectives")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}${retainedFilter}`,
+      {
+        method: "DELETE",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(
+          response,
+          "Standard Operating Objectives cleanup",
+        ),
+      );
+    }
+  },
+
   async listTacticalSessions({
     accessToken,
     workspaceId,
@@ -748,19 +1710,139 @@ export const supabaseMeetingClient = {
     return session;
   },
 
-  async loadStrategicTopicNote({
+  async loadStrategicTopics({
     accessToken,
     workspaceId,
-    strategicTopicItemId,
   }: {
     accessToken: string;
     workspaceId: string;
-    strategicTopicItemId: number;
+  }) {
+    const response = await fetch(
+      `${getRestUrl("strategic_topics")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}&select=*&order=sort_order.asc,created_at.asc`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Strategic topics load"),
+      );
+    }
+
+    return (await response.json()) as SupabaseStrategicTopic[];
+  },
+
+  async saveStrategicTopics({
+    accessToken,
+    workspaceId,
+    topics,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    topics: SupabaseStrategicTopicUpsert[];
+  }) {
+    if (topics.length === 0) return [];
+
+    const normalizedTopics = topics.map((topic) => ({
+      ...topic,
+      meeting_id: workspaceId,
+    }));
+    const endpoint = `${getRestUrl("strategic_topics")}?on_conflict=meeting_id,client_item_id`;
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        ...getSupabaseHeaders(accessToken),
+        Prefer: "resolution=merge-duplicates,return=representation",
+      },
+      body: JSON.stringify(normalizedTopics),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Strategic topics autosave"),
+      );
+    }
+
+    return (await response.json()) as SupabaseStrategicTopic[];
+  },
+
+  async deleteMissingStrategicTopics({
+    accessToken,
+    workspaceId,
+    retainedClientItemIds,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    retainedClientItemIds: number[];
+  }) {
+    const retainedFilter = retainedClientItemIds.length
+      ? `&client_item_id=not.in.(${retainedClientItemIds.join(",")})`
+      : "";
+    const response = await fetch(
+      `${getRestUrl("strategic_topics")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}${retainedFilter}`,
+      {
+        method: "DELETE",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Strategic topics cleanup"),
+      );
+    }
+  },
+
+  async listStrategicTopicNotes({
+    accessToken,
+    workspaceId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
   }) {
     const response = await fetch(
       `${getRestUrl("strategic_topic_notes")}?meeting_id=eq.${encodeURIComponent(
         workspaceId,
-      )}&strategic_topic_item_id=eq.${strategicTopicItemId}&select=*&limit=1`,
+      )}&select=*`,
+      {
+        method: "GET",
+        headers: getSupabaseHeaders(accessToken),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        await getRestErrorMessage(response, "Strategic topic notes list"),
+      );
+    }
+
+    return (await response.json()) as SupabaseStrategicTopicNote[];
+  },
+
+  async loadStrategicTopicNote({
+    accessToken,
+    workspaceId,
+    strategicTopicItemId,
+    strategicTopicId,
+  }: {
+    accessToken: string;
+    workspaceId: string;
+    strategicTopicItemId: number;
+    strategicTopicId?: string | null;
+  }) {
+    const topicFilter = strategicTopicId
+      ? `&or=(strategic_topic_id.eq.${encodeURIComponent(strategicTopicId)},strategic_topic_item_id.eq.${strategicTopicItemId})`
+      : `&strategic_topic_item_id=eq.${strategicTopicItemId}`;
+    const response = await fetch(
+      `${getRestUrl("strategic_topic_notes")}?meeting_id=eq.${encodeURIComponent(
+        workspaceId,
+      )}${topicFilter}&select=*&limit=1`,
       {
         method: "GET",
         headers: getSupabaseHeaders(accessToken),
@@ -781,12 +1863,14 @@ export const supabaseMeetingClient = {
     accessToken,
     workspaceId,
     strategicTopicItemId,
+    strategicTopicId = null,
     contentText,
     contentJson = null,
   }: {
     accessToken: string;
     workspaceId: string;
     strategicTopicItemId: number;
+    strategicTopicId?: string | null;
     contentText: string;
     contentJson?: Record<string, unknown> | null;
   }) {
@@ -794,6 +1878,7 @@ export const supabaseMeetingClient = {
       accessToken,
       workspaceId,
       strategicTopicItemId,
+      strategicTopicId,
     });
     const updatedAtIso = new Date().toISOString();
     const endpoint = existingNote
@@ -808,12 +1893,15 @@ export const supabaseMeetingClient = {
       body: JSON.stringify(
         existingNote
           ? {
+              strategic_topic_id:
+                strategicTopicId ?? existingNote.strategic_topic_id,
               content_text: contentText,
               content_json: contentJson,
               updated_at: updatedAtIso,
             }
           : {
               meeting_id: workspaceId,
+              strategic_topic_id: strategicTopicId,
               strategic_topic_item_id: strategicTopicItemId,
               content_text: contentText,
               content_json: contentJson,

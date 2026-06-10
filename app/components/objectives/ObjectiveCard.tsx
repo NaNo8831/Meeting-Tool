@@ -78,7 +78,7 @@ export function ObjectiveCard({
           type="button"
           onClick={() => setIsDetailOpen(true)}
           className="block w-full rounded-xl text-left focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-4"
-          aria-label={`Open workflow details for ${objective.title || 'untitled defining objective'}`}
+          aria-label={`Open review details for ${objective.title || 'untitled defining objective'}`}
         >
           <h3 className="line-clamp-3 min-h-[3.5rem] pr-11 text-lg font-semibold leading-snug text-slate-900">
             {objective.title || 'Untitled defining objective'}
@@ -101,10 +101,7 @@ export function ObjectiveCard({
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
-                  Defining Objective Workflow
-                </p>
-                <p className="mt-1 text-sm text-slate-500">
-                  Review the objective summary, update task status, or open a task for its full details.
+                  Defining Objective Review
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -117,7 +114,7 @@ export function ObjectiveCard({
                   type="button"
                   onClick={() => setIsDetailOpen(false)}
                   className="rounded-full px-3 py-1 text-2xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                  aria-label="Close defining objective workflow details"
+                  aria-label="Close defining objective review details"
                 >
                   ×
                 </button>

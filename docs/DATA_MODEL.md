@@ -1,138 +1,310 @@
 # Data Model
 
-## Current Stable State (Phase 2 Cloud Baseline)
-- `/dashboard` works for authenticated meeting selection.
-- `/meeting/[id]` loads the selected cloud meeting when explicitly requested.
-- Manual **Save to Cloud** works and remains the full-workspace backup safety net.
-- `meeting_settings` is the only structured persistence pilot: valid loaded `/meeting/[id]` cloud routes hydrate its dashboard/playbook-level fields after the full-workspace backup loads, then debounce changed settings and upsert the one row for that meeting. Local mode never sends this read or write.
-- Refresh reloads the last manual full-workspace cloud backup, then applies the narrow structured `meeting_settings` pilot fields when present.
-- JSON export/import works.
-- Feedback submission works.
-- Sign out routes users to `/`.
-- `meetings.meeting_data` JSONB remains the backup/export/import shape and safety fallback.
-- `meetings.archived_at` (nullable timestamptz) marks archived meetings without deleting rows.
-- Tactical history foundation is active for cloud meetings: each **End Meeting** action creates a `tactical_sessions` row with archival `snapshot_json`, while runtime operational state remains unchanged.
+This document describes all Supabase tables, key columns, relationships, RLS approach, and structured autosave tables as of the Documentation Refresh sprint on `phase-3-shared-access`. Migrations are in `supabase/migrations/` and must be applied in timestamp order.
 
-## Why Full-Workspace JSONB Autosave Was Stopped
-The prior full-page autosave attempt (PR #41) was abandoned because it introduced regressions and did not deliver reliable persistence:
-- Strategic Topics broke.
-- The page flashed on edits.
-- Autosave still failed in important paths.
-- Refresh could revert to the last manual save.
+---
 
-Architecture drawbacks of full JSONB autosave:
-- Change detection across the full workspace is fragile.
-- Every edit attempts a large JSON write.
-- Load/save race conditions are hard to eliminate.
-- Model does not fit future multi-user/realtime behavior.
+## Table Overview
 
-## Meeting Container Name vs. Workspace Title
-- `meetings.name` is the Cloud Meeting container name shown on the authenticated dashboard and used to identify the routed cloud workspace.
-- `meeting_settings.dashboard_title` is the in-workspace/playbook title shown inside the Meeting Tool workspace.
-- The two values may initially match, but they remain distinct concepts and are not collapsed into one field in this pilot.
-- Keeping the container identity separate from workspace settings remains compatible with future Phase 3 member-based access.
+| Table | Purpose |
+|-------|---------|
+| `meetings` | Meeting container (cloud meeting identity, owner, lifecycle state, full-workspace backup) |
+| `meeting_members` | Meeting-scoped membership (owner/editor/viewer roles, soft removal) |
+| `meeting_invitations` | Pending/accepted/revoked email-based invitations |
+| `meeting_settings` | Structured autosave for playbook/settings fields |
+| `meeting_notes` | Structured autosave for dated meeting notes and cascade items |
+| `strategic_topics` | Structured autosave for strategic topic rows |
+| `strategic_topic_notes` | Structured autosave for topic-attached rich notes |
+| `objectives` | Structured autosave for defining objectives |
+| `tasks` | Structured autosave for tasks embedded in objectives |
+| `standard_operating_objectives` | Structured autosave for SOOs |
+| `agenda_items` | Structured autosave for agenda items with discussion notes and outcomes |
+| `profiles` | User display metadata (first/last name, derived display_name, email) |
+| `tactical_sessions` | Archival tactical history snapshots (End Meeting) |
+| `tactical_items` | Individual items within a tactical session snapshot |
+| `strategic_sessions` | Archival strategic session records |
+| `strategic_session_notes` | Notes attached to strategic sessions |
+| `feedback` | Tester feedback collection (separate from meeting data) |
 
-## Current Split Save Model
-- `meeting_settings` autosave persists playbook/settings-level data only: `dashboard_title`, `organization_info`, `meeting_section_order`, and `setup_completed`.
-- Manual Save persists the full operational workspace backup to `meetings.meeting_data`, including objectives, tasks, agenda items, Strategic Topics, meeting notes, Standard Operating Objectives, Defining Objectives, and other runtime meeting state.
-- Manual Save remains required, visible, and available until structured autosave reliably covers all important meeting data.
-- Full-workspace JSONB autosave remains out of scope. Future structured autosave expansion should continue surface-by-surface in separate PRs.
-- Once structured autosave handles the core operational workspace reliably, evaluate retiring Manual Save from the primary workflow or moving it into a secondary backup/export utility role. Do not remove or demote Manual Save in PR #72.
+---
 
-## Current Persistence Shape (Keep During Migration)
-`meetings.meeting_data` remains in place as:
-- backup/safety net,
-- export/import-compatible format,
-- manual save/load payload.
+## Core Tables
 
-Do **not** remove `meeting_data` in this migration planning stage.
+### `meetings`
 
-## Local Workspace Support and Future Evaluation
-- Local Workspace remains browser-only and supported during the current cloud persistence and shared-access stabilization work.
-- Local Workspace must not autosave to cloud. Do not remove it in Phase 2.5; it remains a fallback path while structured cloud persistence and shared access are being stabilized.
-- After structured cloud autosave protects all valuable meeting data and Phase 3 shared meeting access is stable, evaluate retiring Local Workspace or demoting it to a developer/testing-only mode.
-- Maintaining parallel local and cloud meeting systems creates code duplication, testing burden, and user confusion. The product's team value depends on shared cloud meeting access, which Local Workspace cannot provide, but Local Workspace retirement is a future decision.
+The meeting container and top-level parent for all cloud meeting data.
 
-## Tactical History Foundation (Archival Session Records)
-- `tactical_sessions` stores recurring tactical meeting history snapshots.
-- `snapshot_json` is intentionally acceptable for historical archival records.
-- This history path is separate from the structured operational persistence migration.
-- Ending a meeting creates a historical session record and **does not reset** the active meeting workspace.
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid PK | Meeting identity |
+| `owner_id` | uuid | Foreign key to `auth.users.id`. Authoritative owner. |
+| `name` | text | Meeting container name shown on the dashboard. |
+| `meeting_data` | jsonb | Full-workspace backup JSON written by Manual Save. Fallback hydration source. |
+| `metadata_json` | jsonb | Owner-only container metadata. Not written by editors. |
+| `archived_at` | timestamptz | Null for active meetings; set when archived. |
+| `deleted_at` | timestamptz | Null for visible meetings; set by soft-delete (only for archived meetings). |
+| `created_at` | timestamptz | Creation timestamp. |
+| `updated_at` | timestamptz | Auto-updated by trigger. |
 
-## Target Structured Persistence Model (Planned)
-The long-term direction is section/item persistence with clear entity boundaries.
+**RLS:**
+- Select: `user_can_access_meeting(id)` — owner or any active member.
+- Insert: `owner_id = auth.uid()` (or via `create_owned_meeting` RPC).
+- Update: `user_can_edit_meeting(id)` — narrowed to `meeting_data` column by column privileges; protected lifecycle columns (`name`, `owner_id`, `metadata_json`, `archived_at`, `deleted_at`) guarded by `prevent_non_owner_meeting_container_update` trigger.
 
-### Core tables to introduce in sequence (planned)
-- `meetings`
-- `meeting_members`
-- `meeting_sections` (or `meeting_settings` where section metadata belongs)
-- `objectives`
-- `tasks`
-- `standard_operating_objectives`
-- `tactical_sessions`
-- `tactical_items`
-- `strategic_topics`
-- `strategic_topic_notes`
+**Important:** `meetings.owner_id` is the authoritative owner field. Owner `meeting_members` rows are for future expansion and do not replace `owner_id`.
 
-### Relationship direction (high level)
-- `meetings` is the parent container.
-- `meeting_members` links users to meetings for access.
-- Section/item tables reference `meeting_id`.
-- Strategic topic notes/history records reference `meeting_id` and `strategic_topic_item_id`.
-- Rich text or text notes are stored with explicit ownership rather than inside one monolithic JSON blob.
+---
 
-## Save Behavior Target (Structured)
-Planned save flow:
-1. User edits one item/section.
-2. App saves only that item/section row(s).
-3. App updates local save status for that section/item.
-4. Manual full backup/export remains available as a safety net throughout migration.
+### `meeting_members`
 
-## Migration Strategy
-- **Phase A:** Keep JSONB backup as source of truth while structured schema and mapping are finalized.
-- **Phase B:** Add structured tables; new edits begin dual-write or structured-write per scoped surface.
-- **Phase C:** Hydrate app reads from structured tables (surface-by-surface rollout).
-- **Phase D:** Keep `meeting_data` for backup/export snapshot only.
-- **Phase E:** Add members/realtime features on top of structured tables.
+Meeting-scoped membership linking authenticated users to meetings.
 
-## Structured Persistence Foundation (Phase A/B Schema Introduction)
-Supabase migration `20260523000000_add_structured_persistence_foundation.sql` introduces non-breaking structured tables:
-- `meeting_members`
-- `meeting_settings`
-- `objectives`
-- `tasks`
-- `standard_operating_objectives`
-- `strategic_topics`
-- `tactical_sessions`
-- `tactical_items`
-- `strategic_sessions`
-- `strategic_session_notes`
+| Column | Type | Notes |
+|--------|------|-------|
+| `meeting_id` | uuid | References `meetings.id`. |
+| `user_id` | uuid | References `auth.users.id`. |
+| `role` | text | Constrained to `owner`, `editor`, `viewer`. |
+| `invited_by` | uuid | Optional: who created the invite. |
+| `removed_at` | timestamptz | Null for active members; set when removed. Active membership requires `removed_at is null`. |
+| `created_at` / `updated_at` | timestamptz | Managed by triggers. |
 
-The foundation remains non-breaking, with one validated write-path pilot:
-- `meeting_settings` receives debounced structured upserts for `dashboard_title`, `organization_info`, `meeting_section_order`, and `setup_completed` only after a signed-in cloud route has finished bootstrapping.
-- Unchanged settings payloads are skipped. The UI separately reports settings autosave progress and whether Manual Save is needed for the full workspace backup; failures surface a calm **Settings save failed** state.
-- The four pilot fields hydrate from `meeting_settings` after the full-workspace backup loads, so structured settings take precedence on refresh. Objectives, tasks, agenda items, Strategic Topics, meeting notes, SOOs, and other runtime state still hydrate from the existing workspace backup path.
-- `meetings.meeting_data` remains the active backup/export/import shape and Manual Save/Load safety net.
-- Full-workspace JSONB autosave remains explicitly out of scope.
+**Unique constraint:** `(meeting_id, user_id)`.
 
-Why this pilot is intentionally narrow:
-- A one-row settings upsert proves the structured write boundary without mixing objectives, tasks, agenda items, Strategic Topics, or notes into the same rollout.
-- The client writes by `meeting_id` and relies on RLS rather than hardcoding owner-only behavior, preparing for later `meeting_members` owner/editor/viewer policy expansion without implementing shared access in this slice.
+**RLS:** Owner/manage-only for all operations. Editors and viewers cannot manage membership rows.
 
-## Explicit Out of Scope (This Plan)
-- Realtime behavior.
-- Invitations.
-- Full org/team hierarchy.
-- Slug URLs.
-- Multiple local workspaces.
-- Immediate deletion of `meeting_data`.
+**Trigger:** `ensure_meeting_owner_member()` creates an active owner membership row when a new meeting is inserted.
 
-## Strategic Topic Lifecycle Semantics (Runtime)
-- Strategic Topics are historical operational records, not ephemeral checklist rows.
-- `completed` means the topic was reviewed/completed and remains historically accessible.
-- `archived` means hidden from default active view, but still preserved and recoverable.
-- Archive is non-destructive (`archive` ≠ `delete`).
-- Archived-meeting soft delete is also non-destructive: `meetings.deleted_at` hides deleted archived meetings from dashboard lists while retaining rows for audit/recovery.
-- Completion is non-destructive and distinct from archive (`completed` ≠ `archived`).
-- Topic-attached Notes in `strategic_topic_notes` remain attached by `strategic_topic_item_id` across active/completed/archived states.
-- Current runtime source remains meeting workspace/runtime storage shape unless/until `public.strategic_topics` is explicitly wired for active reads.
+---
+
+### `meeting_invitations`
+
+Pending, accepted, and revoked email-based invitations.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | uuid PK | |
+| `meeting_id` | uuid | References `meetings.id`. |
+| `email` | text | Raw email as entered. |
+| `normalized_email` | text | Lowercase trimmed; used for duplicate/match checks. |
+| `role` | text | Currently always `editor`. |
+| `status` | text | `pending`, `accepted`, or `revoked`. |
+| `invited_by` | uuid | Owner who created the invitation. |
+| `accepted_by` | uuid | User who accepted (nullable). |
+| `accepted_at` / `revoked_at` | timestamptz | Set on transition. |
+
+**Partial unique index:** `(meeting_id, normalized_email)` where `status = 'pending'` — prevents duplicate active pending invitations for the same meeting and email.
+
+**RLS:** Owner/manage-only. Pending invitations are not access grants; accepted editor membership is required for meeting access.
+
+---
+
+### `profiles`
+
+User display metadata. Not used for authorization.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `user_id` | uuid PK | References `auth.users.id`. |
+| `first_name` / `last_name` | text | User-editable via dashboard profile form. |
+| `display_name` | text | Derived server-side from first/last name. |
+| `email` | text | Mirrored from `auth.users.email` by trigger. |
+
+**RLS:** Own-row only for direct access. Dashboard owner attribution for shared meetings uses the `get_accessible_meeting_owner_profiles()` RPC, which returns display data only for meetings the caller can already access.
+
+---
+
+## Structured Autosave Tables
+
+All structured autosave tables are keyed by `meeting_id` and inherit RLS from the meeting access helpers:
+
+- **Select:** `user_can_access_meeting(meeting_id)` — owner or active member.
+- **Insert/Update/Delete:** `user_can_edit_meeting(meeting_id)` — owner or active editor.
+
+---
+
+### `meeting_settings`
+
+One row per cloud meeting storing playbook/settings fields.
+
+| Column | Notes |
+|--------|-------|
+| `meeting_id` | PK |
+| `dashboard_title` | In-workspace title (distinct from `meetings.name`). |
+| `organization_info` | JSONB rich text payload for org info fields. |
+| `meeting_section_order` | JSONB array of section ordering. |
+| `setup_completed` | Boolean. |
+
+---
+
+### `meeting_notes`
+
+Active dated meeting records storing meeting notes and cascade items.
+
+| Column | Notes |
+|--------|-------|
+| `meeting_id` | |
+| `client_meeting_id` | Numeric ID matching the runtime `MeetingRecord.id`. Compatibility bridge. |
+| `captured_date` | ISO date string for the dated meeting record. |
+| `is_test_meeting` | Boolean — true for Test Mode records. |
+| `notes_json` | JSONB array of meeting note/agenda items. |
+| `cascade_items` | JSONB array of cascading communication items. |
+
+**Note:** Archival tactical and strategic history records (`tactical_sessions`, `tactical_items`, `strategic_sessions`, `strategic_session_notes`) are separate tables and are not used for active autosave.
+
+---
+
+### `strategic_topics`
+
+Structured source of truth for Strategic Topic rows.
+
+| Column | Notes |
+|--------|-------|
+| `meeting_id` | |
+| `client_item_id` | Numeric ID for runtime/import compatibility. |
+| `text` | Topic title/text. |
+| `status` | `active`, `completed`, or `archived`. |
+| `sort_order` | Integer ordering. |
+| `captured_meeting_id` | Numeric meeting ID when the topic was captured. |
+| `removed_meeting_id` | Numeric meeting ID when the topic was removed. |
+| `completed_date` / `archived_at` | Timestamps for lifecycle transitions. |
+
+### `strategic_topic_notes`
+
+Rich notes attached to strategic topics.
+
+| Column | Notes |
+|--------|-------|
+| `meeting_id` | |
+| `strategic_topic_id` | UUID FK to `strategic_topics` (nullable for legacy compatibility). |
+| `strategic_topic_item_id` | Numeric `client_item_id` — primary compatibility key. |
+| `content_json` | JSONB rich text document. |
+| `content_text` | Plain text fallback. |
+
+---
+
+### `objectives`
+
+Defining Objectives with status, priority, color, and ordering.
+
+| Column | Notes |
+|--------|-------|
+| `meeting_id` | |
+| `client_objective_id` | Numeric ID for runtime/import compatibility. Unique with `meeting_id`. |
+| `title` | |
+| `description` | Plain text description. |
+| `description_json` | JSONB rich text description. |
+| `status` | `planning`, `in-progress`, or `completed`. |
+| `priority` | `high`, `medium`, or `low`. |
+| `due_date` | ISO date string (nullable). |
+| `color` | Color variant string. |
+| `sort_order` | Integer ordering. |
+
+---
+
+### `tasks`
+
+Tasks embedded within objectives.
+
+| Column | Notes |
+|--------|-------|
+| `meeting_id` | |
+| `client_task_id` | Numeric ID for runtime/import compatibility. Unique with `meeting_id`. |
+| `client_objective_id` | Links to `objectives.client_objective_id` for import compatibility. |
+| `objective_id` | UUID FK to `objectives` (nullable). |
+| `title` | |
+| `description` / `description_json` | Plain text and JSONB rich text. |
+| `status` | `planning`, `in-progress`, or `completed`. |
+| `due_date` | |
+| `assigned_to` / `assignee` | Assignee label. |
+| `sort_order` | |
+| `subtasks_json` | JSONB array of `Subtask` objects. |
+| `comments_json` | JSONB array of `TaskComment` objects. |
+| `activity_history_json` | JSONB array of `TaskActivity` objects. |
+
+---
+
+### `standard_operating_objectives`
+
+Standard Operating Objectives with ordering and color.
+
+| Column | Notes |
+|--------|-------|
+| `meeting_id` | |
+| `client_soo_id` | Numeric ID for runtime/import compatibility. Unique with `meeting_id`. |
+| `title` | |
+| `description` / `description_json` | Plain text and JSONB rich text. |
+| `color` | Color variant string. |
+| `sort_order` | |
+
+---
+
+### `agenda_items`
+
+First-class agenda items with discussion notes and Decision/Action outcomes.
+
+| Column | Notes |
+|--------|-------|
+| `meeting_id` | |
+| `client_agenda_item_id` | Numeric ID for runtime/import compatibility. |
+| `client_meeting_id` | Links to the dated `meeting_notes` record by client ID. |
+| `captured_date` | ISO date string for the meeting this item belongs to. |
+| `title` | Agenda item title. |
+| `discussion_notes_json` | JSONB rich text discussion notes. |
+| `has_decision` | Boolean — item has a Decision outcome. |
+| `decision_text` | Text of the decision. |
+| `has_action` | Boolean — item has an Action outcome. |
+| `action_text` | Text of the action. |
+| `is_covered` | Boolean — item was covered in the meeting. |
+| `cascade_needed` | Boolean — outcome should cascade to communications. |
+| `promoted_strategic_topic_id` | UUID FK to `strategic_topics` (nullable) — set when promoted. |
+| `sort_order` | |
+
+---
+
+## Archival Tables
+
+These tables store read-only historical records and are not used for active autosave.
+
+| Table | Purpose |
+|-------|---------|
+| `tactical_sessions` | One archival snapshot per End Meeting. Contains `snapshot_json` with the full workspace state at the time of ending. |
+| `tactical_items` | Items within a tactical session snapshot. |
+| `strategic_sessions` | Strategic meeting history records. |
+| `strategic_session_notes` | Notes attached to strategic sessions. |
+
+---
+
+## Source-of-Truth Summary
+
+| Data | Authoritative source |
+|------|---------------------|
+| Meeting container / title / lifecycle | `meetings` + owner-only RPCs |
+| Meeting ownership | `meetings.owner_id` |
+| Access/edit permissions | `meeting_members` + RLS helpers + owner-only lifecycle controls |
+| Settings | `meeting_settings` (structured), fallback from `meetings.meeting_data` |
+| Strategic Topics / Topic Notes | `strategic_topics` + `strategic_topic_notes` (structured), fallback from `meetings.meeting_data` |
+| Meeting Notes / Cascade Items | `meeting_notes` (structured), fallback from `meetings.meeting_data` |
+| Objectives / Tasks / SOOs | `objectives` + `tasks` + `standard_operating_objectives` (structured), fallback from `meetings.meeting_data` |
+| Agenda Items | `agenda_items` (structured), fallback from `meetings.meeting_data` |
+| Full workspace backup / safety net | `meetings.meeting_data` + JSON export/import |
+| User display metadata | `profiles` (display only, not authorization) |
+| Local Mode | Browser `localStorage` only |
+
+---
+
+## Compatibility Notes
+
+- **Numeric client IDs** (`client_objective_id`, `client_task_id`, `client_item_id`, etc.) bridge the runtime JavaScript objects (which use numeric IDs) with the structured UUID-keyed Supabase rows. They must be preserved in migrations and import/export payloads.
+- **`meetings.meeting_data`** remains in place as the full-workspace backup, export/import shape, and safety fallback. Do not remove it.
+- **Import into Cloud Meeting** upserts structured rows while preserving `meetings.meeting_data`. Cloud imports restore Objective/Task/SOO structured rows and the full workspace backup simultaneously.
+- **Legacy `decisionItems`** in older backup payloads remain readable through backup/import compatibility paths. A migration tool for legacy decision data is deferred to post-main.
+
+---
+
+## RLS Approach
+
+- Structured content tables follow the pattern: active members can select; active owners/editors can insert/update/delete.
+- Helper functions (`user_can_access_meeting`, `user_can_edit_meeting`) are the shared RLS building block across all content tables.
+- Meeting container lifecycle mutations are separated from content editing and protected through owner-only RPCs and a `prevent_non_owner_meeting_container_update` trigger.
+- Removed members (`removed_at is not null`) are excluded from all access/edit checks.
+- `profiles` and admin readability views use invoker security; they do not grant new meeting access or change dashboard visibility.
