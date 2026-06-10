@@ -96,7 +96,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 - **Sign-in:** `POST /auth/v1/token?grant_type=password` — returns access and refresh tokens.
 - **Sign-out:** `POST /auth/v1/logout` — invalidates the session.
 - **Session storage:** Sessions persist in `localStorage` under `meeting-tool-supabase-auth-session` and are refreshed automatically (60-second expiry buffer).
-- **Forgot Password:** Not yet implemented in the codebase. Planned via Supabase password reset (PR #110 scope, pending implementation and merge). See `docs/AUTH_EMAIL_SETUP.md` for the planned redirect URL setup.
+- **Forgot Password:** Implemented on PR #110 (`codex/add-forgot-password-implementation`). Includes the `/reset-password` route, `ForgotPassword` component, and password-reset helpers in `supabaseClient.ts` and `useSupabaseAuth.ts`. A recovery token session-exchange bug was found and fixed. PR #110 is merge-ready and pending final email-link validation (Resend/DNS in progress); it has not yet been merged to `phase-3-shared-access`. See `docs/AUTH_EMAIL_SETUP.md`.
 
 ### Meeting creation
 
@@ -224,7 +224,7 @@ See `docs/PERMISSIONS.md` for the full role matrix and table-level policy summar
 
 ## Deferred (Post-Main)
 
-- Forgot Password / account recovery.
+- Forgot Password merge (PR #110 — merge-ready, pending email-link validation).
 - Custom SMTP (Resend recommended) for reliable auth email delivery.
 - Realtime collaboration, presence, locks, CRDTs, conflict resolution.
 - Ownership transfer.

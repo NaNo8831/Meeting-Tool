@@ -11,7 +11,7 @@ This file tracks open questions that are genuinely unresolved. Questions that ha
 - **Has Supabase Auth Site URL been changed from localhost to the production Vercel/custom domain?** This must be confirmed before any auth email validation is trusted.
 - **Are Redirect URLs correct?** Production domain, `https://*.vercel.app/**`, and `http://localhost:3000/**` should all be present.
 - **Custom SMTP provider:** Will the project use Resend before main, or is another provider preferred? Resend is the documented recommendation (`docs/AUTH_EMAIL_SETUP.md`) but no durable decision has been recorded.
-- **Forgot Password implementation:** PR #110 is scoped and documented but not yet merged to this branch. When will it be implemented and validated?
+- **Forgot Password merge and email-link validation:** PR #110 (`codex/add-forgot-password-implementation`) is implementation-complete and merge-ready. Final email-link validation is pending Resend/DNS setup (IT request submitted). Once Resend/DNS is confirmed: send a fresh reset email, confirm the link opens the deployed `/reset-password` route (not localhost), complete the password update, confirm re-login. Then merge PR #110 to `phase-3-shared-access`.
 
 ### Meeting Lifecycle
 

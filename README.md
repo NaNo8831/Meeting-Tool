@@ -5,8 +5,8 @@ Meeting Tool by LyArk is a lightweight operational leadership meeting tool for s
 ## Current Feature Set
 
 - **Cloud Meeting dashboard** with Owned by Me and Shared with Me sections.
-- **Supabase email/password authentication**: sign up, sign in, sign out, profile display names.
-  - Forgot Password is planned (PR #110 scope); implementation is pending merge to this branch.
+- **Supabase email/password authentication**: sign up, sign in, sign out, profile display names, and Forgot Password / password reset.
+  - Forgot Password implementation is complete on PR #110 (`codex/add-forgot-password-implementation`). PR #110 is merge-ready and pending final email-link validation (Resend/DNS setup in progress). It has not yet been merged to `phase-3-shared-access`.
 - **Owner/editor collaboration model** for Team Beta: owners manage meeting lifecycle; owners and editors edit meeting content.
 - **Meeting Setup and Playbook Definitions**: dashboard title, organization info, section order, setup state.
 - **Top Priority / Thematic Goal** with rich text support.

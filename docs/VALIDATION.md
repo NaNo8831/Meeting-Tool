@@ -32,7 +32,7 @@ Before merging any PR:
 
 ## Forgot Password / Auth Email Validation Checklist
 
-Use this checklist after Forgot Password is implemented and Supabase Auth URL Configuration and custom SMTP are confirmed. The implementation (PR #110 scope) is pending merge to this branch.
+Use this checklist to complete validation of PR #110 (`codex/add-forgot-password-implementation`) before merging it to `phase-3-shared-access`. The implementation is structurally complete (includes `/reset-password` route, `ForgotPassword` component, recovery token session-exchange fix, and password-reset helpers in `supabaseClient.ts` and `useSupabaseAuth.ts`). Final email-link validation is pending Resend/DNS setup (IT request submitted). Confirm Supabase Auth URL Configuration and Resend are in place before running the steps below.
 
 **Pre-conditions:**
 - [ ] Supabase Auth Site URL is set to the production Vercel/custom domain (not localhost).
