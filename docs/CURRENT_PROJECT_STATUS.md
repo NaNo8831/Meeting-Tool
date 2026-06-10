@@ -6,7 +6,7 @@ This snapshot summarizes the current pre-main transition state for Meeting Tool.
 
 ## Current Project Status
 
-**Documentation Refresh complete. Main Readiness Review is the next step.**
+**PR #110 Forgot Password validation complete and ready to merge. Main Readiness Review is the next step after merge.**
 
 - Phase 3 Shared Access: complete.
 - Phase 4 Structured Persistence: complete.
@@ -17,8 +17,8 @@ This snapshot summarizes the current pre-main transition state for Meeting Tool.
 - Meeting State Review (PR #108): complete.
 - Meeting State follow-up implementation (PR #109): complete.
 - Transition docs update for Claude (PR #111): complete.
-- Documentation Refresh sprint: **complete** (this PR).
-- **Forgot Password (PR #110): implementation complete, pending merge and email validation.** PR #110 (`codex/add-forgot-password-implementation`) contains the full implementation: `/reset-password` route, `ForgotPassword` component, and password-reset helpers in `supabaseClient.ts` and `useSupabaseAuth.ts`. A recovery token session-exchange bug was found and fixed. The implementation is structurally complete and merge-ready. Final email-link validation is pending Resend/DNS setup (IT request submitted). PR #110 has not yet been merged to `phase-3-shared-access`, which is why the code does not appear on this branch directly.
+- Documentation Refresh sprint (PR #113): complete.
+- **Forgot Password (PR #110): validation complete, ready to merge.** All checklist items passed: Resend SMTP confirmed delivering email, reset link correctly opens `/reset-password` on the deployed app, password update succeeds, login with new password works. A recovery token session-exchange bug was found and fixed during audit (raw `access_token` used as Bearer for `PUT /auth/v1/user` could return 200 without committing the change; fix exchanges the recovery `refresh_token` for a live session first). PR #110 is merge-ready.
 
 ---
 
@@ -32,13 +32,13 @@ This is the pre-main integration branch. All before-main work targets this branc
 
 ## Current Before-Main Roadmap
 
-1. **Merge Forgot Password (PR #110)** — implementation is complete and merge-ready. Merge to `phase-3-shared-access` after Resend/DNS is confirmed and email-link validation passes.
-2. **Complete email-link validation** — Resend/DNS setup is in progress (IT request submitted). Once confirmed: send a fresh reset email, verify the link opens the deployed `/reset-password` route (not localhost), complete the password update, and confirm re-login.
-3. **Fix/confirm Supabase Auth URL Configuration** — production Site URL and production/preview/local Redirect URLs must be correct before auth email validation is trusted.
-4. **Set up custom SMTP (Resend)** — required before main to avoid Supabase default email limits.
-5. ~~**Documentation Refresh**~~ — **complete** (this sprint).
-5. **Main Readiness Review** — run the full validation checklist in `docs/VALIDATION.md` on a Vercel/Supabase preview with dedicated test accounts.
-6. **Merge to `main`** — only after the Main Readiness Review gate passes.
+1. ~~**Merge Forgot Password (PR #110)**~~ — **ready to merge.** Validation complete. Merge PR #110 (`codex/add-forgot-password-implementation`) to `phase-3-shared-access`.
+2. ~~**Complete email-link validation**~~ — **complete.** Resend SMTP confirmed, reset link opens deployed `/reset-password`, password update and re-login work.
+3. ~~**Fix/confirm Supabase Auth URL Configuration**~~ — **confirmed correct.**
+4. ~~**Set up custom SMTP (Resend)**~~ — **complete.**
+5. ~~**Documentation Refresh**~~ — **complete** (PR #113).
+6. **Main Readiness Review** — run the full validation checklist in `docs/VALIDATION.md` on a Vercel/Supabase preview with dedicated test accounts.
+7. **Merge to `main`** — only after the Main Readiness Review gate passes.
 
 ### Known merge concern for step 6
 
@@ -53,7 +53,7 @@ PR #112 hotfix on `main` (`fix/meetings-create-permission`) is superseded by a m
 | System | Status |
 |--------|--------|
 | Supabase Auth (sign-up, sign-in, sign-out, profiles) | Complete |
-| Forgot Password / reset-password route | Implementation complete on PR #110 — pending merge and email-link validation |
+| Forgot Password / reset-password route | Validation complete — ready to merge (PR #110) |
 | Cloud Meetings (container CRUD, dashboard listing) | Complete |
 | Shared Access (owner/editor model, invite flow, member management) | Complete |
 | Meeting Lifecycle (Start, End, Test Mode, open/closed/past states) | Complete |
@@ -72,9 +72,7 @@ PR #112 hotfix on `main` (`fix/meetings-create-permission`) is superseded by a m
 
 ## Known Before-Main Risks
 
-- **Forgot Password PR #110 not yet merged.** The implementation is complete and structurally correct (PR #110 on `codex/add-forgot-password-implementation`). Final email-link validation is blocked pending Resend/DNS setup. Merge after email validation passes.
-- **Supabase Auth URL Configuration unconfirmed.** Reset and confirmation links may still point to localhost until Site URL and Redirect URLs are corrected and retested with fresh emails.
-- **Default Supabase auth email delivery unsuitable for main.** Configuring custom SMTP (Resend) before main is required to avoid rate limits in testing and production.
+- **Forgot Password PR #110 ready to merge.** Validation is complete. Merge `codex/add-forgot-password-implementation` to `phase-3-shared-access` before proceeding to Main Readiness Review.
 - **Main merge conflict risk.** The PR #112 duplicate migration must be removed at merge time to avoid silently downgrading the `create_owned_meeting` database function. See merge concern above.
 - **Local Mode remains browser-only fallback.** No cloud sync; decommission deferred.
 - **Manual Save remains the safety net.** Structured autosave is stable but Manual Save is still required as the full-workspace backup path.

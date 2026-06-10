@@ -7,7 +7,7 @@
 - Deployment: Vercel.
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings have structured autosave for `meeting_settings`, Strategic Topics, Topic Notes, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, Standard Operating Objectives, and Agenda Items, with `meetings.meeting_data` full-workspace Manual Save as the safety net and fallback hydration source.
 - Backup: JSON export/import workspace backup (full workspace + structured rows).
-- Current Project Status: **Documentation Refresh complete. Next: merge Forgot Password (PR #110 — implementation complete, pending email-link validation), Supabase Auth URL Configuration, custom SMTP (Resend), then Main Readiness Review.**
+- Current Project Status: **PR #110 Forgot Password validation complete. All checklist items passed (Resend SMTP confirmed, reset link opens deployed /reset-password, password update and re-login work). PR #110 is ready to merge to phase-3-shared-access. Next: merge PR #110, then Main Readiness Review.**
 
 ## Documentation Refresh Sprint
 
@@ -31,12 +31,9 @@
 - PR #107 added AI Agent Workflow and Current Project Status docs.
 - PR #108 added Meeting State Review.
 - PR #109 implemented Meeting State follow-up, was tested as merge-ready, and is reflected in this branch state.
-- PR #110 Forgot Password implementation appears structurally complete, including request flow, generic success message, `/reset-password` route, Supabase reset helpers, and passing lint/typecheck/build during the PR #110 validation pass.
-- PR #110 final validation is paused because Supabase default auth email delivery reached `email rate limit exceeded` and reset email redirect configuration still needs final production/preview environment confirmation.
-- Supabase Auth URL Configuration likely needs production Site URL plus production, Vercel preview wildcard, and localhost Redirect URLs confirmed before new validation emails are generated.
-- Custom SMTP, likely Resend, should be configured before main so Supabase remains the auth/security source of truth while email delivery avoids default-provider limits.
-- Next agent should either finish auth email validation after the limit resets/config is fixed or document the blocker and proceed to custom SMTP setup documentation/review.
-- Remaining roadmap: finish PR #110 validation, fix/confirm Auth URL Configuration, set up custom SMTP, Documentation Refresh, Main Readiness Review, then merge to `main`.
+- PR #110 Forgot Password implementation is complete and fully validated. Supabase Auth URL Configuration is confirmed correct. Custom SMTP (Resend) is configured and confirmed delivering email. All PR #110 validation checklist items passed: reset link opens deployed `/reset-password`, password update succeeds, re-login with new password works.
+- A recovery token session-exchange bug was found and fixed during audit: the raw `access_token` from the URL hash was being used directly as Bearer for `PUT /auth/v1/user`, which can return 200 without committing the change. Fix exchanges the recovery `refresh_token` for a live session first.
+- PR #110 is ready to merge to `phase-3-shared-access`. Remaining roadmap: merge PR #110, Main Readiness Review, then merge to `main`.
 
 ## Meeting State Follow-up Implementation
 
@@ -195,9 +192,9 @@
 
 ## Next Actions
 
-1. **Merge Forgot Password (PR #110)** — implementation is complete and merge-ready on `codex/add-forgot-password-implementation`. Includes `/reset-password` route, `ForgotPassword` component, recovery token session-exchange fix, and password-reset helpers. Final email-link validation is pending Resend/DNS setup (IT request submitted). Merge to `phase-3-shared-access` after email validation passes. See `docs/AUTH_EMAIL_SETUP.md` and `docs/VALIDATION.md`.
-2. **Fix/confirm Supabase Auth URL Configuration** — production Site URL and production/preview/local Redirect URLs must be set before auth email validation.
-3. **Set up custom SMTP (recommended: Resend)** — required before main to avoid default Supabase email limits.
+1. **Merge Forgot Password (PR #110)** — validation complete. All checklist items passed: Resend SMTP delivering email, reset link opens deployed `/reset-password`, password update and re-login work. Merge `codex/add-forgot-password-implementation` to `phase-3-shared-access`.
+2. ~~**Fix/confirm Supabase Auth URL Configuration**~~ — confirmed correct.
+3. ~~**Set up custom SMTP (Resend)**~~ — complete.
 4. **Run Main Readiness Review** — full validation checklist in `docs/VALIDATION.md` on an integrated Vercel/Supabase preview with dedicated test accounts. Merge to `main` only after this gate passes.
 5. Keep realtime collaboration, ownership transfer, full Viewer UX, Local Mode decommission, and broader schema/RLS changes separate from the before-main path.
 

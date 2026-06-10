@@ -1267,6 +1267,7 @@ export default function MeetingWorkspace() {
     isLoading: isAuthLoading,
     signUp,
     signIn,
+    requestPasswordReset,
     signOut,
   } = useSupabaseAuth();
   const [selectedMeetingId, setSelectedMeetingId] = useState("");
@@ -5600,6 +5601,7 @@ export default function MeetingWorkspace() {
           router.replace("/dashboard");
           return result;
         }}
+        onRequestPasswordReset={requestPasswordReset}
         onSignOut={async () => {
           await handleSignOutAndExit();
         }}
