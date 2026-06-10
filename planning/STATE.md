@@ -3,11 +3,11 @@
 ## Current Snapshot
 
 - Product: Meeting Tool by LyArk in the `Meeting-Tool` repo.
-- Status: **live Team Beta — phase-3-shared-access merged to main on 2026-06-10.**
+- Status: **post-main Team Beta — phase-3-shared-access merged to main on 2026-06-10. Sprint 1 UX polish is active on `ux/polish-sprint-1`.**
 - Deployment: Vercel (main branch).
 - Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings have structured autosave for `meeting_settings`, Strategic Topics, Topic Notes, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, Standard Operating Objectives, and Agenda Items, with `meetings.meeting_data` full-workspace Manual Save as the safety net and fallback hydration source.
 - Backup: JSON export/import workspace backup (full workspace + structured rows).
-- Current Project Status: **phase-3-shared-access merged to main. All Phase 3 Shared Access and Phase 4 Structured Persistence work is now on main. Project is in Team Beta. Post-main backlog tracks deferred items (Viewer UX, realtime collaboration, ownership transfer, client meeting ID deduplication, Local Mode decommission).**
+- Current Project Status: **post-main Team Beta. All Phase 3 Shared Access and Phase 4 Structured Persistence work is on main. Sprint 1 UX polish is active on `ux/polish-sprint-1` (members menu in workspace, sticky header visibility, Local Mode legacy label). `planning/POST_MAIN_ROADMAP.md` is the backlog source of truth.**
 
 ## Documentation Refresh Sprint
 
