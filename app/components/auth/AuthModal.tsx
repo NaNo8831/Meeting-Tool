@@ -42,6 +42,7 @@ export function AuthModal({
     message: string;
   } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
   useBodyScrollLock(isOpen);
 
   if (!isOpen) return null;
@@ -68,12 +69,7 @@ export function AuthModal({
         setPassword("");
       } else {
         await onRequestPasswordReset(email.trim());
-        setMode("signIn");
-        setFeedback({
-          type: "success",
-          message:
-            "If an account exists for this email, a password reset link has been sent.",
-        });
+        setForgotPasswordSent(true);
       }
     } catch (error) {
       setFeedback({
@@ -81,7 +77,7 @@ export function AuthModal({
         message:
           error instanceof Error
             ? error.message
-            : "Supabase Auth request failed.",
+            : "Something went wrong. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -121,10 +117,7 @@ export function AuthModal({
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
-              Supabase Auth
-            </p>
-            <h2 className="mt-1 text-2xl font-bold text-slate-900">
+            <h2 className="text-2xl font-bold text-slate-900">
               {session
                 ? "Account"
                 : mode === "signIn"
@@ -165,8 +158,7 @@ export function AuthModal({
               </p>
             </div>
             <p className="text-sm text-slate-600">
-              Workspace data still stays in this browser&apos;s localStorage.
-              Auth does not sync, migrate, or share workspace data yet.
+              You&apos;re signed in. Your meetings are saved to the cloud.
             </p>
             <button
               type="button"
@@ -175,6 +167,29 @@ export function AuthModal({
               className="w-full rounded-full bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? "Signing out…" : "Sign Out"}
+            </button>
+          </div>
+        ) : forgotPasswordSent ? (
+          <div className="space-y-4 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-2xl">
+              ✓
+            </div>
+            <p className="font-semibold text-slate-900">Check your email</p>
+            <p className="text-sm text-slate-600">
+              If an account exists for {email || "that address"}, a password
+              reset link has been sent.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setForgotPasswordSent(false);
+                setMode("signIn");
+                setEmail("");
+                setFeedback(null);
+              }}
+              className="w-full rounded-full border border-slate-300 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Back to Sign In
             </button>
           </div>
         ) : (
@@ -211,6 +226,11 @@ export function AuthModal({
                   className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
                   placeholder="Password"
                 />
+                {mode === "signUp" ? (
+                  <span className="mt-1 block text-xs text-slate-500">
+                    Minimum 6 characters.
+                  </span>
+                ) : null}
               </label>
             )}
             <button
@@ -257,18 +277,15 @@ export function AuthModal({
                 : "Have an account? Sign In"}
             </button>
             {onContinueLocally ? (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center">
-                <p className="text-xs leading-relaxed text-slate-600">
-                  Local mode is browser-only and does not sync to cloud.
-                </p>
+              <p className="text-center text-xs text-slate-400">
                 <button
                   type="button"
                   onClick={onContinueLocally}
-                  className="mt-2 w-full rounded-full border border-blue-200 bg-white px-4 py-3 font-semibold text-blue-700 hover:bg-blue-50"
+                  className="underline hover:text-slate-600"
                 >
-                  Continue locally
+                  Continue without an account (browser only)
                 </button>
-              </div>
+              </p>
             ) : null}
           </form>
         )}

@@ -526,10 +526,12 @@ const mapAgendaItemToSupabase = (
     title: normalizedItem.text,
     discussion_notes_json: richTextJsonOrNull(getAgendaNotesValue(normalizedItem)),
     discussion_notes_text: richTextTextOrNull(getAgendaNotesValue(normalizedItem)),
-    has_decision: normalizedItem.hasDecision ?? false,
-    decision_text: toNullableString(normalizedItem.decisionText),
-    has_action: normalizedItem.hasAction ?? false,
-    action_text: toNullableString(normalizedItem.actionText),
+    has_decision: Boolean(normalizedItem.outcomeText?.trim() || normalizedItem.hasDecision),
+    decision_text: normalizedItem.outcomeText?.trim()
+      ? normalizedItem.outcomeText.trim()
+      : toNullableString(normalizedItem.decisionText),
+    has_action: normalizedItem.outcomeText?.trim() ? false : (normalizedItem.hasAction ?? false),
+    action_text: normalizedItem.outcomeText?.trim() ? null : toNullableString(normalizedItem.actionText),
     is_covered: normalizedItem.isCovered ?? false,
     cascade_needed: normalizedItem.cascadeNeeded ?? false,
     promoted_strategic_topic_id: uuidOrNull(
@@ -539,22 +541,28 @@ const mapAgendaItemToSupabase = (
   };
 };
 
-const mapAgendaItemFromSupabase = (row: SupabaseAgendaItem): MeetingItem => ({
-  id: row.client_agenda_item_id,
-  text: row.title,
-  discussionNotes: richTextFromStructured(
-    row.discussion_notes_json,
-    row.discussion_notes_text,
-  ),
-  hasDecision: row.has_decision,
-  decisionText: row.decision_text ?? "",
-  hasAction: row.has_action,
-  actionText: row.action_text ?? "",
-  isCovered: row.is_covered,
-  completed: row.is_covered,
-  cascadeNeeded: row.cascade_needed,
-  promotedStrategicTopicId: row.promoted_strategic_topic_id ?? undefined,
-});
+const mapAgendaItemFromSupabase = (row: SupabaseAgendaItem): MeetingItem => {
+  const decisionText = row.decision_text ?? "";
+  const actionText = row.action_text ?? "";
+  const outcomeText = [decisionText, actionText].filter(Boolean).join("\n\n").trim();
+  return {
+    id: row.client_agenda_item_id,
+    text: row.title,
+    discussionNotes: richTextFromStructured(
+      row.discussion_notes_json,
+      row.discussion_notes_text,
+    ),
+    hasDecision: row.has_decision,
+    decisionText,
+    hasAction: row.has_action,
+    actionText,
+    outcomeText: outcomeText || undefined,
+    isCovered: row.is_covered,
+    completed: row.is_covered,
+    cascadeNeeded: row.cascade_needed,
+    promotedStrategicTopicId: row.promoted_strategic_topic_id ?? undefined,
+  };
+};
 
 const buildAgendaItemsAutosavePayload = (
   meetings: MeetingRecord[],
@@ -948,7 +956,7 @@ const getAutosaveSummaryStatus = ({
 const autosaveSummaryLabel: Record<AutosaveSummaryStatus, string> = {
   autosaved: "Autosaved",
   saving: "Saving…",
-  "backup-needed": "Backup needed",
+  "backup-needed": "Manual Save needed",
   error: "Autosave issue",
 };
 
@@ -2214,10 +2222,12 @@ export default function MeetingWorkspace() {
       richTextTextOrNull(getAgendaNotesValue(normalizedItem))
         ? `Discussion Notes:\n${richTextTextOrNull(getAgendaNotesValue(normalizedItem))}`
         : "",
-      normalizedItem.hasDecision && normalizedItem.decisionText?.trim()
-        ? `Decision:\n${normalizedItem.decisionText.trim()}`
-        : "",
-      normalizedItem.hasAction && normalizedItem.actionText?.trim()
+      normalizedItem.outcomeText?.trim()
+        ? `Outcome:\n${normalizedItem.outcomeText.trim()}`
+        : normalizedItem.hasDecision && normalizedItem.decisionText?.trim()
+          ? `Decision:\n${normalizedItem.decisionText.trim()}`
+          : "",
+      !normalizedItem.outcomeText?.trim() && normalizedItem.hasAction && normalizedItem.actionText?.trim()
         ? `Action:\n${normalizedItem.actionText.trim()}`
         : "",
     ].filter(Boolean);
@@ -2770,10 +2780,12 @@ export default function MeetingWorkspace() {
       id: item.id,
       text: [
         item.text,
-        item.hasDecision && item.decisionText?.trim()
-          ? `Decision: ${item.decisionText.trim()}`
-          : "",
-        item.hasAction && item.actionText?.trim()
+        item.outcomeText?.trim()
+          ? `Outcome: ${item.outcomeText.trim()}`
+          : item.hasDecision && item.decisionText?.trim()
+            ? `Decision: ${item.decisionText.trim()}`
+            : "",
+        !item.outcomeText?.trim() && item.hasAction && item.actionText?.trim()
           ? `Action: ${item.actionText.trim()}`
           : "",
       ]
@@ -2786,7 +2798,7 @@ export default function MeetingWorkspace() {
       id: "agenda",
       title: "Agenda Items",
       description:
-        "Capture discussion notes, decisions, actions, covered state, cascade needs, and Strategic Topic promotion per agenda item.",
+        "Track discussion, outcomes, and follow-ups per agenda item.",
       items: activeMeeting.agendaItems,
       newItem: newAgendaItem,
       setNewItem: setNewAgendaItem,
@@ -2845,7 +2857,7 @@ export default function MeetingWorkspace() {
     cascade: {
       id: "cascade",
       title: "Cascading Communication",
-      description: "Generated cascade-needed agenda outcomes plus editable communication notes for Staff.",
+      description: "Staff communication — items from agenda marked as Cascade Needed appear here automatically. Add additional communication notes below.",
       items: activeMeeting.cascadeItems,
       newItem: newCascadeItem,
       setNewItem: setNewCascadeItem,
@@ -4932,7 +4944,7 @@ export default function MeetingWorkspace() {
                     className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 font-medium text-slate-500"
                     title={meetingActionHelpText}
                   >
-                    Action date: {meetingActionDate}
+                    Meeting date: {meetingActionDate}
                   </span>
                 ) : null}
                 <button
@@ -5037,9 +5049,8 @@ export default function MeetingWorkspace() {
                       </ul>
                       {autosaveSummaryStatus === "error" ? (
                         <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 font-semibold text-red-800">
-                          Some cloud autosave changes may not have saved. Use
-                          Manual Save now, then retry or refresh after confirming
-                          status.
+                          Autosave may have failed. Save a full backup now using
+                          Manual Save.
                         </p>
                       ) : null}
                       {cloudMeetingMessage ? (
@@ -5225,7 +5236,7 @@ export default function MeetingWorkspace() {
                           className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
                           role="menuitem"
                         >
-                          Access / Members
+                          Members
                         </button>
                       ) : null}
                       <button
@@ -5269,6 +5280,13 @@ export default function MeetingWorkspace() {
       </header>
 
       <div className="mx-auto max-w-[1600px] p-4 sm:p-8">
+
+        {isActiveMeetingHistorical ? (
+          <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <span className="font-semibold">This meeting has been ended.</span>{" "}
+            Content is read-only. To continue taking notes, start a new meeting for today.
+          </div>
+        ) : null}
 
         {isLocalRoute && shouldShowLocalToCloudMigrationPrompt ? (
           <section className="mb-8 w-full rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">
@@ -5521,22 +5539,6 @@ export default function MeetingWorkspace() {
             onDragOver={handleDragOver}
             onDrop={handleMeetingSectionDrop}
           />
-
-          <details className="rounded-3xl border border-amber-200 bg-amber-50/70 p-4 shadow-sm">
-            <summary className="cursor-pointer text-sm font-semibold text-amber-900">
-              Decisions / Actions Summary ({decisionActionRollupItems.length})
-            </summary>
-            <div className="mt-3 space-y-2">
-              <p className="text-sm text-amber-800">Read-only summary generated from Agenda Items. Edit decisions and actions on their Agenda Item cards.</p>
-              {decisionActionRollupItems.length > 0 ? (
-                decisionActionRollupItems.map((item) => (
-                  <p key={item.id} className="whitespace-pre-wrap rounded-xl bg-white px-3 py-2 text-sm text-slate-800 shadow-sm">{item.text}</p>
-                ))
-              ) : (
-                <p className="rounded-xl border border-dashed border-amber-300 bg-white/70 px-3 py-3 text-sm text-amber-800">No decisions or actions captured yet.</p>
-              )}
-            </div>
-          </details>
 
           <div className="grid gap-6 lg:grid-cols-2">
             {secondaryMeetingSectionOrder.map((sectionKey) => (

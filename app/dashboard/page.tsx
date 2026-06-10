@@ -7,6 +7,7 @@ import { useBodyScrollLock } from "@/app/hooks/useBodyScrollLock";
 import { useSupabaseAuth } from "@/app/hooks/useSupabaseAuth";
 import {
   isSupabaseConfigured,
+  supabaseAuthClient,
   supabaseInvitationClient,
   supabaseMeetingClient,
   supabaseMemberClient,
@@ -115,6 +116,12 @@ export default function DashboardPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [showDashboardMenu, setShowDashboardMenu] = useState(false);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [changePasswordCurrentPassword, setChangePasswordCurrentPassword] = useState("");
+  const [changePasswordNewPassword, setChangePasswordNewPassword] = useState("");
+  const [changePasswordConfirm, setChangePasswordConfirm] = useState("");
+  const [changePasswordMessage, setChangePasswordMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [profile, setProfile] = useState<SupabaseProfile | null>(null);
   const [profileFirstName, setProfileFirstName] = useState("");
   const [profileLastName, setProfileLastName] = useState("");
@@ -134,7 +141,8 @@ export default function DashboardPage() {
       meetingPendingDuplicate !== null ||
       meetingPendingDelete !== null ||
       meetingPendingAccess !== null ||
-      showProfileEditor,
+      showProfileEditor ||
+      showChangePassword,
   );
 
   useEffect(() => {
@@ -528,6 +536,34 @@ export default function DashboardPage() {
       );
     } finally {
       setIsSavingProfile(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!session) return;
+    if (changePasswordNewPassword !== changePasswordConfirm) {
+      setChangePasswordMessage({ type: "error", text: "New passwords do not match." });
+      return;
+    }
+    if (changePasswordNewPassword.length < 6) {
+      setChangePasswordMessage({ type: "error", text: "Password must be at least 6 characters." });
+      return;
+    }
+    setIsChangingPassword(true);
+    setChangePasswordMessage(null);
+    try {
+      await supabaseAuthClient.updatePassword(session.accessToken, changePasswordNewPassword);
+      setChangePasswordMessage({ type: "success", text: "Password updated successfully." });
+      setChangePasswordCurrentPassword("");
+      setChangePasswordNewPassword("");
+      setChangePasswordConfirm("");
+    } catch (error) {
+      setChangePasswordMessage({
+        type: "error",
+        text: error instanceof Error ? error.message : "Could not update password. Please try again.",
+      });
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -1022,6 +1058,16 @@ export default function DashboardPage() {
                     role="menu"
                     aria-label="Dashboard menu"
                   >
+                    {session ? (
+                      <div className="border-b border-slate-100 px-5 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          User
+                        </p>
+                        <p className="mt-1 truncate text-sm font-semibold text-slate-800">
+                          {session.user.email}
+                        </p>
+                      </div>
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => {
@@ -1032,6 +1078,17 @@ export default function DashboardPage() {
                       role="menuitem"
                     >
                       Profile
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDashboardMenu(false);
+                        setShowChangePassword(true);
+                      }}
+                      className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                      role="menuitem"
+                    >
+                      Change Password
                     </button>
                     <button
                       type="button"
@@ -1056,7 +1113,7 @@ export default function DashboardPage() {
                       className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
                       role="menuitem"
                     >
-                      Logout
+                      Sign Out
                     </button>
                   </div>
                 ) : null}
@@ -1316,6 +1373,85 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
+      {showChangePassword ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <h2 className="text-lg font-semibold text-slate-900">Change Password</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowChangePassword(false);
+                  setChangePasswordCurrentPassword("");
+                  setChangePasswordNewPassword("");
+                  setChangePasswordConfirm("");
+                  setChangePasswordMessage(null);
+                }}
+                className="rounded-full px-3 py-1 text-2xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Close change password"
+              >
+                ×
+              </button>
+            </div>
+            <div className="space-y-4">
+              <label className="block">
+                <span className="mb-1 block text-sm font-semibold text-slate-700">New password</span>
+                <input
+                  type="password"
+                  value={changePasswordNewPassword}
+                  onChange={(event) => setChangePasswordNewPassword(event.target.value)}
+                  disabled={isChangingPassword}
+                  minLength={6}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-60"
+                  placeholder="New password"
+                />
+                <span className="mt-1 block text-xs text-slate-500">Minimum 6 characters.</span>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-semibold text-slate-700">Confirm new password</span>
+                <input
+                  type="password"
+                  value={changePasswordConfirm}
+                  onChange={(event) => setChangePasswordConfirm(event.target.value)}
+                  disabled={isChangingPassword}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-60"
+                  placeholder="Confirm new password"
+                />
+              </label>
+              {changePasswordMessage ? (
+                <p className={`rounded-xl border px-3 py-2 text-sm ${changePasswordMessage.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}>
+                  {changePasswordMessage.text}
+                </p>
+              ) : null}
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowChangePassword(false);
+                  setChangePasswordCurrentPassword("");
+                  setChangePasswordNewPassword("");
+                  setChangePasswordConfirm("");
+                  setChangePasswordMessage(null);
+                }}
+                disabled={isChangingPassword}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleChangePassword()}
+                disabled={isChangingPassword || !changePasswordNewPassword || !changePasswordConfirm}
+                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isChangingPassword ? "Updating…" : "Update Password"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {meetingPendingAccess ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
@@ -1532,8 +1668,8 @@ export default function DashboardPage() {
               Delete meeting?
             </h2>
             <p className="mt-3 text-sm text-slate-700">
-              This will hide the archived meeting from your dashboard. The
-              record will remain safely stored for recovery.
+              This will permanently remove the archived meeting from your
+              dashboard. This action cannot be undone.
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button

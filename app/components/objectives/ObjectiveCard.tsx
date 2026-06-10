@@ -47,6 +47,7 @@ export function ObjectiveCard({
   onTaskStatusChange
 }: ObjectiveCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(initiallyOpenDetails);
+  const [isTasksExpanded, setIsTasksExpanded] = useState(false);
   const planningTaskCount = objective.tasks.filter((task) => task.status === 'planning').length;
   const inProgressTaskCount = objective.tasks.filter((task) => task.status === 'in-progress').length;
   const completedTaskCount = objective.tasks.filter((task) => task.status === 'completed').length;
@@ -151,14 +152,30 @@ export function ObjectiveCard({
               </div>
             </div>
 
-            <TaskList
-              objective={objective}
-              taskInput={taskInput}
-              onTaskInputChange={onTaskInputChange}
-              onAddTask={onAddTask}
-              onOpenTask={onOpenTask}
-              onTaskStatusChange={onTaskStatusChange}
-            />
+            <div className="mb-4">
+              <button
+                type="button"
+                onClick={() => setIsTasksExpanded((open) => !open)}
+                className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                <span>
+                  Tasks — P {planningTaskCount}, IP {inProgressTaskCount}, C {completedTaskCount}
+                </span>
+                <span className="text-xs text-slate-400">{isTasksExpanded ? "▲ Collapse" : "▼ Expand"}</span>
+              </button>
+              {isTasksExpanded ? (
+                <div className="mt-3">
+                  <TaskList
+                    objective={objective}
+                    taskInput={taskInput}
+                    onTaskInputChange={onTaskInputChange}
+                    onAddTask={onAddTask}
+                    onOpenTask={onOpenTask}
+                    onTaskStatusChange={onTaskStatusChange}
+                  />
+                </div>
+              ) : null}
+            </div>
 
             <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
               <button

@@ -26,6 +26,7 @@ export interface MeetingItem {
   decisionText?: string;
   hasAction?: boolean;
   actionText?: string;
+  outcomeText?: string;
   isCovered?: boolean;
   cascadeNeeded?: boolean;
   promotedStrategicTopicId?: string;

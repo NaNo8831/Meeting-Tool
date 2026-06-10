@@ -33,26 +33,26 @@ function StrategicTopicControls({ item, section }: { item: MeetingItem; section:
     <div className="mt-2 flex items-start justify-between gap-2 border-t border-slate-200 pt-2">
       <div className="flex min-w-0 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-1.5">
-          <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+          <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
             <input
               type="checkbox"
               checked={item.completed ?? false}
               onChange={(event) => section.updateCompleted?.(item.id, event.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-blue-600"
+              className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600"
             />
-            Reviewed / completed
+            Completed
           </label>
           {item.status !== 'archived' ? (
-            <button type="button" onClick={() => section.archiveItem?.(item.id)} className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100">Archive</button>
+            <button type="button" onClick={() => section.archiveItem?.(item.id)} className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100">Archive</button>
           ) : null}
           {item.status === 'archived' ? (
-            <button type="button" onClick={() => section.unarchiveItem?.(item.id)} className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Unarchive</button>
+            <button type="button" onClick={() => section.unarchiveItem?.(item.id)} className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100">Restore to Active</button>
           ) : null}
           {item.status === 'completed' ? (
-            <button type="button" onClick={() => section.restoreToActive?.(item.id)} className="rounded-lg border border-slate-200 bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200">Mark active</button>
+            <button type="button" onClick={() => section.restoreToActive?.(item.id)} className="rounded-md border border-slate-200 bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200">Restore to Active</button>
           ) : null}
         </div>
-        {item.completed && item.completedDate ? <p className="text-xs font-medium text-slate-500">Reviewed / completed: {formatDisplayDate(item.completedDate)}</p> : null}
+        {item.completed && item.completedDate ? <p className="text-xs text-slate-400">Completed: {formatDisplayDate(item.completedDate)}</p> : null}
       </div>
 
       <button type="button" onClick={() => section.openHistoryNotes?.(item)} className="shrink-0 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100">Notes</button>
@@ -68,18 +68,15 @@ function AgendaItemControls({ item, section, isReadOnly }: { item: MeetingItem; 
   if (section.id !== 'agenda') return null;
 
   const hasNotes = getRichTextPlainText(normalizeRichTextValue(item.discussionNotes ?? '')).trim().length > 0;
-  const hasDecisionText = Boolean(item.decisionText?.trim());
-  const hasActionText = Boolean(item.actionText?.trim());
-  const hasDecisionOutcome = Boolean(item.hasDecision || hasDecisionText);
-  const hasActionOutcome = Boolean(item.hasAction || hasActionText);
+  const resolvedOutcomeText = item.outcomeText ?? [item.decisionText?.trim(), item.actionText?.trim()].filter(Boolean).join("\n\n") ?? "";
+  const hasOutcome = Boolean(item.outcomeText?.trim() || item.hasDecision || item.hasAction || item.decisionText?.trim() || item.actionText?.trim());
   const updateAgendaItem = section.updateAgendaItem;
 
   const statusBadges = (
     <div className="flex flex-wrap items-center gap-1.5">
-      {hasDecisionOutcome ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">Decision</span> : null}
-      {hasActionOutcome ? <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Action</span> : null}
+      {hasOutcome ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">Outcome</span> : null}
       {item.cascadeNeeded ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">Cascade Needed</span> : null}
-      {item.promotedStrategicTopicId ? <span className="rounded-full bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-700">Promoted → Strategic Topic</span> : null}
+      {item.promotedStrategicTopicId ? <span className="rounded-full bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-700">Added to Strategic Topics</span> : null}
       {isCovered ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Covered</span> : null}
     </div>
   );
@@ -102,33 +99,27 @@ function AgendaItemControls({ item, section, isReadOnly }: { item: MeetingItem; 
   }
 
   return (
-    <div className="mt-3 space-y-3 border-t border-slate-200 pt-3">
-      <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => setIsNotesOpen((isOpen) => !isOpen)} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100">
-            Notes {hasNotes ? '✓' : ''}
+    <div className="mt-2 space-y-2 border-t border-slate-100 pt-2">
+      <div className="flex flex-wrap items-center justify-between gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button type="button" onClick={() => setIsNotesOpen((isOpen) => !isOpen)} className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100">
+            Notes{hasNotes ? ' ✓' : ''}
           </button>
-          <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-semibold text-slate-700">
-            <input type="checkbox" disabled={isReadOnly} checked={isCovered} onChange={(event) => { setIsExpanded(!event.target.checked); updateAgendaItem?.(item.id, { isCovered: event.target.checked, completed: event.target.checked }); }} className="h-4 w-4 rounded border-slate-300 text-blue-600" />
+          <label className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600">
+            <input type="checkbox" disabled={isReadOnly} checked={isCovered} onChange={(event) => { setIsExpanded(!event.target.checked); updateAgendaItem?.(item.id, { isCovered: event.target.checked, completed: event.target.checked }); }} className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600" />
             Covered
           </label>
-          <label className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-800">
-            <input type="checkbox" disabled={isReadOnly} checked={item.cascadeNeeded ?? false} onChange={(event) => updateAgendaItem?.(item.id, { cascadeNeeded: event.target.checked })} className="h-4 w-4 rounded border-slate-300 text-amber-600" />
-            Cascade Needed
+          <label className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700" title="Include this item in the Cascading Communication rollup for your team.">
+            <input type="checkbox" disabled={isReadOnly} checked={item.cascadeNeeded ?? false} onChange={(event) => updateAgendaItem?.(item.id, { cascadeNeeded: event.target.checked })} className="h-3.5 w-3.5 rounded border-slate-300 text-amber-600" />
+            Cascade
           </label>
-          <button type="button" disabled={isReadOnly || Boolean(item.promotedStrategicTopicId)} onClick={() => section.promoteAgendaItem?.(item)} className="rounded-lg border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-70">
-            {item.promotedStrategicTopicId ? 'Promoted' : 'Promote to Strategic Topic'}
+          <button type="button" disabled={isReadOnly || Boolean(item.promotedStrategicTopicId)} onClick={() => section.promoteAgendaItem?.(item)} className="rounded-md border border-purple-200 bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-60">
+            {item.promotedStrategicTopicId ? 'In Topics' : '+ Strategic Topic'}
           </button>
-          {isCovered ? <button type="button" onClick={() => setIsExpanded(false)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Collapse</button> : null}
+          {isCovered ? <button type="button" onClick={() => setIsExpanded(false)} className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100">Collapse</button> : null}
         </div>
         {statusBadges}
       </div>
-
-      {item.promotedStrategicTopicId ? (
-        <div className="rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-semibold text-purple-800">
-          Linked Strategic Topic: promoted from this Agenda Item. Duplicate promotion is disabled.
-        </div>
-      ) : null}
 
       {isNotesOpen ? (
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -141,30 +132,19 @@ function AgendaItemControls({ item, section, isReadOnly }: { item: MeetingItem; 
       ) : null}
 
       <div className="rounded-xl border border-slate-200 bg-white p-3">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Outcomes</p>
-          <p className="text-xs text-slate-400">Decision, Action, or both</p>
-        </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
-            <label className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
-              <input type="checkbox" disabled={isReadOnly} checked={item.hasDecision ?? false} onChange={(event) => updateAgendaItem?.(item.id, { hasDecision: event.target.checked })} className="h-4 w-4 rounded border-slate-300 text-emerald-600" />
-              Decision
-            </label>
-            {(item.hasDecision || item.decisionText) ? (
-              <textarea disabled={isReadOnly} value={item.decisionText ?? ''} onChange={(event) => updateAgendaItem?.(item.id, { decisionText: event.target.value, hasDecision: true })} className="mt-2 min-h-[4rem] w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-900 disabled:bg-slate-100" placeholder="Decision reached" />
-            ) : <p className="mt-2 text-xs text-emerald-700/80">No decision captured.</p>}
-          </div>
-          <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3">
-            <label className="flex items-center gap-2 text-sm font-semibold text-blue-800">
-              <input type="checkbox" disabled={isReadOnly} checked={item.hasAction ?? false} onChange={(event) => updateAgendaItem?.(item.id, { hasAction: event.target.checked })} className="h-4 w-4 rounded border-slate-300 text-blue-600" />
-              Action
-            </label>
-            {(item.hasAction || item.actionText) ? (
-              <textarea disabled={isReadOnly} value={item.actionText ?? ''} onChange={(event) => updateAgendaItem?.(item.id, { actionText: event.target.value, hasAction: true })} className="mt-2 min-h-[4rem] w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-slate-900 disabled:bg-slate-100" placeholder="Action to take" />
-            ) : <p className="mt-2 text-xs text-blue-700/80">No action captured.</p>}
-          </div>
-        </div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Outcome</p>
+        {isReadOnly ? (
+          resolvedOutcomeText
+            ? <p className="whitespace-pre-wrap text-sm text-slate-700">{resolvedOutcomeText}</p>
+            : <p className="text-xs text-slate-400">No outcome captured.</p>
+        ) : (
+          <textarea
+            value={resolvedOutcomeText}
+            onChange={(event) => updateAgendaItem?.(item.id, { outcomeText: event.target.value })}
+            className="min-h-[4rem] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400"
+            placeholder="What was decided or agreed?"
+          />
+        )}
       </div>
     </div>
   );
@@ -237,7 +217,7 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
 
       {section.rollupItems && section.rollupItems.length > 0 ? (
         <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Generated Rollup</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">From Agenda — Cascade Needed items</p>
           <div className="mt-2 space-y-2">{section.rollupItems.map((item) => <p key={item.id} className="whitespace-pre-wrap rounded-xl bg-white px-3 py-2 text-sm text-slate-800">{item.text}</p>)}</div>
         </div>
       ) : null}
