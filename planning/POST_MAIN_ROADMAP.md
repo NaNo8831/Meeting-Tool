@@ -41,6 +41,41 @@ Branch: ux/polish-sprint-1
 - Change Password UX: add Change Password option in user settings/profile
   for logged-in users (uses updatePassword helper already built in PR #110)
 
+### UX Beta Review findings for Sprint 2 (from planning/reviews/ux-beta-review-2026-06-10.md)
+
+High-priority copy and affordance fixes identified during Team Beta UX review:
+
+- **Remove "Supabase Auth" badge** from AuthModal — leaks infrastructure detail
+  to end users; replace with nothing or "Secure sign-in".
+- **Remove developer copy from Account view** — "Workspace data still stays in
+  this browser's localStorage. Auth does not sync…" is not user-facing copy;
+  replace with "You're signed in. Your meetings are saved to the cloud."
+- **Soft-delete honesty** — Delete meeting confirmation says "safely stored for
+  recovery" but no recovery path exists in the UI; either surface recovery or
+  change copy to "permanently removes the archived meeting from your dashboard."
+- **Rename autosave chip "Backup needed" → "Manual Save needed"** — current
+  label alarms users into thinking data is at risk; actual meaning is that
+  Manual Save has not been run recently.
+- **Closed meeting workspace banner** — when a meeting is ended, show a
+  top-level banner: "This meeting has been ended. Notes are read-only. Start a
+  new meeting for today's session." Currently only per-section notices exist.
+- **Editor permission feedback audit** — verify all owner-only actions are
+  hidden or show a clear "owner only" message for editors (not a raw RLS
+  rejection); confirm whether End Meeting is available to editors and surface
+  that consistently.
+- **Local Mode legacy label copy** — "Legacy" is a developer term; replace
+  badge tooltip or add help text: "Data saved in this browser only. Sign in to
+  enable cloud sync." Add a dismissible banner prompting sign-in.
+- **Sign Up password hint** — add "Minimum 6 characters." below the password
+  field so users do not hit a surprise error on submission.
+- **Forgot password confirmation state** — after submitting, replace the form
+  with a full confirmation state (icon + message + "Back to Sign In" link)
+  rather than an in-form green message only.
+- **Terminology cleanup** — standardize across all surfaces: "Test Mode" (not
+  "Testing Mode"), "Meeting date" (not "Action date"), "Members" (not
+  "Access / Members"), "End Meeting" button consistent with modal copy; see
+  full glossary in the review document.
+
 ---
 
 ## Sprint 3 — UX Polish Continued
