@@ -7,8 +7,15 @@ import { useSupabaseAuth } from "@/app/hooks/useSupabaseAuth";
 
 export default function LandingPage() {
   const router = useRouter();
-  const { session, isConfigured, isLoading, signIn, signOut, signUp } =
-    useSupabaseAuth();
+  const {
+    session,
+    isConfigured,
+    isLoading,
+    signIn,
+    signOut,
+    signUp,
+    requestPasswordReset,
+  } = useSupabaseAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(true);
 
   useEffect(() => {
@@ -31,6 +38,7 @@ export default function LandingPage() {
           onClose={() => setIsAuthModalOpen(false)}
           onSignIn={signIn}
           onSignUp={signUp}
+          onRequestPasswordReset={requestPasswordReset}
           onSignOut={signOut}
           onContinueLocally={() => router.push("/meeting/local")}
         />

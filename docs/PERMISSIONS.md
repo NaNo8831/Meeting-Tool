@@ -1,89 +1,183 @@
 # Permissions
 
-## Current State (Owner-Only Cloud Meetings)
-- Signed-out users can use Local Workspace via `localStorage` and export/import.
-- Signed-in users can create/select owner-only cloud meetings.
-- Owner can manually save/load meeting workspace data via `meetings.meeting_data`.
-- RLS currently protects owner-only access to meeting rows.
+This document covers owner/editor/viewer roles, RLS policies, Shared Access member management, and what each role can and cannot do. It reflects the state of `phase-3-shared-access` as of the Documentation Refresh sprint.
 
-## Membership Architecture (Foundation)
-The permission foundation is membership-first, not email-first.
+---
 
-### Core tables and identity
-- `meetings`: canonical meeting container; `owner_id` is the current authority for owner-level administration.
-- `meeting_members`: membership edge table linking `meeting_id` + `user_id` with lifecycle/status fields as needed.
-- Domain tables (for example `tasks`, `objectives`, `strategic_topics`) reference `meeting_id` and inherit access from membership and role policy.
+## Roles
 
-### Access evaluation order (target)
-1. Verify authenticated user identity (`auth.uid()`).
-2. Resolve meeting scope (`meeting_id`).
-3. Resolve membership row in `meeting_members`.
-4. Resolve effective role for the requested action.
-5. Apply entity-level constraints (for example delete restrictions, archival rules, session locks).
+Meeting Tool uses three roles, enforced at the database level through Supabase RLS.
 
-This keeps authorization consistent across all section/item tables and avoids one-off policy drift.
+### Owner
 
-## Roles (Planned Capability Direction)
-Role names are directional and can be refined later, but behavior should map to this shape:
+- The meeting administrator. Every cloud meeting has exactly one owner, identified by `meetings.owner_id`.
+- Can perform all operations: read, edit, lifecycle management, and access management.
+- Lifecycle actions (archive, restore, soft-delete, rename, duplicate) are owner-only and gated by owner-only RPCs.
+- Can invite editors, revoke pending invitations, and remove active editors.
 
-- `owner`
-  - Meeting administrator.
-  - Can manage membership and role assignment.
-  - Can perform all workspace operations, including destructive actions.
-- `editor`
-  - Can create/update operational meeting content.
-  - Can participate in structured write surfaces (tasks, objectives, topics, items).
-  - Cannot transfer ownership or manage sensitive membership actions unless explicitly granted.
-- `viewer`
-  - Read-focused participation.
-  - No destructive mutations.
-  - Intended for stakeholders needing meeting visibility without operational editing authority.
+### Editor
 
-## Ownership Handling
-Ownership needs explicit, auditable behavior rather than implicit assumptions.
+- Active collaborator with content editing rights.
+- Can read and edit all meeting content surfaces (settings, agenda, topics, notes, objectives, tasks, SOOs).
+- Can use Manual Save (full-workspace backup) while structured autosave stabilizes.
+- Can view the active member list and Tactical History.
+- Cannot perform lifecycle actions: cannot archive, restore, soft-delete, rename, or duplicate a meeting.
+- Cannot manage members: cannot invite, revoke invitations, or remove other editors.
+- Cannot mutate owner-only container fields (`name`, `owner_id`, `metadata_json`, `archived_at`, `deleted_at`).
 
-### Owner invariants
-- Every cloud meeting has exactly one active owner authority at a time.
-- Owner authority is represented by durable user identity (UUID), not email text.
-- Runtime policies should treat owner checks as role/capability checks, not hard-coded UI assumptions.
+### Viewer
 
-### Ownership transfer direction (future)
-- Transfer should be explicit and reversible-safe (confirmation + audit metadata).
-- Transfer should update both meeting authority and membership role mapping atomically.
-- Transfer behavior should not break existing manual Save/Load or backup/export expectations.
+- Read-focused role direction supported at the RLS layer.
+- Active viewers can access meeting rows through `user_can_access_meeting`.
+- Polished read-only UI enforcement is deferred to post-main. The current product exposes owner/editor behavior only.
 
-## Future Permission Foundation Principles
-These principles should guide all future policy expansion:
+---
 
-1. **Least privilege first**: default deny; grant only required actions per role.
-2. **Single policy model**: avoid per-feature custom auth logic that bypasses membership checks.
-3. **RLS as source of truth**: UI state is advisory; database policy is authoritative.
-4. **Stable migration path**: keep owner-only behavior valid while editor/viewer expansion is phased in.
-5. **Backup safety preserved**: permission changes must not remove JSON export/import recovery paths.
-6. **No overbuild in Phase 1/early Phase 2**: add only permission surfaces needed for the current structured-write rollout.
+## Role Matrix (Current Team Beta State)
 
-## Direction for Structured Persistence Permissions
-Permission design should move from owner-only row access to membership-based access using explicit meeting membership rows.
+| Capability | Owner | Editor | Viewer | Notes |
+|-----------|-------|--------|--------|-------|
+| View shared meeting content | Yes | Yes | Yes (RLS only; UI deferred) | `user_can_access_meeting` |
+| Edit meeting content | Yes | Yes | No | `user_can_edit_meeting` |
+| Manual Save full-workspace backup | Yes | Yes | No | `meetings` update allows owners/editors |
+| Invite / revoke invitations | Yes | No | No | `user_can_manage_meeting_access` |
+| Remove active editors | Yes | No | No | `remove_meeting_editor` RPC (owner-only) |
+| Archive / restore meeting | Yes | No | No | Owner-only RPCs |
+| Soft-delete archived meeting | Yes | No | No | `soft_delete_owned_archived_meeting` RPC |
+| Duplicate meeting | Yes | No | No | Owner-only dashboard action |
+| Rename meeting container | Yes | No | No | `rename_owned_meeting` RPC |
+| View member list | Yes | Yes | No | `list_meeting_members` RPC (owner/editor) |
+| View Tactical History | Yes | Yes | No | Meeting-scoped RLS covers tactical tables |
+| Transfer ownership | Deferred | No | No | Not implemented |
+| Self-removal as owner | No (deferred) | N/A | N/A | Deferred |
 
-### Planned model
-- `meeting_members` links users to meetings.
-- Future role direction: `owner`, `editor`, `viewer` (exact capability matrix deferred).
-- Meeting owner remains the meeting administrator.
-- Members gain row access through membership joins/policies.
+---
 
-### Policy principles
-- Do not rely on email text fields for authorization.
-- Use authenticated user IDs and membership relationships.
-- `owner_email` (if kept) is convenience metadata only (admin/debug), not policy authority.
+## RLS Helper Functions
 
-## Current Structured Table Policy Baseline
-The structured persistence foundation migration enables RLS on all newly introduced structured tables and applies an initial safe owner-only rule:
-- authenticated users can select/insert/update/delete only rows whose `meeting_id` belongs to a meeting they own (`meetings.owner_id = auth.uid()`).
-- this is enforced per table through owner-check policies and a shared meeting ownership helper.
-- `meeting_members` exists now for future sharing expansion, but does **not** yet grant non-owner access in runtime policies.
+Defined in `supabase/migrations/20260604090000_add_membership_rls_foundation.sql`.
 
-## Out of Scope in This Planning Stage
-- Invitation flows.
-- Full org/team hierarchy.
-- Realtime collaboration policies.
-- Final granular permission matrix per entity/action.
+| Function | Returns true when |
+|----------|------------------|
+| `user_owns_meeting(target_meeting_id uuid)` | `meetings.owner_id = auth.uid()` |
+| `user_is_active_meeting_member(target_meeting_id uuid)` | Active `meeting_members` row exists for `auth.uid()` with `removed_at is null` |
+| `user_can_access_meeting(target_meeting_id uuid)` | `user_owns_meeting` OR `user_is_active_meeting_member` |
+| `user_can_edit_meeting(target_meeting_id uuid)` | `user_owns_meeting` OR active owner/editor membership |
+| `user_can_manage_meeting_access(target_meeting_id uuid)` | `user_owns_meeting` only |
+
+All helper functions require `auth.uid()` to be non-null. Unauthenticated requests are denied at every level.
+
+---
+
+## Table-Level Policy Summary
+
+| Table | Select | Insert | Update | Delete |
+|-------|--------|--------|--------|--------|
+| `meetings` | `user_can_access_meeting` | `owner_id = auth.uid()` | `user_can_edit_meeting` (narrowed to `meeting_data`; lifecycle fields protected by trigger) | Not exposed through app |
+| `meeting_members` | `user_can_manage_meeting_access` | Owner trigger / RPCs | Owner RPCs | Owner RPCs |
+| `meeting_invitations` | `user_can_manage_meeting_access` | `user_can_manage_meeting_access` | Owner RPCs | Not exposed |
+| `meeting_settings` | `user_can_access_meeting` | `user_can_edit_meeting` | `user_can_edit_meeting` | `user_can_edit_meeting` |
+| `meeting_notes` | `user_can_access_meeting` | `user_can_edit_meeting` | `user_can_edit_meeting` | `user_can_edit_meeting` |
+| `strategic_topics` | `user_can_access_meeting` | `user_can_edit_meeting` | `user_can_edit_meeting` | `user_can_edit_meeting` |
+| `strategic_topic_notes` | `user_can_access_meeting` | `user_can_edit_meeting` | `user_can_edit_meeting` | `user_can_edit_meeting` |
+| `objectives` | `user_can_access_meeting` | `user_can_edit_meeting` | `user_can_edit_meeting` | `user_can_edit_meeting` |
+| `tasks` | `user_can_access_meeting` | `user_can_edit_meeting` | `user_can_edit_meeting` | `user_can_edit_meeting` |
+| `standard_operating_objectives` | `user_can_access_meeting` | `user_can_edit_meeting` | `user_can_edit_meeting` | `user_can_edit_meeting` |
+| `agenda_items` | `user_can_access_meeting` | `user_can_edit_meeting` | `user_can_edit_meeting` | `user_can_edit_meeting` |
+| `tactical_sessions` | `user_can_access_meeting` | `user_can_edit_meeting` | — | — |
+| `profiles` | Own row only | Own row only | Own row only | — |
+| `feedback` | Owner of own rows | Authenticated | — | — |
+
+---
+
+## Owner-Only RPCs
+
+These RPCs require `meetings.owner_id = auth.uid()` and run as SECURITY DEFINER or check ownership inside the function:
+
+| RPC | What it does |
+|-----|-------------|
+| `create_owned_meeting(meeting_name text)` | Creates a meeting with `owner_id = auth.uid()`. |
+| `duplicate_owned_meeting(source_meeting_id, duplicate_name)` | Creates a copy owned by `auth.uid()`. |
+| `archive_owned_meeting(target_meeting_id)` | Sets `archived_at`. |
+| `restore_owned_archived_meeting(target_meeting_id)` | Clears `archived_at`. |
+| `soft_delete_owned_archived_meeting(target_meeting_id)` | Sets `deleted_at` on an already-archived meeting. |
+| `rename_owned_meeting(target_meeting_id, meeting_name)` | Updates `meetings.name`. |
+| `create_meeting_invitation(target_meeting_id, invite_email)` | Creates a pending invitation (owner only). |
+| `list_meeting_pending_invitations(target_meeting_id)` | Lists pending invitations (owner only). |
+| `revoke_meeting_invitation(target_invitation_id)` | Revokes a pending invitation (owner only). |
+| `remove_meeting_editor(target_meeting_id, target_user_id)` | Soft-removes an active editor (sets `removed_at`). Owner only. |
+
+---
+
+## Editor/Member RPCs
+
+Available to owners and active editors:
+
+| RPC | What it does |
+|-----|-------------|
+| `list_meeting_members(target_meeting_id)` | Lists active owner and editor rows with display names. |
+| `get_accessible_meeting_member_counts()` | Returns `(meeting_id, member_count)` for meetings the user can access. |
+
+---
+
+## Invitation Flow
+
+1. Owner creates a pending invitation via `create_meeting_invitation(meeting_id, email)`.
+2. The invited user signs in, sees the pending invitation in the dashboard, and accepts it via `accept_meeting_invitation(invitation_id)`.
+3. Acceptance atomically creates/reactivates an active editor `meeting_members` row and marks the invitation `accepted`.
+4. The meeting appears under Shared with Me after dashboard refresh.
+5. Revoked invitations cannot be accepted. Accepted invitations cannot be re-accepted.
+6. A removed editor can regain access only by accepting a new pending invitation.
+
+**Pending invitations are not access grants.** Runtime access begins only after an active `meeting_members` row exists.
+
+---
+
+## Lifecycle Mutation Hardening
+
+Two layers prevent editors from mutating owner-only meeting container fields:
+
+1. **Column privileges:** Direct `meetings` updates through the REST API are restricted to the `meeting_data` column. Editors can write Manual Save but cannot touch `name`, `owner_id`, `metadata_json`, `archived_at`, or `deleted_at` through the broad update path.
+
+2. **`prevent_non_owner_meeting_container_update` trigger:** A database trigger blocks any attempt by a non-owner to update protected columns, even if column privileges are accidentally broadened.
+
+Owner lifecycle actions (archive, restore, soft-delete, rename, duplicate) use narrow RPCs that check `meetings.owner_id = auth.uid()` explicitly.
+
+---
+
+## Profile Permissions
+
+- Users may select, insert, and update only their own `profiles` row.
+- Email and `display_name` derivation are server-side (triggers); users cannot spoof another account's email or derived display name.
+- Dashboard owner attribution for shared meetings uses `get_accessible_meeting_owner_profiles()`, which returns only display/email fallback data for meetings the caller can already access. It does not open broad profile reads.
+- Profile data is display metadata. It is never used for authorization.
+
+---
+
+## Removed Member Behavior
+
+- `remove_meeting_editor(meeting_id, user_id)` sets `meeting_members.removed_at` to the current timestamp.
+- All RLS helpers exclude removed members (`removed_at is null` condition). A removed editor loses access after their next dashboard refresh or page load.
+- The invite/accept history row is preserved for audit.
+- Removed editors are excluded from the dashboard member count.
+- Re-invitation is the only path back to access: owner creates a new pending invite, the removed editor accepts it.
+
+---
+
+## Ownership Invariants
+
+- Every cloud meeting has exactly one active owner, identified by `meetings.owner_id`.
+- `prevent_meeting_owner_id_update` trigger blocks direct `owner_id` changes.
+- Owner membership rows in `meeting_members` are maintained by the `ensure_meeting_owner_member` trigger as support rows for future expansion; they do not replace `owner_id` as the authority.
+- Ownership transfer is not implemented. It is deferred to post-main.
+
+---
+
+## Principles
+
+1. **RLS is the source of truth.** UI state is advisory; database policy is authoritative. Do not replicate authorization logic in application code.
+2. **Least privilege.** Default deny; grant only what each role requires.
+3. **Identity = `auth.uid()`.** Email text fields are display metadata only, never authorization input.
+4. **Pending invitations are not access.** Only accepted active membership grants access.
+5. **Backup safety preserved.** Permission changes must not remove JSON export/import or Manual Save recovery paths.
+6. **No overbuild.** Do not add granular viewer enforcement, audit tables, or realtime locking unless a future product decision explicitly requires it.
