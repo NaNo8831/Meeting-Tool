@@ -50,6 +50,7 @@ import {
   type WorkspaceBackupFile,
 } from "@/app/lib/workspaceBackup";
 import {
+  supabaseAuthClient,
   supabaseMeetingClient,
   supabaseMemberClient,
   supabaseInvitationClient,
@@ -526,10 +527,12 @@ const mapAgendaItemToSupabase = (
     title: normalizedItem.text,
     discussion_notes_json: richTextJsonOrNull(getAgendaNotesValue(normalizedItem)),
     discussion_notes_text: richTextTextOrNull(getAgendaNotesValue(normalizedItem)),
-    has_decision: normalizedItem.hasDecision ?? false,
-    decision_text: toNullableString(normalizedItem.decisionText),
-    has_action: normalizedItem.hasAction ?? false,
-    action_text: toNullableString(normalizedItem.actionText),
+    has_decision: Boolean(normalizedItem.outcomeText?.trim() || normalizedItem.hasDecision),
+    decision_text: normalizedItem.outcomeText?.trim()
+      ? normalizedItem.outcomeText.trim()
+      : toNullableString(normalizedItem.decisionText),
+    has_action: normalizedItem.outcomeText?.trim() ? false : (normalizedItem.hasAction ?? false),
+    action_text: normalizedItem.outcomeText?.trim() ? null : toNullableString(normalizedItem.actionText),
     is_covered: normalizedItem.isCovered ?? false,
     cascade_needed: normalizedItem.cascadeNeeded ?? false,
     promoted_strategic_topic_id: uuidOrNull(
@@ -539,22 +542,28 @@ const mapAgendaItemToSupabase = (
   };
 };
 
-const mapAgendaItemFromSupabase = (row: SupabaseAgendaItem): MeetingItem => ({
-  id: row.client_agenda_item_id,
-  text: row.title,
-  discussionNotes: richTextFromStructured(
-    row.discussion_notes_json,
-    row.discussion_notes_text,
-  ),
-  hasDecision: row.has_decision,
-  decisionText: row.decision_text ?? "",
-  hasAction: row.has_action,
-  actionText: row.action_text ?? "",
-  isCovered: row.is_covered,
-  completed: row.is_covered,
-  cascadeNeeded: row.cascade_needed,
-  promotedStrategicTopicId: row.promoted_strategic_topic_id ?? undefined,
-});
+const mapAgendaItemFromSupabase = (row: SupabaseAgendaItem): MeetingItem => {
+  const decisionText = row.decision_text ?? "";
+  const actionText = row.action_text ?? "";
+  const outcomeText = [decisionText, actionText].filter(Boolean).join("\n\n").trim();
+  return {
+    id: row.client_agenda_item_id,
+    text: row.title,
+    discussionNotes: richTextFromStructured(
+      row.discussion_notes_json,
+      row.discussion_notes_text,
+    ),
+    hasDecision: row.has_decision,
+    decisionText,
+    hasAction: row.has_action,
+    actionText,
+    outcomeText: outcomeText || undefined,
+    isCovered: row.is_covered,
+    completed: row.is_covered,
+    cascadeNeeded: row.cascade_needed,
+    promotedStrategicTopicId: row.promoted_strategic_topic_id ?? undefined,
+  };
+};
 
 const buildAgendaItemsAutosavePayload = (
   meetings: MeetingRecord[],
@@ -948,7 +957,7 @@ const getAutosaveSummaryStatus = ({
 const autosaveSummaryLabel: Record<AutosaveSummaryStatus, string> = {
   autosaved: "Autosaved",
   saving: "Saving…",
-  "backup-needed": "Backup needed",
+  "backup-needed": "Manual Save needed",
   error: "Autosave issue",
 };
 
@@ -1437,6 +1446,11 @@ export default function MeetingWorkspace() {
   const [newDecisionItem, setNewDecisionItem] = useState("");
   const [newCascadeItem, setNewCascadeItem] = useState("");
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [changePasswordNewPassword, setChangePasswordNewPassword] = useState("");
+  const [changePasswordConfirm, setChangePasswordConfirm] = useState("");
+  const [changePasswordMessage, setChangePasswordMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showAutosaveStatusDetail, setShowAutosaveStatusDetail] =
     useState(false);
   const [showLifecycleHelp, setShowLifecycleHelp] = useState(false);
@@ -1522,6 +1536,7 @@ export default function MeetingWorkspace() {
   const [strategicTopicNotesById, setStrategicTopicNotesById] = useState<Record<number, StrategicTopicNoteDraftRecord | null>>({});
   useBodyScrollLock(
     showSettingsMenu ||
+      showChangePassword ||
       showDeleteMeetingNotesConfirm ||
       showEndMeetingConfirm ||
       showTacticalHistory ||
@@ -1818,6 +1833,17 @@ export default function MeetingWorkspace() {
     (m) => m.role === "owner" && m.user_id === authSession?.user.id,
   );
 
+  // Load members automatically so isMeetingOwner is populated without opening the
+  // members modal. Required for owner-only menu items like Edit Playbook.
+  useEffect(() => {
+    if (!authSession || !selectedMeetingId) return;
+    supabaseMemberClient
+      .listMeetingMembers({ accessToken: authSession.accessToken, meetingId: selectedMeetingId })
+      .then(setWorkspaceMeetingMembers)
+      .catch(() => undefined);
+  }, [authSession, selectedMeetingId]);
+
+
   const handleOpenMembersModal = async () => {
     if (!authSession || !selectedMeetingId) return;
     setShowSettingsMenu(false);
@@ -1960,6 +1986,30 @@ export default function MeetingWorkspace() {
       );
     } finally {
       setIsRevokingWorkspaceInvitation(null);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!authSession) return;
+    if (changePasswordNewPassword !== changePasswordConfirm) {
+      setChangePasswordMessage({ type: "error", text: "New passwords do not match." });
+      return;
+    }
+    if (changePasswordNewPassword.length < 6) {
+      setChangePasswordMessage({ type: "error", text: "Password must be at least 6 characters." });
+      return;
+    }
+    setIsChangingPassword(true);
+    setChangePasswordMessage(null);
+    try {
+      await supabaseAuthClient.updatePassword(authSession.accessToken, changePasswordNewPassword);
+      setChangePasswordMessage({ type: "success", text: "Password updated successfully." });
+      setChangePasswordNewPassword("");
+      setChangePasswordConfirm("");
+    } catch (error) {
+      setChangePasswordMessage({ type: "error", text: error instanceof Error ? error.message : "Could not update password. Please try again." });
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -2214,10 +2264,12 @@ export default function MeetingWorkspace() {
       richTextTextOrNull(getAgendaNotesValue(normalizedItem))
         ? `Discussion Notes:\n${richTextTextOrNull(getAgendaNotesValue(normalizedItem))}`
         : "",
-      normalizedItem.hasDecision && normalizedItem.decisionText?.trim()
-        ? `Decision:\n${normalizedItem.decisionText.trim()}`
-        : "",
-      normalizedItem.hasAction && normalizedItem.actionText?.trim()
+      normalizedItem.outcomeText?.trim()
+        ? `Outcome:\n${normalizedItem.outcomeText.trim()}`
+        : normalizedItem.hasDecision && normalizedItem.decisionText?.trim()
+          ? `Decision:\n${normalizedItem.decisionText.trim()}`
+          : "",
+      !normalizedItem.outcomeText?.trim() && normalizedItem.hasAction && normalizedItem.actionText?.trim()
         ? `Action:\n${normalizedItem.actionText.trim()}`
         : "",
     ].filter(Boolean);
@@ -2770,10 +2822,12 @@ export default function MeetingWorkspace() {
       id: item.id,
       text: [
         item.text,
-        item.hasDecision && item.decisionText?.trim()
-          ? `Decision: ${item.decisionText.trim()}`
-          : "",
-        item.hasAction && item.actionText?.trim()
+        item.outcomeText?.trim()
+          ? `Outcome: ${item.outcomeText.trim()}`
+          : item.hasDecision && item.decisionText?.trim()
+            ? `Decision: ${item.decisionText.trim()}`
+            : "",
+        !item.outcomeText?.trim() && item.hasAction && item.actionText?.trim()
           ? `Action: ${item.actionText.trim()}`
           : "",
       ]
@@ -2786,7 +2840,7 @@ export default function MeetingWorkspace() {
       id: "agenda",
       title: "Agenda Items",
       description:
-        "Capture discussion notes, decisions, actions, covered state, cascade needs, and Strategic Topic promotion per agenda item.",
+        "Track discussion, outcomes, and follow-ups per agenda item.",
       items: activeMeeting.agendaItems,
       newItem: newAgendaItem,
       setNewItem: setNewAgendaItem,
@@ -2845,7 +2899,7 @@ export default function MeetingWorkspace() {
     cascade: {
       id: "cascade",
       title: "Cascading Communication",
-      description: "Generated cascade-needed agenda outcomes plus editable communication notes for Staff.",
+      description: "Staff communication — items from agenda marked as Cascade Needed appear here automatically. Add additional communication notes below.",
       items: activeMeeting.cascadeItems,
       newItem: newCascadeItem,
       setNewItem: setNewCascadeItem,
@@ -3921,6 +3975,15 @@ export default function MeetingWorkspace() {
     return () => window.clearTimeout(timeoutId);
   }, [loadTacticalSessions]);
 
+  // Auto-open Tactical History when navigated from dashboard with ?tacticalHistory=1
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("tacticalHistory") !== "1") return;
+    const timeoutId = window.setTimeout(() => setShowTacticalHistory(true), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
   const meetingSettingsAutosavePayload = useMemo<SupabaseMeetingSettingsUpsert>(
     () => ({
       dashboard_title: dashboardTitle,
@@ -4720,6 +4783,8 @@ export default function MeetingWorkspace() {
     }
   };
 
+  // Import/Restore intentionally removed from workspace UI per Sprint 2 — preserved for Sprint 3 cleanup.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleImportWorkspaceBackup = async (file: File) => {
     try {
       const fileText = await file.text();
@@ -4932,7 +4997,7 @@ export default function MeetingWorkspace() {
                     className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 font-medium text-slate-500"
                     title={meetingActionHelpText}
                   >
-                    Action date: {meetingActionDate}
+                    Meeting date: {meetingActionDate}
                   </span>
                 ) : null}
                 <button
@@ -5037,9 +5102,8 @@ export default function MeetingWorkspace() {
                       </ul>
                       {autosaveSummaryStatus === "error" ? (
                         <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 font-semibold text-red-800">
-                          Some cloud autosave changes may not have saved. Use
-                          Manual Save now, then retry or refresh after confirming
-                          status.
+                          Autosave may have failed. Save a full backup now using
+                          Manual Save.
                         </p>
                       ) : null}
                       {cloudMeetingMessage ? (
@@ -5147,16 +5211,6 @@ export default function MeetingWorkspace() {
                       role="menu"
                       aria-label="Meeting menu"
                     >
-                      {authSession ? (
-                        <Link
-                          href="/dashboard"
-                          onClick={() => setShowSettingsMenu(false)}
-                          className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
-                          role="menuitem"
-                        >
-                          Dashboard
-                        </Link>
-                      ) : null}
                       {isAuthLoading ? (
                         <p className="px-5 py-3 text-sm font-semibold text-slate-500">
                           Checking account…
@@ -5171,6 +5225,64 @@ export default function MeetingWorkspace() {
                               {authSession.user.email}
                             </p>
                           </div>
+                          <Link
+                            href="/dashboard"
+                            onClick={() => setShowSettingsMenu(false)}
+                            className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                            role="menuitem"
+                          >
+                            Dashboard
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowTacticalHistory(true);
+                              setShowSettingsMenu(false);
+                            }}
+                            className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                            role="menuitem"
+                          >
+                            Tactical History
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowChangePassword(true);
+                              setShowSettingsMenu(false);
+                            }}
+                            className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                            role="menuitem"
+                          >
+                            Change Password
+                          </button>
+                          {/* Edit Playbook currently writes to global localStorage key
+                              leadership-organization-info. Per-meeting cloud scoping deferred
+                              to Sprint 3 — each meeting should eventually have its own
+                              playbook tied to meeting_settings. Owner-only. */}
+                          {isMeetingOwner ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowPlaybookDefinitions(true);
+                                setShowSettingsMenu(false);
+                              }}
+                              className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                              role="menuitem"
+                            >
+                              Edit Playbook
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowBackupRestore(true);
+                              setShowSettingsMenu(false);
+                            }}
+                            className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                            role="menuitem"
+                          >
+                            Export Backup
+                          </button>
                           <button
                             type="button"
                             onClick={() => void handleSignOutAndExit()}
@@ -5182,83 +5294,31 @@ export default function MeetingWorkspace() {
                           </button>
                         </>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowAuthModal(true);
-                            setShowSettingsMenu(false);
-                          }}
-                          className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
-                          role="menuitem"
-                        >
-                          Sign In
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowBackupRestore(true);
+                              setShowSettingsMenu(false);
+                            }}
+                            className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                            role="menuitem"
+                          >
+                            Export Backup
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowAuthModal(true);
+                              setShowSettingsMenu(false);
+                            }}
+                            className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                            role="menuitem"
+                          >
+                            Sign In
+                          </button>
+                        </>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowPlaybookDefinitions(true);
-                          setShowSettingsMenu(false);
-                        }}
-                        className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
-                        role="menuitem"
-                      >
-                        Edit Playbook
-                      </button>
-                      {workspaceMode === "cloud" && selectedMeetingId ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowTacticalHistory(true);
-                            setShowSettingsMenu(false);
-                          }}
-                          className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
-                          role="menuitem"
-                        >
-                          Tactical History
-                        </button>
-                      ) : null}
-                      {workspaceMode === "cloud" && selectedMeetingId && authSession ? (
-                        <button
-                          type="button"
-                          onClick={() => void handleOpenMembersModal()}
-                          className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
-                          role="menuitem"
-                        >
-                          Access / Members
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (isMeetingNotesReadOnly) return;
-                          setShowDeleteMeetingNotesConfirm(true);
-                          setShowSettingsMenu(false);
-                        }}
-                        disabled={isMeetingNotesReadOnly}
-                        className="block w-full px-5 py-3 text-left text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-white"
-                        role="menuitem"
-                        title={
-                          isMeetingNotesReadOnly
-                            ? meetingNotesReadOnlyMessage
-                            : undefined
-                        }
-                      >
-                        {isMeetingNotesReadOnly
-                          ? "Meeting Notes Read-Only"
-                          : "Delete Current Meeting Notes"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowBackupRestore(true);
-                          setShowSettingsMenu(false);
-                        }}
-                        className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
-                        role="menuitem"
-                      >
-                        Backup / Restore
-                      </button>
                     </div>
                   ) : null}
                 </div>
@@ -5269,6 +5329,13 @@ export default function MeetingWorkspace() {
       </header>
 
       <div className="mx-auto max-w-[1600px] p-4 sm:p-8">
+
+        {isActiveMeetingHistorical ? (
+          <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <span className="font-semibold">This meeting has been ended.</span>{" "}
+            Content is read-only. To continue taking notes, start a new meeting for today.
+          </div>
+        ) : null}
 
         {isLocalRoute && shouldShowLocalToCloudMigrationPrompt ? (
           <section className="mb-8 w-full rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">
@@ -5521,22 +5588,6 @@ export default function MeetingWorkspace() {
             onDragOver={handleDragOver}
             onDrop={handleMeetingSectionDrop}
           />
-
-          <details className="rounded-3xl border border-amber-200 bg-amber-50/70 p-4 shadow-sm">
-            <summary className="cursor-pointer text-sm font-semibold text-amber-900">
-              Decisions / Actions Summary ({decisionActionRollupItems.length})
-            </summary>
-            <div className="mt-3 space-y-2">
-              <p className="text-sm text-amber-800">Read-only summary generated from Agenda Items. Edit decisions and actions on their Agenda Item cards.</p>
-              {decisionActionRollupItems.length > 0 ? (
-                decisionActionRollupItems.map((item) => (
-                  <p key={item.id} className="whitespace-pre-wrap rounded-xl bg-white px-3 py-2 text-sm text-slate-800 shadow-sm">{item.text}</p>
-                ))
-              ) : (
-                <p className="rounded-xl border border-dashed border-amber-300 bg-white/70 px-3 py-3 text-sm text-amber-800">No decisions or actions captured yet.</p>
-              )}
-            </div>
-          </details>
 
           <div className="grid gap-6 lg:grid-cols-2">
             {secondaryMeetingSectionOrder.map((sectionKey) => (
@@ -5970,6 +6021,72 @@ export default function MeetingWorkspace() {
         />
       ) : null}
 
+      {showChangePassword ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <h2 className="text-lg font-semibold text-slate-900">Change Password</h2>
+              <button
+                type="button"
+                onClick={() => { setShowChangePassword(false); setChangePasswordNewPassword(""); setChangePasswordConfirm(""); setChangePasswordMessage(null); }}
+                className="rounded-full px-3 py-1 text-2xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Close change password"
+              >
+                ×
+              </button>
+            </div>
+            <div className="space-y-4">
+              <label className="block">
+                <span className="mb-1 block text-sm font-semibold text-slate-700">New password</span>
+                <input
+                  type="password"
+                  value={changePasswordNewPassword}
+                  onChange={(event) => setChangePasswordNewPassword(event.target.value)}
+                  disabled={isChangingPassword}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-60"
+                  placeholder="New password"
+                />
+                <span className="mt-1 block text-xs text-slate-500">Minimum 6 characters.</span>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-semibold text-slate-700">Confirm new password</span>
+                <input
+                  type="password"
+                  value={changePasswordConfirm}
+                  onChange={(event) => setChangePasswordConfirm(event.target.value)}
+                  disabled={isChangingPassword}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-60"
+                  placeholder="Confirm new password"
+                />
+              </label>
+              {changePasswordMessage ? (
+                <p className={`rounded-xl border px-3 py-2 text-sm ${changePasswordMessage.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}>
+                  {changePasswordMessage.text}
+                </p>
+              ) : null}
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => { setShowChangePassword(false); setChangePasswordNewPassword(""); setChangePasswordConfirm(""); setChangePasswordMessage(null); }}
+                disabled={isChangingPassword}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleChangePassword()}
+                disabled={isChangingPassword || !changePasswordNewPassword || !changePasswordConfirm}
+                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isChangingPassword ? "Updating…" : "Update Password"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <PlaybookDefinitionsModal
         isOpen={showPlaybookDefinitions}
         onClose={() => setShowPlaybookDefinitions(false)}
@@ -5979,12 +6096,14 @@ export default function MeetingWorkspace() {
         onDashboardTitleChange={setDashboardTitle}
       />
 
+      {/* Import/Restore intentionally removed from workspace UI per Sprint 2 — pending Sprint 3 cleanup.
+          handleImportWorkspaceBackup is preserved below. */}
       <BackupRestoreModal
         isOpen={showBackupRestore}
         onClose={() => setShowBackupRestore(false)}
         onExportWorkspaceBackup={handleExportWorkspaceBackup}
-        onImportWorkspaceBackup={handleImportWorkspaceBackup}
         backupFeedback={backupFeedback}
+        mode="export-only"
       />
 
       {showMembersModal ? (

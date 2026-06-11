@@ -1,6 +1,6 @@
 # Data Model
 
-This document describes all Supabase tables, key columns, relationships, RLS approach, and structured autosave tables as of the Documentation Refresh sprint on `phase-3-shared-access`. Migrations are in `supabase/migrations/` and must be applied in timestamp order.
+This document describes all Supabase tables, key columns, relationships, RLS approach, and structured autosave tables as of Sprint 2 (`ux/sprint-2-simplification`). Migrations are in `supabase/migrations/` and must be applied in timestamp order.
 
 ---
 
@@ -133,6 +133,8 @@ One row per cloud meeting storing playbook/settings fields.
 | `organization_info` | JSONB rich text payload for org info fields. |
 | `meeting_section_order` | JSONB array of section ordering. |
 | `setup_completed` | Boolean. |
+
+**Edit Playbook note (Sprint 2):** The Edit Playbook modal reads/writes the runtime `organizationInfo` state, which is persisted to the scoped `localStorage` key `leadership-organization-info` via `getWorkspaceScopedStorageKey`. This data is currently **not cloud-persisted** — `meeting_settings.organization_info` exists in the schema but is not yet written by the Edit Playbook flow. Sprint 3 will wire the Edit Playbook save path through `meeting_settings.organization_info` for cross-device, cross-session persistence. Until then, Edit Playbook data is per-browser and will be lost if localStorage is cleared.
 
 ---
 

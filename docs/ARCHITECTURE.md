@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the current system architecture for Meeting Tool as of the Documentation Refresh sprint on `phase-3-shared-access`. It is the canonical reference for developers and AI agents entering the project cold.
+This document describes the current system architecture for Meeting Tool as of Sprint 2 (`ux/sprint-2-simplification`). It is the canonical reference for developers and AI agents entering the project cold.
 
 ---
 
@@ -20,10 +20,10 @@ This document describes the current system architecture for Meeting Tool as of t
 
 | Route | Description |
 |-------|-------------|
-| `/` | Landing / auth entry. Shows `AuthModal` for sign-in/sign-up. Authenticated users are redirected to `/dashboard`. Signed-out users can proceed to Local Mode. |
-| `/dashboard` | Authenticated dashboard. Lists cloud meetings in Owned by Me and Shared with Me sections. Create, search, archive, restore, soft-delete, duplicate, and manage members. |
-| `/meeting/[id]` | Cloud meeting workspace. Loads the meeting by URL `id` from Supabase. Requires authenticated session and active meeting membership. |
-| `/meeting/local` | Browser-only local workspace. Served by the `[id]` dynamic route with `id="local"`. Detected in `MeetingWorkspace` as `isLocalRoute = routeMeetingId === "local"`. No cloud reads or writes. |
+| `/` | Landing / auth entry. Shows `AuthModal` for sign-in/sign-up. Modal is always open and cannot be dismissed — it is the sole entry point. Authenticated users are redirected to `/dashboard`. |
+| `/dashboard` | Authenticated dashboard. Lists cloud meetings in Owned by Me and Shared with Me sections. Create, search, archive, restore, soft-delete, duplicate, and manage members. Dashboard menu: Restore from Backup (import-only), Change Password. |
+| `/meeting/[id]` | Cloud meeting workspace. Loads the meeting by URL `id` from Supabase. Requires authenticated session and active meeting membership. Workspace menu: Export Backup (export-only), Edit Playbook (owner only), Tactical History, Change Password. |
+| `/meeting/local` | Browser-only local workspace. Served by the `[id]` dynamic route with `id="local"`. Detected in `MeetingWorkspace` as `isLocalRoute = routeMeetingId === "local"`. No cloud reads or writes. Not linked from the landing page — accessible by direct URL only. Scheduled for Sprint 3 gating or documentation decision. |
 
 ---
 
@@ -137,9 +137,22 @@ Manual Save writes the complete workspace backup JSON to `meetings.meeting_data`
 - Is the source for JSON export and the import target.
 - Remains mandatory as the cloud rollback and backup/import path.
 
-### JSON export/import
+### JSON export/import — Backup/Restore split (Sprint 2)
 
-Export serializes the full runtime workspace to a downloadable JSON file. Import reads that JSON and restores `meetings.meeting_data` plus structured rows (objectives, tasks, SOOs, topics, notes, agenda items where applicable). This is the primary user-facing backup and recovery mechanism.
+**Export Backup** is available only in the meeting workspace menu and serializes the full runtime workspace to a downloadable JSON file.
+
+**Restore from Backup** is available only in the dashboard menu. It:
+1. Prompts the user for a meeting name (blank name disables the file picker).
+2. Validates the JSON backup file.
+3. Creates a new cloud meeting with the entered name (unique suffix appended if name exists).
+4. Restores backup data to `localStorage` via `restoreWorkspaceBackup`.
+5. Marks the new meeting's setup as complete via the scoped localStorage key.
+6. Navigates directly into the new meeting workspace.
+7. Does not overwrite existing meetings.
+
+Import/Restore code (`handleImportWorkspaceBackup`) is preserved in `MeetingWorkspace.tsx` but intentionally removed from the workspace UI pending Sprint 3 decision (keep and re-expose, or delete).
+
+**`BackupRestoreModal`** accepts a `mode` prop (`'both' | 'export-only' | 'import-only'`) that controls which actions and copy are rendered. Dashboard uses `'import-only'`; workspace uses `'export-only'`.
 
 ---
 
@@ -152,11 +165,28 @@ Export serializes the full runtime workspace to a downloadable JSON file. Import
 - Does not require authentication.
 - Cannot be shared.
 
-Local Mode exists for signed-out users and as a fallback during cloud stabilization. It is planned for future demotion or decommission after cloud main readiness is confirmed; that decision is deferred.
+As of Sprint 2, the landing page no longer links to Local Mode — the "Use without an account" path has been removed. Local Mode remains accessible by direct URL. Sprint 3 will either gate unauthenticated access to the route or formally document it as a legacy path. Full decommission is deferred to a future phase.
+
+---
+
+## localStorage Key Scoping Contract
+
+All runtime workspace state in `MeetingWorkspace.tsx` is stored via `getStorageKey()`, which calls `getWorkspaceScopedStorageKey(baseKey, selectedMeetingId)`:
+
+- **Cloud mode** (`selectedMeetingId` is set): produces `meeting-tool-cloud-workspace:{id}:{baseKey}` — fully isolated per cloud workspace.
+- **Local mode** (`selectedMeetingId` is empty): produces `{baseKey}` — global, unscoped.
+
+All `leadership-*` keys (objectives, meetings, organization info, settings, section order, strategic topics, SOOs, etc.) are routed through this helper. This means each cloud workspace has independent state in `localStorage`.
+
+**Important:** Code or utilities that construct scoped keys as raw strings must stay in sync with this format. The `getWorkspaceScopedStorageKey` function is the single source of truth for the key format — do not duplicate the string pattern elsewhere.
 
 ---
 
 ## Authentication Model
+
+### Landing page and entry point (Sprint 2)
+
+The landing page (`app/page.tsx`) shows only the `AuthModal`. The modal is always open (`isOpen={true}`) and `onClose` is a no-op — there is no way to dismiss it. Authenticated users are redirected to `/dashboard` via `useEffect`. There is no unauthenticated path from the landing page.
 
 ### Session management
 
@@ -222,10 +252,36 @@ See `docs/PERMISSIONS.md` for the full role matrix and table-level policy summar
 
 ---
 
-## Deferred (Post-Main)
+## File Size Note — MeetingWorkspace.tsx
 
-- Forgot Password merge (PR #110 — merge-ready, pending email-link validation).
-- Custom SMTP (Resend recommended) for reliable auth email delivery.
+`MeetingWorkspace.tsx` is approximately 6200 lines and contains workspace layout, all autosave logic, all cloud API calls, all modal state, backup/restore handlers, members management, playbook modal trigger, and meeting lifecycle handlers. This file is scheduled for a Sprint 3 refactor. Planned extractions:
+
+- `MeetingHeader.tsx` — sticky header, autosave chip, menu trigger
+- `useWorkspacePersistence.ts` — all autosave effects and cloud API calls
+- `useWorkspaceMembers.ts` — member loading, invitations, ownership checks
+
+Until the split is complete, be cautious about adjacent changes — the file is large enough that edits in one area can inadvertently affect another.
+
+---
+
+## Members Auto-Load (Sprint 2)
+
+`isMeetingOwner` is derived from `workspaceMeetingMembers`. As of Sprint 2, a `useEffect` in `MeetingWorkspace.tsx` auto-loads meeting members on workspace mount (triggered by `authSession` and `selectedMeetingId`). This ensures owner-only menu items (e.g., Edit Playbook) resolve correctly without requiring the members modal to open.
+
+---
+
+## Edit Playbook — Scoping Note (Sprint 2)
+
+Edit Playbook is owner-only in the workspace settings menu. It reads/writes the `leadership-organization-info` localStorage key, which is scoped per cloud workspace via `getWorkspaceScopedStorageKey`. However, this data is not yet persisted to `meeting_settings` in Supabase — it lives only in `localStorage` and is not cross-device or cross-session consistent. Sprint 3 will migrate Edit Playbook data to `meeting_settings.organization_info` for cloud persistence.
+
+---
+
+## Deferred (Post-Sprint-2)
+
+- `MeetingWorkspace.tsx` split into smaller files (Sprint 3)
+- Edit Playbook cloud persistence migration to `meeting_settings` (Sprint 3)
+- `/meeting/local` route gating or formal legacy documentation (Sprint 3)
+- Workspace import re-enable or deletion (Sprint 3)
 - Realtime collaboration, presence, locks, CRDTs, conflict resolution.
 - Ownership transfer.
 - Full Viewer read-only UX enforcement.
