@@ -60,14 +60,19 @@ function StrategicTopicControls({ item, section }: { item: MeetingItem; section:
   );
 }
 
-// Fix 4: Agenda Item card redesigned with collapsed/expanded states.
 // Collapsed (default): single line — title | Outcome: preview — caret to expand.
-// Expanded: two-panel layout — left has title/outcome/controls, right has notes editor.
-// key prop from parent resets isExpanded whenever isCovered changes (see item loop).
+// Expanded: full-width title row, then two-panel row (outcome+controls | notes).
+// Checking Covered collapses immediately; unchecking leaves isExpanded as-is.
 function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; section: MeetingSectionConfig; isReadOnly: boolean }) {
   const isCovered = item.isCovered ?? item.completed ?? false;
   const [isExpanded, setIsExpanded] = useState(false);
   const updateAgendaItem = section.updateAgendaItem;
+
+  useEffect(() => {
+    if (!isCovered) return;
+    const timeoutId = window.setTimeout(() => setIsExpanded(false), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [isCovered]);
 
   const resolvedOutcomeText = item.outcomeText ?? [item.decisionText?.trim(), item.actionText?.trim()].filter(Boolean).join('\n\n') ?? '';
   const hasOutcome = Boolean(item.outcomeText?.trim() || item.decisionText?.trim() || item.actionText?.trim());
@@ -125,31 +130,33 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
 
   return (
     <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
-      <div className="mb-2.5 flex items-start gap-2">
-        <button
-          type="button"
-          onClick={() => setIsExpanded(false)}
-          className="mt-0.5 shrink-0 text-blue-500 hover:text-blue-700"
-          aria-label="Collapse agenda item"
-        >
-          ▼
-        </button>
-        <div className="flex-1">
+      <div className="mb-3 flex items-start gap-2 border-b border-blue-50 pb-2.5">
+        <div className="min-w-0 flex-1">
           {isReadOnly
             ? <p className="text-sm font-medium text-slate-800">{item.text || section.editPlaceholder}</p>
             : <EditableField value={item.text} onSave={(value) => section.updateItem(item.id, value)} placeholder={section.editPlaceholder} ariaLabel="Agenda item" className="text-slate-800" activationMode="doubleClick" />
           }
         </div>
-        {!isReadOnly ? (
+        <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
-            onClick={() => section.deleteItem(item.id)}
-            className="shrink-0 text-red-400 hover:text-red-600"
-            aria-label="Remove agenda item"
+            onClick={() => setIsExpanded(false)}
+            className="text-blue-500 hover:text-blue-700"
+            aria-label="Collapse agenda item"
           >
-            ×
+            ▼
           </button>
-        ) : null}
+          {!isReadOnly ? (
+            <button
+              type="button"
+              onClick={() => section.deleteItem(item.id)}
+              className="text-red-400 hover:text-red-600"
+              aria-label="Remove agenda item"
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex gap-3">
@@ -285,7 +292,7 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
         <div ref={section.id === 'topic' ? topicListRef : undefined} className={section.id === 'topic' ? 'max-h-[34rem] space-y-3 overflow-y-auto pr-1' : 'space-y-3'}>
           {section.items.map((item) => {
             if (section.id === 'agenda') {
-              return <AgendaItemCard key={`${item.id}:${String(item.isCovered ?? item.completed ?? false)}`} item={item} section={section} isReadOnly={isReadOnly} />;
+              return <AgendaItemCard key={item.id} item={item} section={section} isReadOnly={isReadOnly} />;
             }
             return (
               <div key={item.id} draggable={section.id === 'topic' && !isReadOnly} onDragStart={(event) => { if (section.id !== 'topic' || isReadOnly) return; event.stopPropagation(); setDraggingTopicItemId(item.id); event.dataTransfer.setData('text/plain', String(item.id)); }} onDragOver={(event) => { if (section.id !== 'topic' || isReadOnly) return; event.stopPropagation(); event.preventDefault(); }} onDrop={(event) => { if (section.id !== 'topic' || isReadOnly) return; event.stopPropagation(); event.preventDefault(); const draggedId = Number(event.dataTransfer.getData('text/plain')) || draggingTopicItemId; if (typeof draggedId === 'number') section.reorderItems?.(draggedId, item.id); setDraggingTopicItemId(null); }} onDragEnd={() => setDraggingTopicItemId(null)} className={`rounded-2xl border border-slate-100 bg-white p-2.5 shadow-sm ${section.id === 'topic' ? 'cursor-grab' : ''} ${draggingTopicItemId === item.id ? 'opacity-60' : ''}`}>

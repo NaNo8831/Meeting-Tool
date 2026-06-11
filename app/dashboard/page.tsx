@@ -983,6 +983,18 @@ export default function DashboardPage() {
                           type="button"
                           onClick={() => {
                             setMeetingOverflowMenuId(null);
+                            router.push(`/meeting/${meeting.id}?tacticalHistory=1`);
+                          }}
+                          className="block w-full px-4 py-2.5 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                          role="menuitem"
+                        >
+                          Tactical History
+                        </button>
+                        <div className="my-1 border-t border-slate-100" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMeetingOverflowMenuId(null);
                             setMeetingPendingDuplicate(meeting);
                           }}
                           className="block w-full px-4 py-2.5 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50"

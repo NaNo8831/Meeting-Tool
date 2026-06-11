@@ -3964,6 +3964,15 @@ export default function MeetingWorkspace() {
     return () => window.clearTimeout(timeoutId);
   }, [loadTacticalSessions]);
 
+  // Auto-open Tactical History when navigated from dashboard with ?tacticalHistory=1
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("tacticalHistory") !== "1") return;
+    const timeoutId = window.setTimeout(() => setShowTacticalHistory(true), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
   const meetingSettingsAutosavePayload = useMemo<SupabaseMeetingSettingsUpsert>(
     () => ({
       dashboard_title: dashboardTitle,
