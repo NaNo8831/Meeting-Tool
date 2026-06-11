@@ -84,7 +84,7 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
   // Collapsed card — same border/shadow as expanded so both states feel like one object
   if (!isExpanded) {
     return (
-      <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+      <div className={`flex items-center gap-2 rounded-2xl border p-3 shadow-sm ${isCovered ? 'border-slate-200 bg-slate-50' : 'border-slate-200 bg-white'}`}>
         <button
           type="button"
           onClick={() => setIsExpanded(true)}
@@ -93,7 +93,7 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
         >
           ▶
         </button>
-        <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-900">
+        <span className={`min-w-0 flex-1 truncate text-sm font-bold ${isCovered ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
           {item.text || <span className="font-normal italic text-slate-400">Agenda item</span>}
         </span>
         {resolvedOutcomeText ? (

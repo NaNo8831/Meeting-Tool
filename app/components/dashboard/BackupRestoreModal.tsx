@@ -40,7 +40,7 @@ export function BackupRestoreModal({
     mode === 'import-only'
       ? 'Create a new meeting from a saved backup file. Your existing meetings are not affected.'
       : mode === 'export-only'
-      ? 'Save a copy of this meeting to your device.'
+      ? 'Save a full workspace backup to your device. Includes all meetings, objectives, and settings.'
       : 'Save a copy of your workspace or restore from a previous backup.';
 
   return (
