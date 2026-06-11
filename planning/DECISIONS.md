@@ -147,3 +147,50 @@
 - Meeting lifecycle follow-up should clarify UX/copy and validation without adding a new schema-backed open/closed field, new roles, new permissions, or a reopen/continue workflow.
 - Cloud Meeting load/refresh should select the current open dated meeting first, then the newest real dated meeting, and should not restore the oldest meeting or rely on stale legacy active pointers when dated records exist.
 - End Meeting remains a Tactical History snapshot action. It does not advance the active dated meeting, reset workspace data, or replace Manual Save as the full-workspace backup refresh.
+
+## Sprint 2 — Simplification and UX Fixes (2026-06-11)
+
+### Import/Export split — Restore on dashboard, Export in workspace
+
+- **Export Backup** lives in the workspace settings menu only. It exports the full runtime workspace to a JSON file.
+- **Restore from Backup** lives in the dashboard menu only. It creates a new cloud meeting pre-filled with the backup data and navigates directly into it. It does not overwrite any existing meeting.
+- The workspace `handleImportWorkspaceBackup` function is preserved in code but intentionally removed from the workspace UI. Sprint 3 will decide whether to re-expose it (disaster recovery inside a live meeting) or delete it entirely.
+- Rationale: separating export and import by context makes the intent clear and prevents users inside an active meeting from accidentally overwriting their current work.
+
+### Edit Playbook — owner-only, workspace only, localStorage scoped per meeting, cloud migration deferred
+
+- Edit Playbook was removed from the dashboard menu and added to the workspace settings dropdown.
+- It is gated by `isMeetingOwner` (owner-only; editors and viewers cannot see it).
+- The `leadership-organization-info` localStorage key is already per-workspace-scoped via `getWorkspaceScopedStorageKey`, meaning each cloud workspace has independent playbook data in `localStorage`.
+- Cloud persistence to `meeting_settings.organization_info` is deferred to Sprint 3. Until then, playbook data is browser-local only.
+
+### Local Mode landing page removed — modal is always open, no unauthenticated path
+
+- The "Meeting Tool by LyArk" card and "Use without an account" link were removed from `app/page.tsx`.
+- The `AuthModal` is now rendered with `isOpen={true}` and `onClose={() => undefined}` — it cannot be dismissed.
+- Local Mode (`/meeting/local`) remains accessible by direct URL but is no longer linked from the landing page.
+- Sprint 3 will decide whether to gate the route or formally document it as a legacy path.
+- Rationale: the app's value depends on cloud persistence and shared access; offering an unlinked unauthenticated entry point adds confusion and maintenance burden.
+
+### Decisions/Actions summary removed — outcomes captured via Agenda Item Outcome field
+
+- The always-visible Decisions/Actions rollup section was removed from the live meeting workspace.
+- Meeting outcomes are now captured directly in each Agenda Item's Outcome field.
+- Legacy `decisionItems` in older backup payloads remain readable through backup/import compatibility paths.
+
+### Agenda Item card — collapsed/expanded toggle with 2×2 grid layout
+
+- All agenda item cards default to collapsed state (`isExpanded = false`).
+- Collapsed state: single line with caret (▶), bold title, inline outcome preview (sm+ screens), Notes pill, and × delete button.
+- Expanded state: 2×2 grid — Row 1: title (left) + right-justified controls (Covered, Cascade, + Strategic Topic); Row 2: Outcome textarea (left) + Discussion Notes editor (right).
+- `isCovered` auto-collapses via `useEffect` with `setTimeout(0)`; unchecking covered does not auto-expand.
+- Both collapsed and expanded states use the same `rounded-2xl border border-slate-200 bg-white p-3 shadow-sm` card wrapper so they feel like the same object in two states.
+- The key-remount pattern (`key={item.id:${isCovered}}`) was removed; `key={item.id}` only.
+
+### BackupRestoreModal mode prop pattern for context-specific UI
+
+- `BackupRestoreModal` accepts a `mode` prop: `'both' | 'export-only' | 'import-only'`.
+- `mode` controls which action buttons, copy, and form fields render.
+- Dashboard uses `'import-only'` (shows meeting name input + file picker).
+- Workspace uses `'export-only'` (shows download button only).
+- The `'both'` default preserves backward compatibility for any future use.

@@ -23,11 +23,11 @@ Landing page | The page background (`bg-slate-950` with gradient and `backdrop-b
 
 ## Auth Modal
 
-Auth modal | The "Supabase Auth" badge has not been confirmed removed from the AuthModal in this sprint — the `planning/POST_MAIN_ROADMAP.md` lists it as a Sprint 2 UX finding. Leaking infrastructure detail to end users. | High | Verify and remove the badge if still present. Replace with nothing or "Secure sign-in." |
+~~Auth modal | The "Supabase Auth" badge has not been confirmed removed from the AuthModal in this sprint — the `planning/POST_MAIN_ROADMAP.md` lists it as a Sprint 2 UX finding. Leaking infrastructure detail to end users. | High | Verify and remove the badge if still present. Replace with nothing or "Secure sign-in."~~ **RESOLVED — Sprint 2**
 
-Auth modal | Sign Up password hint ("Minimum 6 characters.") — listed as a Sprint 2 finding in POST_MAIN_ROADMAP but not confirmed addressed in this sprint. | High | Add "Minimum 6 characters." below the password field on the Sign Up view. |
+~~Auth modal | Sign Up password hint ("Minimum 6 characters.") — listed as a Sprint 2 finding in POST_MAIN_ROADMAP but not confirmed addressed in this sprint. | High | Add "Minimum 6 characters." below the password field on the Sign Up view.~~ **RESOLVED — Sprint 2**
 
-Auth modal | Forgot password confirmation state — listed as Sprint 2 finding. After submitting, the form should replace itself with a full confirmation state (icon + message + "Back to Sign In") rather than only an in-form green notice. | Medium | Implement full confirmation state on password reset request. |
+~~Auth modal | Forgot password confirmation state — listed as Sprint 2 finding. After submitting, the form should replace itself with a full confirmation state (icon + message + "Back to Sign In") rather than only an in-form green notice. | Medium | Implement full confirmation state on password reset request.~~ **RESOLVED — Sprint 2**
 
 ---
 
@@ -35,7 +35,7 @@ Auth modal | Forgot password confirmation state — listed as Sprint 2 finding. 
 
 Dashboard | "You're signed in. Your meetings are saved to the cloud." copy from the Account view developer cleanup is listed as Sprint 2 but not confirmed done. Developer copy "Workspace data still stays in this browser's localStorage…" should be replaced. | Medium | Confirm current Account view copy and replace if needed. |
 
-Dashboard | Delete meeting confirmation copy still says "safely stored for recovery" — Sprint 2 finding. No recovery path exists in the UI. | High | Change to "permanently removes the archived meeting from your dashboard." |
+~~Dashboard | Delete meeting confirmation copy still says "safely stored for recovery" — Sprint 2 finding. No recovery path exists in the UI. | High | Change to "permanently removes the archived meeting from your dashboard."~~ **RESOLVED — Sprint 2**
 
 Dashboard | "Restore from Backup" flow: if the user is not signed in (`session` is null), the import falls back to plain `restoreWorkspaceBackup(backup)` with message "Backup restored." but there is no meeting to navigate into. The non-authenticated path is a no-op with no visible result. | Medium | Either gate "Restore from Backup" behind sign-in (show a message if not signed in), or remove the non-authenticated fallback branch and require sign-in for the restore flow. |
 
@@ -83,13 +83,13 @@ Agenda items | "+ Strategic Topic" button is always visible in the expanded card
 
 ## Meeting Workspace — General
 
-Meeting workspace | "Backup needed" chip (autosave status) is still labeled ambiguously per the Sprint 2 roadmap finding — it should say "Manual Save needed" not "Backup needed." Confirm whether this was addressed. | High | Rename to "Manual Save needed" if not already done. |
+~~Meeting workspace | "Backup needed" chip (autosave status) is still labeled ambiguously per the Sprint 2 roadmap finding — it should say "Manual Save needed" not "Backup needed." Confirm whether this was addressed. | High | Rename to "Manual Save needed" if not already done.~~ **RESOLVED — Sprint 2**
 
-Meeting workspace | Closed meeting workspace banner — Sprint 2 roadmap finding. When a meeting is ended, show a top-level banner: "This meeting has been ended. Notes are read-only. Start a new meeting for today's session." Currently only per-section notices exist. | Medium | Add a top-level banner. Acceptable to defer to Sprint 3 if not done. |
+~~Meeting workspace | Closed meeting workspace banner — Sprint 2 roadmap finding. When a meeting is ended, show a top-level banner: "This meeting has been ended. Notes are read-only. Start a new meeting for today's session." Currently only per-section notices exist. | Medium | Add a top-level banner. Acceptable to defer to Sprint 3 if not done.~~ **RESOLVED — Sprint 2**
 
 Meeting workspace | Owner-only action audit — Sprint 2 roadmap finding. Confirm all owner-only actions (End Meeting, rename, archive, delete, Edit Playbook, manage members) are either hidden or show a clear "owner only" message for editors. | High | Audit before main merge. |
 
-Meeting workspace | Local Mode legacy label — Sprint 2 roadmap. The badge tooltip or help text should say "Data saved in this browser only. Sign in to enable cloud sync." A dismissible banner prompting sign-in should appear in local mode. | Medium | Add help text and sign-in prompt for Local Mode before main merge. |
+~~Meeting workspace | Local Mode legacy label — Sprint 2 roadmap. The badge tooltip or help text should say "Data saved in this browser only. Sign in to enable cloud sync." A dismissible banner prompting sign-in should appear in local mode. | Medium | Add help text and sign-in prompt for Local Mode before main merge.~~ **RESOLVED — Sprint 2**
 
 Meeting workspace | "Test Mode" / "Testing Mode" terminology inconsistency from Sprint 2 roadmap — "Test Mode" should be used everywhere, not "Testing Mode." | Low | Confirm and clean up in Sprint 3. |
 

@@ -4,86 +4,185 @@ This document tracks all known post-main work organized by priority and sprint.
 It is the source of truth for backlog sequencing. Update it as sprints complete
 and new items are identified.
 
-Last updated: 2026-06-10
+Last updated: 2026-06-11
 
 ---
 
-## Sprint 1 — UX Polish (active)
+## Sprint 1 — UX Polish ✅ Complete
 
 Branch: ux/polish-sprint-1
 
-### In Scope
+### Completed
 - Access/Members menu accessible from the meeting workspace dropdown menu
-  (currently only available outside the meeting — gap identified during beta launch)
 - Sticky top bar / autosave status visibility improvements
 - Local Mode labeled as legacy/decommission-pending in UI
 
-### Out of Scope for Sprint 1
-- Remove Save Notes button (deferred until autosave fully trusted by users)
+### Deferred out of Sprint 1
+- Remove Save Notes button (deferred to Sprint 3 — pair with Close button move)
 - Move Close button to bottom-right (pair with Save Notes removal)
-- Session concurrency / two sessions open simultaneously (known debt, needs
-  architecture discussion before touching)
-- Refresh hydration preference (known debt, needs investigation)
-- Test Mode date preference with multiple real users (needs real-data validation)
+- Session concurrency / two sessions open simultaneously
+- Refresh hydration preference
+- Test Mode date preference with multiple real users
 
 ---
 
-## Sprint 2 — Housekeeping
+## Sprint 2 — Simplification and UX Fixes ✅ Complete
 
-- SQL and schema cleanup: review and remove redundant/legacy migrations,
-  tidy schema to reflect production state
-- Doc cleanup:
-  - Delete: docs/CLAUDE_CODE_START_HERE.md, docs/CURRENT_PROJECT_STATUS.md,
-    docs/HANDOFF_TO_CLAUDE_CODE.md, docs/CLAUDE_CHAT_HANDOFF.md,
-    docs/AUTH_EMAIL_SETUP.md
-  - Consolidate: docs/AI_AGENT_WORKFLOW.md → fold into docs/CONTRIBUTING.md
-    or docs/DEVELOPMENT.md
-- Change Password UX: add Change Password option in user settings/profile
-  for logged-in users (uses updatePassword helper already built in PR #110)
+Branch: ux/sprint-2-simplification (PR #119)
 
-### UX Beta Review findings for Sprint 2 (from planning/reviews/ux-beta-review-2026-06-10.md)
+### Completed
 
-High-priority copy and affordance fixes identified during Team Beta UX review:
+**Agenda Item card redesign**
+- Collapsed/expanded toggle with caret (▶/▼) on every card
+- Default collapsed state for all items
+- 2×2 grid layout in expanded state (title + right-justified controls / outcome + notes)
+- `isCovered` auto-collapses via useEffect; unchecking does not auto-expand
+- `key={item.id}` only — removed forbidden key-remount pattern
+- Inline outcome preview and × delete button in collapsed state
+- Card border/shadow in both collapsed and expanded states so both feel like one object
+- Title bold in both states
 
-- **Remove "Supabase Auth" badge** from AuthModal — leaks infrastructure detail
-  to end users; replace with nothing or "Secure sign-in".
-- **Remove developer copy from Account view** — "Workspace data still stays in
-  this browser's localStorage. Auth does not sync…" is not user-facing copy;
-  replace with "You're signed in. Your meetings are saved to the cloud."
-- **Soft-delete honesty** — Delete meeting confirmation says "safely stored for
-  recovery" but no recovery path exists in the UI; either surface recovery or
-  change copy to "permanently removes the archived meeting from your dashboard."
-- **Rename autosave chip "Backup needed" → "Manual Save needed"** — current
-  label alarms users into thinking data is at risk; actual meaning is that
-  Manual Save has not been run recently.
-- **Closed meeting workspace banner** — when a meeting is ended, show a
-  top-level banner: "This meeting has been ended. Notes are read-only. Start a
-  new meeting for today's session." Currently only per-section notices exist.
-- **Editor permission feedback audit** — verify all owner-only actions are
-  hidden or show a clear "owner only" message for editors (not a raw RLS
-  rejection); confirm whether End Meeting is available to editors and surface
-  that consistently.
-- **Local Mode legacy label copy** — "Legacy" is a developer term; replace
-  badge tooltip or add help text: "Data saved in this browser only. Sign in to
-  enable cloud sync." Add a dismissible banner prompting sign-in.
-- **Sign Up password hint** — add "Minimum 6 characters." below the password
-  field so users do not hit a surprise error on submission.
-- **Forgot password confirmation state** — after submitting, replace the form
-  with a full confirmation state (icon + message + "Back to Sign In" link)
-  rather than an in-form green message only.
-- **Terminology cleanup** — standardize across all surfaces: "Test Mode" (not
-  "Testing Mode"), "Meeting date" (not "Action date"), "Members" (not
-  "Access / Members"), "End Meeting" button consistent with modal copy; see
-  full glossary in the review document.
+**Backup/Restore split**
+- Export Backup: workspace menu only (owner and editor accessible)
+- Restore from Backup: dashboard menu only
+- Restore creates a new cloud meeting, restores backup to localStorage, marks setup
+  complete, and navigates directly into the new meeting
+- Meeting name field with validation (blank disables file picker; unique name suffix
+  logic appends `(2)`, `(3)`, etc. if name already exists)
+- `BackupRestoreModal` gains `mode` prop (`both | export-only | import-only`)
+  for context-specific copy and controls
+- Import/Restore code preserved in workspace with comment; removed from workspace UI
+
+**Edit Playbook**
+- Removed from dashboard menu
+- Added to workspace settings dropdown, owner-only (`isMeetingOwner` gate)
+- Code comment added noting global localStorage scoping and Sprint 3 cloud migration plan
+
+**Members auto-load**
+- `useEffect` added to auto-load meeting members on workspace mount so `isMeetingOwner`
+  resolves correctly without requiring the members modal to open
+
+**Landing page**
+- "Meeting Tool by LyArk" card and "Use without an account" link removed
+- Auth modal is always open (`isOpen={true}`, `onClose` is a no-op)
+- Modal is the sole entry point; no unauthenticated path via the landing page
+
+**UX copy and auth**
+- Supabase Auth badge removed from AuthModal
+- "Minimum 6 characters." hint added to Sign Up password field
+- Forgot password full confirmation state (icon + message + Back to Sign In)
+- Delete meeting copy fixed: "permanently removes the archived meeting"
+- "Backup needed" chip renamed to "Manual Save needed"
+- Closed meeting workspace top-level banner added
+- Local Mode demoted: banner prompting sign-in, "browser only" label
+
+**BackupRestoreModal copy cleanup**
+- Export modal: "Save a copy of this meeting to your device"
+- Restore modal: "Create a new meeting from a saved backup file"
+- Nested amber section header removed, padding reduced
+
+**Create New Meeting**
+- `getNextUniqueCreationName` applied to all meeting creation paths
+
+**Reviews added**
+- `planning/reviews/ux-sprint-2-post-implementation-review.md`
+- `planning/reviews/architecture-sprint-2-review.md`
 
 ---
 
-## Sprint 3 — UX Polish Continued
+## Sprint 3 — Code Health, UX Polish, and Cloud Scoping
 
-- Remove Save Notes button once autosave is fully trusted by beta users
-- Move Close button to bottom-right where Save Notes currently lives
-  (pair with above — do together)
-- Sticky header refinements based on beta feedback
+Informed by: `planning/reviews/architecture-sprint-2-review.md` and
+`planning/reviews/ux-sprint-2-post-implementation-review.md`.
+
+### High Priority — Code Health
+
+- **MeetingWorkspace.tsx split** (High risk — ~6200 lines, regressions from adjacent
+  changes are the biggest near-term delivery risk): Extract at minimum
+  `MeetingHeader.tsx` (sticky header, autosave chip, menu trigger),
+  `useWorkspacePersistence.ts` (all autosave effects and cloud API calls),
+  `useWorkspaceMembers.ts` (member loading, invitations, ownership checks).
+  Do not attempt a full refactor in one PR.
+
+- **Edit Playbook cloud persistence migration**: The `leadership-organization-info`
+  localStorage key is already per-workspace-scoped via `getWorkspaceScopedStorageKey`
+  but is not cloud-persisted. Sprint 3 task: add `organization_info` column to
+  `meeting_settings` (or confirm it exists), write through from the PlaybookDefinitionsModal,
+  and load from cloud on workspace bootstrap. Update the code comment in
+  `MeetingWorkspace.tsx` line 5247 to reflect actual scoping behavior.
+
+- **Dashboard raw string localStorage key → shared utility**: `dashboard/page.tsx`
+  constructs the scoped setup key manually:
+  `` `meeting-tool-cloud-workspace:${meeting.id}:leadership-meeting-setup-completed` ``.
+  Export `getWorkspaceScopedStorageKey` (or equivalent) and use it here instead.
+
+- **`handleOpenMembersModal` dead code removal**: ESLint warning on every build.
+  Remove or fold into the auto-load effect added in Sprint 2.
+
+- **Workspace import function decision**: `handleImportWorkspaceBackup` preserved in
+  `MeetingWorkspace.tsx` but not exposed in UI. Sprint 3: decide keep (and re-expose
+  for disaster recovery inside a meeting) or delete entirely. If deleted, also remove
+  the five associated cloud-restore helpers.
+
+- **`collectLocalWorkspaceStorage` removal**: Dashboard export was removed in Sprint 2.
+  This function is now dead code. Delete in Sprint 3 cleanup.
+
+### High Priority — UX
+
+- **`/meeting/local` route — gate or document**: Local Mode can still be reached by
+  typing the URL directly even though the landing page no longer links to it. Either
+  redirect unauthenticated access to sign-in, or document Local Mode as an intentional
+  legacy path. Decide and implement before main merge.
+
+- **Owner-only action audit**: Confirm all owner-only actions (End Meeting, rename,
+  archive, delete, Edit Playbook, manage members) are either hidden or show a clear
+  "owner only" message for editors. No raw RLS rejections visible to users.
+
+- **Export Backup access — confirm owner-only or editor-accessible**: Currently
+  accessible to all authenticated users in the workspace. Decide and enforce.
+
+- **Tactical History — confirm view-only for editors**: Audit the Tactical History modal
+  for owner-only vs. editor-safe actions. Gate End Meeting if it surfaces there.
+
+- **Export Backup modal copy**: Currently says "Save a copy of this meeting to your
+  device" — inaccurate, it exports the full workspace including all meetings and
+  objectives. Change to "Save a full workspace backup to your device."
+
+### Medium Priority — UX
+
+- **Local Mode sign-in banner**: Confirm dismissible sign-in prompt is shown when
+  in Local Mode with "Data saved in this browser only. Sign in to enable cloud sync."
+
+- **Auto-expand newly created agenda item**: When a new agenda item is created, it
+  should auto-expand so the user can immediately fill in details without an extra click.
+
+- **Covered-state visual indicator on collapsed card**: A covered item looks identical
+  to an uncovered collapsed item. Add a visual cue (checkmark badge, muted color,
+  strikethrough title) when `isCovered` is true.
+
+- **Delete button in expanded agenda item card**: Currently no delete affordance in
+  expanded state — user must collapse first to see the × button.
+
+- **Agenda item reorder**: Items are fixed-order with no drag-to-reorder or up/down
+  controls. Add reorder support.
+
+- **Cascade label → "Cascade needed"**: Current "Cascade" label is domain jargon.
+  Rename for clarity.
+
+### Lower Priority — UX
+
+- **`+ Strategic Topic` button after promotion**: Disabled state shows "In Topics"
+  with no click affordance. Consider hiding after promotion.
+
+- **`handleImportBackupPlaceholder` stub removal**: Dead code in `dashboard/page.tsx`
+  with a hidden file input and no UI trigger. Delete in Sprint 3.
+
+- **Remove Save Notes button** (from Sprint 1 backlog): Pair with Close button move
+  to bottom-right. Only when autosave is confirmed trusted by beta users.
+
+- **Move Close button to bottom-right**: Pair with Save Notes removal.
+
+- **Sticky header refinements** based on beta feedback.
 
 ---
 
@@ -96,7 +195,8 @@ High-priority copy and affordance fixes identified during Team Beta UX review:
 - Client meeting record ID divergence: date-dedup pass in
   mergeStructuredMeetingNotes to prevent duplicate records across
   browser sessions (root cause: Date.now() client IDs are
-  session-unique; merge key is ID not date)
+  session-unique; merge key is ID not date). Consider changing
+  `createBlankMeeting()` to UUID or monotonic counter.
 - Test Mode date preference: validate with multiple real users and
   real dated meetings before implementing any changes
 
@@ -129,6 +229,7 @@ feedback justifies prioritization:
 - Transactional Promote to Strategic Topic RPC
 - Organizations / workspace administration model
 - Mobile-first responsive pass
+- Strategic topic note conflict resolution (local vs. cloud timestamp divergence)
 
 ---
 
@@ -144,3 +245,5 @@ feedback justifies prioritization:
 - Meeting State follow-up UX (PR #109)
 - Main Readiness Review
 - Merge phase-3-shared-access → main (Team Beta launch 2026-06-10)
+- Sprint 1 — UX Polish (ux/polish-sprint-1)
+- Sprint 2 — Simplification and UX Fixes (ux/sprint-2-simplification, PR #119)

@@ -3,11 +3,41 @@
 ## Current Snapshot
 
 - Product: Meeting Tool by LyArk in the `Meeting-Tool` repo.
-- Status: **post-main Team Beta — phase-3-shared-access merged to main on 2026-06-10. Sprint 1 UX polish is active on `ux/polish-sprint-1`.**
+- Status: **post-main Team Beta — Sprint 2 complete on `ux/sprint-2-simplification` (PR #119), ready to merge to main. Sprint 3 is next.**
 - Deployment: Vercel (main branch).
-- Persistence: Local Workspace uses browser `localStorage`; selected Cloud Meetings have structured autosave for `meeting_settings`, Strategic Topics, Topic Notes, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, Standard Operating Objectives, and Agenda Items, with `meetings.meeting_data` full-workspace Manual Save as the safety net and fallback hydration source.
-- Backup: JSON export/import workspace backup (full workspace + structured rows).
-- Current Project Status: **post-main Team Beta. All Phase 3 Shared Access and Phase 4 Structured Persistence work is on main. Sprint 1 UX polish is active on `ux/polish-sprint-1` (members menu in workspace, sticky header visibility, Local Mode legacy label). `planning/POST_MAIN_ROADMAP.md` is the backlog source of truth.**
+- Persistence: Local Workspace uses browser `localStorage`; Cloud Meetings have structured autosave for `meeting_settings`, Strategic Topics, Topic Notes, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, Standard Operating Objectives, and Agenda Items, with `meetings.meeting_data` full-workspace Manual Save as the safety net and fallback hydration source.
+- Backup: JSON export/import. Export available in workspace only. Restore from Backup available on dashboard only (creates a new cloud meeting from backup file).
+- Current Project Status: **Sprint 2 complete. PR #119 (`ux/sprint-2-simplification`) is ready to merge to main pending any final review. Sprint 3 scope is documented in `planning/POST_MAIN_ROADMAP.md`. `planning/POST_MAIN_ROADMAP.md` is the backlog source of truth.**
+
+## Sprint 2 — Simplification and UX Fixes
+
+- Branch: `ux/sprint-2-simplification` (PR #119)
+- Status: Complete, build passing, ready to merge.
+
+Key changes in Sprint 2:
+- Agenda Item cards redesigned: collapsed/expanded toggle, 2×2 grid, bold title, outcome preview inline in collapsed state, × delete button, card border in both states.
+- Backup/Restore split: Export Backup in workspace only; Restore from Backup on dashboard only. Restore creates a new cloud meeting and navigates directly into it. Meeting name validated (blank disabled, unique suffix logic).
+- `BackupRestoreModal` mode prop (`both | export-only | import-only`) for context-specific UI.
+- Edit Playbook moved from dashboard to workspace settings menu, owner-only.
+- Members auto-loaded on workspace mount via `useEffect` so `isMeetingOwner` resolves without opening the members modal.
+- Landing page simplified: "Meeting Tool by LyArk" card and "Use without an account" link removed. Auth modal always open, no unauthenticated path.
+- UX copy fixes: Supabase Auth badge removed, password hint added to Sign Up, forgot password confirmation state, delete copy corrected, "Backup needed" renamed to "Manual Save needed", closed meeting top-level banner added, Local Mode demoted with sign-in prompt.
+- Post-implementation reviews added: `planning/reviews/ux-sprint-2-post-implementation-review.md` and `planning/reviews/architecture-sprint-2-review.md`.
+
+## Sprint 3 — Next
+
+See `planning/POST_MAIN_ROADMAP.md` Sprint 3 section for full scope. High-priority items:
+1. `MeetingWorkspace.tsx` split (extract `MeetingHeader`, `useWorkspacePersistence`, `useWorkspaceMembers`)
+2. Edit Playbook cloud persistence migration to `meeting_settings`
+3. Dashboard raw string localStorage key → shared utility
+4. `handleOpenMembersModal` dead code removal
+5. Workspace import function decision (keep and re-expose, or delete)
+6. `/meeting/local` route — gate or document as intentional legacy
+7. Owner-only action audit
+8. Auto-expand newly created agenda item
+9. Covered-state visual indicator on collapsed card
+
+
 
 ## Documentation Refresh Sprint
 
@@ -197,7 +227,10 @@
 3. ~~**Set up custom SMTP (Resend)**~~ — complete.
 4. ~~**Run Main Readiness Review**~~ — complete. All gates passed. See Main Readiness Review session notes.
 5. ~~**Merge phase-3-shared-access to main**~~ — **complete on 2026-06-10.** Duplicate migration `20260609000000_add_create_owned_meeting_rpc.sql` removed from main before merge; `supabaseClient.ts` conflict resolved in favor of phase-3 version. Lint, TypeScript, and build all pass.
-6. **Post-main:** Continue Team Beta validation. Track deferred work in `planning/FUTURE_PHASES.md`: Viewer UX enforcement, realtime collaboration, ownership transfer, client meeting ID deduplication (duplicate meeting notes records across browser sessions), Local Mode decommission.
+6. ~~**Sprint 1 — UX Polish**~~ — complete on `ux/polish-sprint-1`.
+7. ~~**Sprint 2 — Simplification and UX Fixes**~~ — complete on `ux/sprint-2-simplification`. PR #119 build passing, ready to merge.
+8. **Merge PR #119 (`ux/sprint-2-simplification`) to main** — final review and merge.
+9. **Sprint 3** — see `planning/POST_MAIN_ROADMAP.md` Sprint 3 section for scope.
 
 ## PR 3A — User Profile Foundation
 
