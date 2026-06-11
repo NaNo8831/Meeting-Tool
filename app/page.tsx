@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AuthModal } from "@/app/components/auth/AuthModal";
 import { useSupabaseAuth } from "@/app/hooks/useSupabaseAuth";
@@ -16,7 +16,6 @@ export default function LandingPage() {
     signUp,
     requestPasswordReset,
   } = useSupabaseAuth();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(true);
 
   useEffect(() => {
     if (session) {
@@ -29,35 +28,20 @@ export default function LandingPage() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.25),_transparent_55%)]" />
       <div className="absolute inset-0 backdrop-blur-sm" />
 
-      <div className="relative z-10 w-full max-w-md space-y-4">
+      <div className="relative z-10 w-full max-w-md">
+        {/* Auth modal is the only entry point — modal cannot be closed. */}
         <AuthModal
-          isOpen={isAuthModalOpen}
+          isOpen={true}
           isConfigured={isConfigured}
           isLoading={isLoading}
           session={session}
-          onClose={() => setIsAuthModalOpen(false)}
+          onClose={() => undefined}
           onSignIn={signIn}
           onSignUp={signUp}
           onRequestPasswordReset={requestPasswordReset}
           onSignOut={signOut}
           onContinueLocally={() => router.push("/meeting/local")}
         />
-
-        <div className="rounded-3xl border border-white/20 bg-white/10 p-5 text-center text-white shadow-xl backdrop-blur-md">
-          <h1 className="text-lg font-semibold">Meeting Tool by LyArk</h1>
-          <p className="mt-2 text-sm text-slate-200">
-            A structured meeting workspace for leadership teams.
-          </p>
-          <p className="mt-4 text-xs text-slate-400">
-            <button
-              type="button"
-              onClick={() => router.push("/meeting/local")}
-              className="underline hover:text-slate-300"
-            >
-              Use without an account (browser only, no sync)
-            </button>
-          </p>
-        </div>
       </div>
     </main>
   );

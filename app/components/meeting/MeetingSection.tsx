@@ -81,7 +81,7 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
   const resolvedOutcomeText = item.outcomeText ?? [item.decisionText?.trim(), item.actionText?.trim()].filter(Boolean).join("\n\n") ?? "";
   const updateAgendaItem = section.updateAgendaItem;
 
-  // Collapsed single-line view — caret + title + Notes pill
+  // Collapsed single-line view — caret + title + outcome preview + Notes pill + delete
   if (!isExpanded) {
     return (
       <div className="flex items-center gap-2 py-0.5">
@@ -93,13 +93,29 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
         >
           ▶
         </button>
-        <span className="flex-1 truncate text-sm text-slate-700">
+        <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
           {item.text || <span className="italic text-slate-400">Agenda item</span>}
         </span>
+        {resolvedOutcomeText ? (
+          <span className="hidden shrink-0 truncate text-xs text-slate-500 sm:inline">
+            <span className="font-medium text-slate-400">Outcome:</span>{' '}
+            {resolvedOutcomeText.split('\n')[0]}
+          </span>
+        ) : null}
         {hasNotes ? (
           <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">
             Notes ✓
           </span>
+        ) : null}
+        {!isReadOnly ? (
+          <button
+            type="button"
+            onClick={() => section.deleteItem(item.id)}
+            className="shrink-0 text-red-400 hover:text-red-600"
+            aria-label="Delete agenda item"
+          >
+            ×
+          </button>
         ) : null}
       </div>
     );
@@ -109,6 +125,7 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
   // Row 1: Title (left) | Covered/Cascade/+Strategic Topic controls (right)
   // Row 2: Outcome (left) | Discussion Notes (right)
   return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
     <div className="grid grid-cols-2 gap-x-4 gap-y-3">
       {/* Row 1 left — Title */}
       <div className="flex items-start gap-1.5">
@@ -122,8 +139,8 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
         </button>
         <div className="min-w-0 flex-1">
           {isReadOnly
-            ? <p className="whitespace-pre-wrap text-sm text-slate-800">{item.text || <span className="italic text-slate-400">Agenda item</span>}</p>
-            : <EditableField value={item.text} onSave={(value) => section.updateItem(item.id, value)} placeholder="Agenda item" ariaLabel="Agenda item title" className="text-sm text-slate-800" activationMode="doubleClick" />
+            ? <p className="whitespace-pre-wrap text-base font-bold text-slate-900">{item.text || <span className="italic font-normal text-slate-400">Agenda item</span>}</p>
+            : <EditableField value={item.text} onSave={(value) => section.updateItem(item.id, value)} placeholder="Agenda item" ariaLabel="Agenda item title" className="text-base font-bold text-slate-900" activationMode="doubleClick" />
           }
         </div>
       </div>
@@ -199,6 +216,7 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
             />
         }
       </div>
+    </div>
     </div>
   );
 }

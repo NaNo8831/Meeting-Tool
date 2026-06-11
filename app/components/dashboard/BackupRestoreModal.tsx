@@ -25,6 +25,20 @@ export function BackupRestoreModal({
 
   if (!isOpen) return null;
 
+  const title =
+    mode === 'import-only'
+      ? 'Restore from Backup'
+      : mode === 'export-only'
+      ? 'Export Backup'
+      : 'Backup / Restore';
+
+  const description =
+    mode === 'import-only'
+      ? 'Create a new meeting from a saved backup file. Your existing meetings are not affected.'
+      : mode === 'export-only'
+      ? 'Save a copy of this meeting to your device.'
+      : 'Save a copy of your workspace or restore from a previous backup.';
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4"
@@ -33,80 +47,61 @@ export function BackupRestoreModal({
       aria-labelledby="backup-restore-title"
     >
       <div
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-8 shadow-2xl md:p-10"
+        className="w-full max-w-lg rounded-3xl bg-white p-8 shadow-2xl"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <div className="mb-8 space-y-3">
-          <h2 id="backup-restore-title" className="text-4xl font-bold text-slate-950 md:text-5xl">
-            {mode === 'import-only' ? 'Restore from Backup' : mode === 'export-only' ? 'Export Backup' : 'Backup / Restore'}
+        <div className="mb-6 space-y-2">
+          <h2 id="backup-restore-title" className="text-3xl font-bold text-slate-950">
+            {title}
           </h2>
-          <p className="text-xl text-slate-600">
-            {mode === 'import-only'
-              ? 'Restore a previous workspace backup as a new meeting.'
-              : mode === 'export-only'
-              ? 'Export a backup of your current workspace as a safety net.'
-              : 'Export or import a workspace backup. This is separate from cloud autosave and remains a safety net.'}
-          </p>
+          <p className="text-base text-slate-600">{description}</p>
         </div>
 
-        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-          <div className="mb-4">
-            <h3 className="text-2xl font-semibold text-slate-950">
-              {mode === 'import-only' ? 'Restore from Backup' : mode === 'export-only' ? 'Export Backup' : 'Workspace Backup Controls'}
-            </h3>
-            <p className="mt-2 text-lg text-slate-600">
-              {mode === 'import-only'
-                ? 'Import a backup file to restore a previous workspace as a new meeting. Your existing meetings are not affected.'
-                : 'Export before clearing browser storage, switching devices, or restoring a previous workspace.'}
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            {mode !== 'import-only' && onExportWorkspaceBackup ? (
-              <button
-                type="button"
-                onClick={onExportWorkspaceBackup}
-                className="rounded-xl bg-blue-600 px-5 py-3 text-lg font-semibold text-white hover:bg-blue-700"
-              >
-                Export Workspace Backup
-              </button>
-            ) : null}
-
-            {mode !== 'export-only' && onImportWorkspaceBackup ? (
-              <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-lg font-semibold text-slate-800 hover:bg-slate-50">
-                {mode === 'import-only' ? 'Choose Backup File' : 'Import Workspace Backup'}
-                <input
-                  type="file"
-                  accept="application/json,.json"
-                  className="sr-only"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) onImportWorkspaceBackup(file);
-                    event.target.value = '';
-                  }}
-                />
-              </label>
-            ) : null}
-          </div>
-
-          {backupFeedback ? (
-            <p
-              className={`mt-4 rounded-xl px-4 py-3 text-base font-medium ${
-                backupFeedback.type === 'success'
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-red-100 text-red-800'
-              }`}
-              role="status"
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          {mode !== 'import-only' && onExportWorkspaceBackup ? (
+            <button
+              type="button"
+              onClick={onExportWorkspaceBackup}
+              className="rounded-xl bg-blue-600 px-5 py-3 text-base font-semibold text-white hover:bg-blue-700"
             >
-              {backupFeedback.message}
-            </p>
+              Download Backup File
+            </button>
           ) : null}
-        </section>
+
+          {mode !== 'export-only' && onImportWorkspaceBackup ? (
+            <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-800 hover:bg-slate-50">
+              Choose Backup File
+              <input
+                type="file"
+                accept="application/json,.json"
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) onImportWorkspaceBackup(file);
+                  event.target.value = '';
+                }}
+              />
+            </label>
+          ) : null}
+        </div>
+
+        {backupFeedback ? (
+          <p
+            className={`mt-4 rounded-xl px-4 py-3 text-sm font-medium ${
+              backupFeedback.type === 'success'
+                ? 'bg-green-100 text-green-800'
+                : 'bg-red-100 text-red-800'
+            }`}
+            role="status"
+          >
+            {backupFeedback.message}
+          </p>
+        ) : null}
 
         <button
           type="button"
           onClick={onClose}
-          className="mt-8 rounded-xl bg-blue-600 px-8 py-3 text-xl font-semibold text-white hover:bg-blue-700"
+          className="mt-6 rounded-xl border border-slate-300 px-6 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
         >
           Close
         </button>

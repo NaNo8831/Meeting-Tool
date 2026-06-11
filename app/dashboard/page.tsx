@@ -593,6 +593,9 @@ export default function DashboardPage() {
           name: "Restored Meeting",
         });
         restoreWorkspaceBackup(backup);
+        // Mark setup as complete so the workspace skips first-time setup on load.
+        const setupKey = `meeting-tool-cloud-workspace:${meeting.id}:leadership-meeting-setup-completed`;
+        localStorage.setItem(setupKey, "true");
         setMeetings((current) => [
           toDashboardMeeting({
             meeting,
@@ -1137,17 +1140,6 @@ export default function DashboardPage() {
                       role="menuitem"
                     >
                       Change Password
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowDashboardMenu(false);
-                        setShowDashboardPlaybook(true);
-                      }}
-                      className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
-                      role="menuitem"
-                    >
-                      Edit Playbook
                     </button>
                     <button
                       type="button"

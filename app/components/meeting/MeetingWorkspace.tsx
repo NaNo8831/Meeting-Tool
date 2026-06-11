@@ -5244,6 +5244,23 @@ export default function MeetingWorkspace() {
                           >
                             Change Password
                           </button>
+                          {/* Edit Playbook currently writes to global localStorage key
+                              leadership-organization-info. Per-meeting cloud scoping deferred
+                              to Sprint 3 — each meeting should eventually have its own
+                              playbook tied to meeting_settings. Owner-only. */}
+                          {isMeetingOwner ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowPlaybookDefinitions(true);
+                                setShowSettingsMenu(false);
+                              }}
+                              className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                              role="menuitem"
+                            >
+                              Edit Playbook
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             onClick={() => {
