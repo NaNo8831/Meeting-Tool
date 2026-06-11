@@ -22,7 +22,17 @@ import {
   toDashboardMeeting,
   type DashboardMeeting,
 } from "@/app/lib/dashboardMeetings";
-import { validateWorkspaceBackup } from "@/app/lib/workspaceBackup";
+import {
+  collectLocalWorkspaceStorage,
+  createWorkspaceBackup,
+  restoreWorkspaceBackup,
+  validateWorkspaceBackup,
+  type WorkspaceBackupFeedback,
+} from "@/app/lib/workspaceBackup";
+import { defaultOrganizationInfo } from "@/app/lib/objectiveOptions";
+import { BackupRestoreModal } from "@/app/components/dashboard/BackupRestoreModal";
+import { PlaybookDefinitionsModal } from "@/app/components/dashboard/PlaybookDefinitionsModal";
+import { useLocalStorage } from "@/app/hooks/useLocalStorage";
 
 const sortMeetingsByName = (meetings: DashboardMeeting[]) =>
   [...meetings].sort((first, second) =>
@@ -117,7 +127,11 @@ export default function DashboardPage() {
   const [showDashboardMenu, setShowDashboardMenu] = useState(false);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
-  const [changePasswordCurrentPassword, setChangePasswordCurrentPassword] = useState("");
+  const [showDashboardPlaybook, setShowDashboardPlaybook] = useState(false);
+  const [showDashboardBackupRestore, setShowDashboardBackupRestore] = useState(false);
+  const [dashboardBackupFeedback, setDashboardBackupFeedback] = useState<WorkspaceBackupFeedback | null>(null);
+  const [playbookOrganizationInfo, setPlaybookOrganizationInfo] = useLocalStorage("leadership-organization-info", defaultOrganizationInfo);
+  const [playbookDashboardTitle, setPlaybookDashboardTitle] = useLocalStorage("leadership-dashboard-title", "");
   const [changePasswordNewPassword, setChangePasswordNewPassword] = useState("");
   const [changePasswordConfirm, setChangePasswordConfirm] = useState("");
   const [changePasswordMessage, setChangePasswordMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -142,7 +156,9 @@ export default function DashboardPage() {
       meetingPendingDelete !== null ||
       meetingPendingAccess !== null ||
       showProfileEditor ||
-      showChangePassword,
+      showChangePassword ||
+      showDashboardPlaybook ||
+      showDashboardBackupRestore,
   );
 
   useEffect(() => {
@@ -554,7 +570,6 @@ export default function DashboardPage() {
     try {
       await supabaseAuthClient.updatePassword(session.accessToken, changePasswordNewPassword);
       setChangePasswordMessage({ type: "success", text: "Password updated successfully." });
-      setChangePasswordCurrentPassword("");
       setChangePasswordNewPassword("");
       setChangePasswordConfirm("");
     } catch (error) {
@@ -564,6 +579,31 @@ export default function DashboardPage() {
       });
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  const handleDashboardExportBackup = () => {
+    if (typeof window === "undefined") return;
+    const entries = collectLocalWorkspaceStorage();
+    const backup = createWorkspaceBackup(entries);
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `meeting-tool-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setDashboardBackupFeedback({ type: "success", message: "Workspace backup exported." });
+  };
+
+  const handleDashboardImportBackup = async (file: File) => {
+    try {
+      const parsed = JSON.parse(await file.text()) as unknown;
+      const backup = validateWorkspaceBackup(parsed);
+      restoreWorkspaceBackup(backup);
+      setDashboardBackupFeedback({ type: "success", message: "Backup restored. Open a meeting to see the restored workspace." });
+    } catch (error) {
+      setDashboardBackupFeedback({ type: "error", message: error instanceof Error ? error.message : "Could not read backup file." });
     }
   };
 
@@ -1072,17 +1112,6 @@ export default function DashboardPage() {
                       type="button"
                       onClick={() => {
                         setShowDashboardMenu(false);
-                        setShowProfileEditor(true);
-                      }}
-                      className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
-                      role="menuitem"
-                    >
-                      Profile
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowDashboardMenu(false);
                         setShowChangePassword(true);
                       }}
                       className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
@@ -1094,12 +1123,23 @@ export default function DashboardPage() {
                       type="button"
                       onClick={() => {
                         setShowDashboardMenu(false);
-                        backupInputRef.current?.click();
+                        setShowDashboardPlaybook(true);
                       }}
                       className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
                       role="menuitem"
                     >
-                      Import Backup
+                      Edit Playbook
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDashboardMenu(false);
+                        setShowDashboardBackupRestore(true);
+                      }}
+                      className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
+                      role="menuitem"
+                    >
+                      Backup / Restore
                     </button>
                     <button
                       type="button"
@@ -1134,6 +1174,9 @@ export default function DashboardPage() {
               />
 
               <div className="flex items-center justify-end gap-2">
+                {/* Import Backup UI removed from menus per Sprint 2 simplification.
+                    Underlying code preserved for Sprint 3 cleanup. Cloud persistence
+                    and autosave make standalone import unnecessary for most users. */}
                 <input
                   ref={backupInputRef}
                   type="file"
@@ -1382,7 +1425,6 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => {
                   setShowChangePassword(false);
-                  setChangePasswordCurrentPassword("");
                   setChangePasswordNewPassword("");
                   setChangePasswordConfirm("");
                   setChangePasswordMessage(null);
@@ -1429,7 +1471,6 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => {
                   setShowChangePassword(false);
-                  setChangePasswordCurrentPassword("");
                   setChangePasswordNewPassword("");
                   setChangePasswordConfirm("");
                   setChangePasswordMessage(null);
@@ -1694,6 +1735,23 @@ export default function DashboardPage() {
           </div>
         </div>
       ) : null}
+
+      <PlaybookDefinitionsModal
+        isOpen={showDashboardPlaybook}
+        onClose={() => setShowDashboardPlaybook(false)}
+        organizationInfo={playbookOrganizationInfo}
+        onSave={setPlaybookOrganizationInfo}
+        dashboardTitle={playbookDashboardTitle}
+        onDashboardTitleChange={setPlaybookDashboardTitle}
+      />
+
+      <BackupRestoreModal
+        isOpen={showDashboardBackupRestore}
+        onClose={() => setShowDashboardBackupRestore(false)}
+        onExportWorkspaceBackup={handleDashboardExportBackup}
+        onImportWorkspaceBackup={(file) => void handleDashboardImportBackup(file)}
+        backupFeedback={dashboardBackupFeedback}
+      />
     </main>
   );
 }
