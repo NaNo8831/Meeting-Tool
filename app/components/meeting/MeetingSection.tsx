@@ -60,13 +60,20 @@ function StrategicTopicControls({ item, section }: { item: MeetingItem; section:
   );
 }
 
-// Fix 4: Agenda Item card redesigned with collapsed/expanded states.
-// Collapsed (default): single line — title | Outcome: preview — caret to expand.
-// Expanded: two-panel layout — left has title/outcome/controls, right has notes editor.
-// key prop from parent resets isExpanded whenever isCovered changes (see item loop).
+// Agenda Item card with collapsed/expanded states.
+// Collapsed (default): single line — caret + title + Notes pill.
+// Expanded: 2×2 grid — Row 1: title (left) | controls right-justified; Row 2: outcome | notes.
+// isCovered → auto-collapse via useEffect; unchecking covered does NOT auto-expand.
 function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; section: MeetingSectionConfig; isReadOnly: boolean }) {
   const isCovered = item.isCovered ?? item.completed ?? false;
-  const [isExpanded, setIsExpanded] = useState(!isCovered);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    if (isCovered) {
+      setTimeout(() => setIsExpanded(false), 0);
+    }
+    // Unchecking covered does not auto-expand — user must click caret.
+  }, [isCovered]);
 
   if (section.id !== 'agenda') return null;
 
@@ -74,8 +81,8 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
   const resolvedOutcomeText = item.outcomeText ?? [item.decisionText?.trim(), item.actionText?.trim()].filter(Boolean).join("\n\n") ?? "";
   const updateAgendaItem = section.updateAgendaItem;
 
-  // Collapsed single-line view — caret + title + Notes pill only
-  if (isCovered && !isExpanded) {
+  // Collapsed single-line view — caret + title + Notes pill
+  if (!isExpanded) {
     return (
       <div className="flex items-center gap-2 py-0.5">
         <button
@@ -105,16 +112,14 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
     <div className="grid grid-cols-2 gap-x-4 gap-y-3">
       {/* Row 1 left — Title */}
       <div className="flex items-start gap-1.5">
-        {isCovered ? (
-          <button
-            type="button"
-            onClick={() => setIsExpanded(false)}
-            className="mt-1 shrink-0 text-slate-400 hover:text-slate-600"
-            aria-label="Collapse agenda item"
-          >
-            ▼
-          </button>
-        ) : null}
+        <button
+          type="button"
+          onClick={() => setIsExpanded(false)}
+          className="mt-1 shrink-0 text-slate-400 hover:text-slate-600"
+          aria-label="Collapse agenda item"
+        >
+          ▼
+        </button>
         <div className="min-w-0 flex-1">
           {isReadOnly
             ? <p className="whitespace-pre-wrap text-sm text-slate-800">{item.text || <span className="italic text-slate-400">Agenda item</span>}</p>
@@ -123,8 +128,8 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
         </div>
       </div>
 
-      {/* Row 1 right — Controls */}
-      <div className="flex flex-wrap items-start gap-1.5">
+      {/* Row 1 right — Controls (right-justified) */}
+      <div className="flex flex-wrap items-start justify-end gap-1.5 ml-auto">
         {!isReadOnly ? (
           <>
             <label className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600">
@@ -132,7 +137,6 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
                 type="checkbox"
                 checked={isCovered}
                 onChange={(event) => {
-                  setIsExpanded(!event.target.checked);
                   updateAgendaItem?.(item.id, { isCovered: event.target.checked, completed: event.target.checked });
                 }}
                 className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600"
@@ -276,7 +280,7 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
         <div ref={section.id === 'topic' ? topicListRef : undefined} className={section.id === 'topic' ? 'max-h-[34rem] space-y-3 overflow-y-auto pr-1' : 'space-y-3'}>
           {section.items.map((item) => {
             if (section.id === 'agenda') {
-              return <AgendaItemCard key={`${item.id}:${String(item.isCovered ?? item.completed ?? false)}`} item={item} section={section} isReadOnly={isReadOnly} />;
+              return <AgendaItemCard key={item.id} item={item} section={section} isReadOnly={isReadOnly} />;
             }
             return (
               <div key={item.id} draggable={section.id === 'topic' && !isReadOnly} onDragStart={(event) => { if (section.id !== 'topic' || isReadOnly) return; event.stopPropagation(); setDraggingTopicItemId(item.id); event.dataTransfer.setData('text/plain', String(item.id)); }} onDragOver={(event) => { if (section.id !== 'topic' || isReadOnly) return; event.stopPropagation(); event.preventDefault(); }} onDrop={(event) => { if (section.id !== 'topic' || isReadOnly) return; event.stopPropagation(); event.preventDefault(); const draggedId = Number(event.dataTransfer.getData('text/plain')) || draggingTopicItemId; if (typeof draggedId === 'number') section.reorderItems?.(draggedId, item.id); setDraggingTopicItemId(null); }} onDragEnd={() => setDraggingTopicItemId(null)} className={`rounded-2xl border border-slate-100 bg-white shadow-sm ${section.id === 'topic' ? 'p-2.5 cursor-grab' : 'p-3'} ${draggingTopicItemId === item.id ? 'opacity-60' : ''}`}>

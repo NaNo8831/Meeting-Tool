@@ -4772,6 +4772,8 @@ export default function MeetingWorkspace() {
     }
   };
 
+  // Import/Restore intentionally removed from workspace UI per Sprint 2 — preserved for Sprint 3 cleanup.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleImportWorkspaceBackup = async (file: File) => {
     try {
       const fileText = await file.text();
@@ -5251,7 +5253,7 @@ export default function MeetingWorkspace() {
                             className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
                             role="menuitem"
                           >
-                            Backup / Restore
+                            Export Backup
                           </button>
                           <button
                             type="button"
@@ -5274,7 +5276,7 @@ export default function MeetingWorkspace() {
                             className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
                             role="menuitem"
                           >
-                            Backup / Restore
+                            Export Backup
                           </button>
                           <button
                             type="button"
@@ -6066,12 +6068,14 @@ export default function MeetingWorkspace() {
         onDashboardTitleChange={setDashboardTitle}
       />
 
+      {/* Import/Restore intentionally removed from workspace UI per Sprint 2 — pending Sprint 3 cleanup.
+          handleImportWorkspaceBackup is preserved below. */}
       <BackupRestoreModal
         isOpen={showBackupRestore}
         onClose={() => setShowBackupRestore(false)}
         onExportWorkspaceBackup={handleExportWorkspaceBackup}
-        onImportWorkspaceBackup={handleImportWorkspaceBackup}
         backupFeedback={backupFeedback}
+        mode="export-only"
       />
 
       {showMembersModal ? (

@@ -6,9 +6,11 @@ import type { WorkspaceBackupFeedback } from '@/app/lib/workspaceBackup';
 interface BackupRestoreModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onExportWorkspaceBackup: () => void;
-  onImportWorkspaceBackup: (file: File) => void;
+  onExportWorkspaceBackup?: () => void;
+  onImportWorkspaceBackup?: (file: File) => void;
   backupFeedback: WorkspaceBackupFeedback | null;
+  /** Controls which actions are visible. Defaults to 'both'. */
+  mode?: 'both' | 'export-only' | 'import-only';
 }
 
 export function BackupRestoreModal({
@@ -17,6 +19,7 @@ export function BackupRestoreModal({
   onExportWorkspaceBackup,
   onImportWorkspaceBackup,
   backupFeedback,
+  mode = 'both',
 }: BackupRestoreModalProps) {
   useBodyScrollLock(isOpen);
 
@@ -35,46 +38,55 @@ export function BackupRestoreModal({
       >
         <div className="mb-8 space-y-3">
           <h2 id="backup-restore-title" className="text-4xl font-bold text-slate-950 md:text-5xl">
-            Backup / Restore
+            {mode === 'import-only' ? 'Restore from Backup' : mode === 'export-only' ? 'Export Backup' : 'Backup / Restore'}
           </h2>
           <p className="text-xl text-slate-600">
-            Export or import a workspace backup. This is separate from cloud
-            autosave and remains a safety net.
+            {mode === 'import-only'
+              ? 'Restore a previous workspace backup as a new meeting.'
+              : mode === 'export-only'
+              ? 'Export a backup of your current workspace as a safety net.'
+              : 'Export or import a workspace backup. This is separate from cloud autosave and remains a safety net.'}
           </p>
         </div>
 
         <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
           <div className="mb-4">
             <h3 className="text-2xl font-semibold text-slate-950">
-              Workspace Backup Controls
+              {mode === 'import-only' ? 'Restore from Backup' : mode === 'export-only' ? 'Export Backup' : 'Workspace Backup Controls'}
             </h3>
             <p className="mt-2 text-lg text-slate-600">
-              Export before clearing browser storage, switching devices, or restoring a previous workspace.
+              {mode === 'import-only'
+                ? 'Import a backup file to restore a previous workspace as a new meeting. Your existing meetings are not affected.'
+                : 'Export before clearing browser storage, switching devices, or restoring a previous workspace.'}
             </p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <button
-              type="button"
-              onClick={onExportWorkspaceBackup}
-              className="rounded-xl bg-blue-600 px-5 py-3 text-lg font-semibold text-white hover:bg-blue-700"
-            >
-              Export Workspace Backup
-            </button>
+            {mode !== 'import-only' && onExportWorkspaceBackup ? (
+              <button
+                type="button"
+                onClick={onExportWorkspaceBackup}
+                className="rounded-xl bg-blue-600 px-5 py-3 text-lg font-semibold text-white hover:bg-blue-700"
+              >
+                Export Workspace Backup
+              </button>
+            ) : null}
 
-            <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-lg font-semibold text-slate-800 hover:bg-slate-50">
-              Import Workspace Backup
-              <input
-                type="file"
-                accept="application/json,.json"
-                className="sr-only"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) onImportWorkspaceBackup(file);
-                  event.target.value = '';
-                }}
-              />
-            </label>
+            {mode !== 'export-only' && onImportWorkspaceBackup ? (
+              <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-lg font-semibold text-slate-800 hover:bg-slate-50">
+                {mode === 'import-only' ? 'Choose Backup File' : 'Import Workspace Backup'}
+                <input
+                  type="file"
+                  accept="application/json,.json"
+                  className="sr-only"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) onImportWorkspaceBackup(file);
+                    event.target.value = '';
+                  }}
+                />
+              </label>
+            ) : null}
           </div>
 
           {backupFeedback ? (

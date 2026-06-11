@@ -23,8 +23,6 @@ import {
   type DashboardMeeting,
 } from "@/app/lib/dashboardMeetings";
 import {
-  collectLocalWorkspaceStorage,
-  createWorkspaceBackup,
   restoreWorkspaceBackup,
   validateWorkspaceBackup,
   type WorkspaceBackupFeedback,
@@ -582,26 +580,35 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDashboardExportBackup = () => {
-    if (typeof window === "undefined") return;
-    const entries = collectLocalWorkspaceStorage();
-    const backup = createWorkspaceBackup(entries);
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `meeting-tool-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-    setDashboardBackupFeedback({ type: "success", message: "Workspace backup exported." });
-  };
 
   const handleDashboardImportBackup = async (file: File) => {
     try {
       const parsed = JSON.parse(await file.text()) as unknown;
       const backup = validateWorkspaceBackup(parsed);
-      restoreWorkspaceBackup(backup);
-      setDashboardBackupFeedback({ type: "success", message: "Backup restored. Open a meeting to see the restored workspace." });
+
+      if (session) {
+        // Create a new cloud meeting pre-filled with backup data, then navigate into it.
+        const meeting = await supabaseMeetingClient.createWorkspace({
+          accessToken: session.accessToken,
+          name: "Restored Meeting",
+        });
+        restoreWorkspaceBackup(backup);
+        setMeetings((current) => [
+          toDashboardMeeting({
+            meeting,
+            currentUserId: session.user.id,
+            currentUserEmail: session.user.email,
+            ownerProfile: currentOwnerProfile,
+            memberCount: 1,
+          }),
+          ...current,
+        ]);
+        setShowDashboardBackupRestore(false);
+        router.push(`/meeting/${meeting.id}`);
+      } else {
+        restoreWorkspaceBackup(backup);
+        setDashboardBackupFeedback({ type: "success", message: "Backup restored." });
+      }
     } catch (error) {
       setDashboardBackupFeedback({ type: "error", message: error instanceof Error ? error.message : "Could not read backup file." });
     }
@@ -1151,7 +1158,7 @@ export default function DashboardPage() {
                       className="block w-full px-5 py-3 text-left text-slate-800 hover:bg-blue-50 hover:text-blue-700"
                       role="menuitem"
                     >
-                      Backup / Restore
+                      Restore from Backup
                     </button>
                     <button
                       type="button"
@@ -1760,9 +1767,9 @@ export default function DashboardPage() {
       <BackupRestoreModal
         isOpen={showDashboardBackupRestore}
         onClose={() => setShowDashboardBackupRestore(false)}
-        onExportWorkspaceBackup={handleDashboardExportBackup}
         onImportWorkspaceBackup={(file) => void handleDashboardImportBackup(file)}
         backupFeedback={dashboardBackupFeedback}
+        mode="import-only"
       />
     </main>
   );
