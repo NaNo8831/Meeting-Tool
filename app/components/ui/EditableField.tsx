@@ -153,9 +153,9 @@ export function EditableField({
       <div className="min-w-0 flex-1">
         {value || <span className="text-gray-400 italic">{placeholder}</span>}
         {activationMode === 'doubleClick' ? (
-          <p className="mt-1 text-xs font-medium text-slate-400 opacity-0 transition group-hover:opacity-100 group-focus:opacity-100">
+          <span className="ml-1.5 text-xs font-medium text-slate-400 opacity-0 transition group-hover:opacity-100 group-focus:opacity-100">
             Double-click to edit
-          </p>
+          </span>
         ) : null}
       </div>
       <button
