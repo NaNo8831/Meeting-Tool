@@ -23,6 +23,8 @@ export function BackupRestoreModal({
   mode = 'both',
 }: BackupRestoreModalProps) {
   const [importMeetingName, setImportMeetingName] = useState('Restored Meeting');
+  const [showNameError, setShowNameError] = useState(false);
+  const trimmedName = importMeetingName.trim();
   useBodyScrollLock(isOpen);
 
   if (!isOpen) return null;
@@ -79,21 +81,31 @@ export function BackupRestoreModal({
                 <input
                   type="text"
                   value={importMeetingName}
-                  onChange={(e) => setImportMeetingName(e.target.value)}
+                  onChange={(e) => {
+                    setImportMeetingName(e.target.value);
+                    if (showNameError && e.target.value.trim()) setShowNameError(false);
+                  }}
                   maxLength={80}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  className={`w-full rounded-xl border px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 ${showNameError ? 'border-red-400 bg-red-50' : 'border-slate-300 bg-white'}`}
                   placeholder="Restored Meeting"
                 />
+                {showNameError ? (
+                  <p className="mt-1 text-xs text-red-600">Please enter a meeting name.</p>
+                ) : null}
               </div>
-              <label className="inline-flex cursor-pointer items-center justify-center self-start rounded-xl border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-800 hover:bg-slate-50">
+              <label
+                className={`inline-flex items-center justify-center self-start rounded-xl border px-5 py-3 text-base font-semibold ${trimmedName ? 'cursor-pointer border-slate-300 bg-white text-slate-800 hover:bg-slate-50' : 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'}`}
+                onClick={(e) => { if (!trimmedName) { e.preventDefault(); setShowNameError(true); } }}
+              >
                 Choose Backup File
                 <input
                   type="file"
                   accept="application/json,.json"
                   className="sr-only"
+                  disabled={!trimmedName}
                   onChange={(event) => {
                     const file = event.target.files?.[0];
-                    if (file) onImportWorkspaceBackup(file, importMeetingName.trim() || 'Restored Meeting');
+                    if (file) onImportWorkspaceBackup(file, trimmedName);
                     event.target.value = '';
                   }}
                 />
