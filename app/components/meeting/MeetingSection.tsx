@@ -66,133 +66,134 @@ function StrategicTopicControls({ item, section }: { item: MeetingItem; section:
 // key prop from parent resets isExpanded whenever isCovered changes (see item loop).
 function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; section: MeetingSectionConfig; isReadOnly: boolean }) {
   const isCovered = item.isCovered ?? item.completed ?? false;
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(!isCovered);
+
+  if (section.id !== 'agenda') return null;
+
+  const hasNotes = getRichTextPlainText(normalizeRichTextValue(item.discussionNotes ?? '')).trim().length > 0;
+  const resolvedOutcomeText = item.outcomeText ?? [item.decisionText?.trim(), item.actionText?.trim()].filter(Boolean).join("\n\n") ?? "";
   const updateAgendaItem = section.updateAgendaItem;
 
-  const resolvedOutcomeText = item.outcomeText ?? [item.decisionText?.trim(), item.actionText?.trim()].filter(Boolean).join('\n\n') ?? '';
-  const hasOutcome = Boolean(item.outcomeText?.trim() || item.decisionText?.trim() || item.actionText?.trim());
-
-  if (!isExpanded) {
+  // Collapsed single-line view — caret + title + Notes pill only
+  if (isCovered && !isExpanded) {
     return (
-      <div className="rounded-2xl border border-slate-100 bg-white p-2.5 shadow-sm">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsExpanded(true)}
-            className="shrink-0 text-slate-400 hover:text-blue-600"
-            aria-label="Expand agenda item"
-          >
-            ▶
-          </button>
-          <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800">
-            {item.text || section.editPlaceholder}
+      <div className="flex items-center gap-2 py-0.5">
+        <button
+          type="button"
+          onClick={() => setIsExpanded(true)}
+          className="shrink-0 text-slate-400 hover:text-slate-600"
+          aria-label="Expand agenda item"
+        >
+          ▶
+        </button>
+        <span className="flex-1 truncate text-sm text-slate-700">
+          {item.text || <span className="italic text-slate-400">Agenda item</span>}
+        </span>
+        {hasNotes ? (
+          <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">
+            Notes ✓
           </span>
-          <span className="mx-0.5 shrink-0 text-slate-300">|</span>
-          <span className="max-w-[40%] shrink-0 truncate text-xs text-slate-500">
-            {'Outcome: '}
-            {resolvedOutcomeText.trim() ? (
-              <span className="text-slate-700">
-                {resolvedOutcomeText.replace(/\n/g, ' ').slice(0, 60)}{resolvedOutcomeText.length > 60 ? '…' : ''}
-              </span>
-            ) : (
-              <span className="italic text-slate-400">none</span>
-            )}
-          </span>
-          {!isReadOnly ? (
-            <button
-              type="button"
-              onClick={() => section.deleteItem(item.id)}
-              className="shrink-0 text-red-400 hover:text-red-600"
-              aria-label="Remove agenda item"
-            >
-              ×
-            </button>
-          ) : null}
-        </div>
+        ) : null}
       </div>
     );
   }
 
+  // Expanded 2×2 grid layout
+  // Row 1: Title (left) | Covered/Cascade/+Strategic Topic controls (right)
+  // Row 2: Outcome (left) | Discussion Notes (right)
   return (
-    <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
-      <div className="mb-2.5 flex items-start gap-2">
-        <button
-          type="button"
-          onClick={() => setIsExpanded(false)}
-          className="mt-0.5 shrink-0 text-blue-500 hover:text-blue-700"
-          aria-label="Collapse agenda item"
-        >
-          ▼
-        </button>
-        <div className="flex-1">
-          {isReadOnly
-            ? <p className="text-sm font-medium text-slate-800">{item.text || section.editPlaceholder}</p>
-            : <EditableField value={item.text} onSave={(value) => section.updateItem(item.id, value)} placeholder={section.editPlaceholder} ariaLabel="Agenda item" className="text-slate-800" activationMode="doubleClick" />
-          }
-        </div>
-        {!isReadOnly ? (
+    <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+      {/* Row 1 left — Title */}
+      <div className="flex items-start gap-1.5">
+        {isCovered ? (
           <button
             type="button"
-            onClick={() => section.deleteItem(item.id)}
-            className="shrink-0 text-red-400 hover:text-red-600"
-            aria-label="Remove agenda item"
+            onClick={() => setIsExpanded(false)}
+            className="mt-1 shrink-0 text-slate-400 hover:text-slate-600"
+            aria-label="Collapse agenda item"
           >
-            ×
+            ▼
           </button>
+        ) : null}
+        <div className="min-w-0 flex-1">
+          {isReadOnly
+            ? <p className="whitespace-pre-wrap text-sm text-slate-800">{item.text || <span className="italic text-slate-400">Agenda item</span>}</p>
+            : <EditableField value={item.text} onSave={(value) => section.updateItem(item.id, value)} placeholder="Agenda item" ariaLabel="Agenda item title" className="text-sm text-slate-800" activationMode="doubleClick" />
+          }
+        </div>
+      </div>
+
+      {/* Row 1 right — Controls */}
+      <div className="flex flex-wrap items-start gap-1.5">
+        {!isReadOnly ? (
+          <>
+            <label className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600">
+              <input
+                type="checkbox"
+                checked={isCovered}
+                onChange={(event) => {
+                  setIsExpanded(!event.target.checked);
+                  updateAgendaItem?.(item.id, { isCovered: event.target.checked, completed: event.target.checked });
+                }}
+                className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600"
+              />
+              Covered
+            </label>
+            <label
+              className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700"
+              title="Include this item in the Cascading Communication rollup for your team."
+            >
+              <input
+                type="checkbox"
+                checked={item.cascadeNeeded ?? false}
+                onChange={(event) => updateAgendaItem?.(item.id, { cascadeNeeded: event.target.checked })}
+                className="h-3.5 w-3.5 rounded border-slate-300 text-amber-600"
+              />
+              Cascade
+            </label>
+            <button
+              type="button"
+              disabled={Boolean(item.promotedStrategicTopicId)}
+              onClick={() => section.promoteAgendaItem?.(item)}
+              className="rounded-md border border-purple-200 bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {item.promotedStrategicTopicId ? 'In Topics' : '+ Strategic Topic'}
+            </button>
+          </>
         ) : null}
       </div>
 
-      <div className="flex gap-3">
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
-            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Outcome</p>
-            {isReadOnly ? (
-              resolvedOutcomeText
-                ? <p className="whitespace-pre-wrap text-sm text-slate-700">{resolvedOutcomeText}</p>
-                : <p className="text-xs italic text-slate-400">No outcome captured.</p>
-            ) : (
-              <textarea
-                value={resolvedOutcomeText}
-                onChange={(event) => updateAgendaItem?.(item.id, { outcomeText: event.target.value })}
-                className="min-h-[3.5rem] w-full resize-none rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-300"
-                placeholder="What was decided or agreed?"
-              />
-            )}
-          </div>
+      {/* Row 2 left — Outcome */}
+      <div className="rounded-xl border border-slate-200 bg-white p-2.5">
+        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Outcome</p>
+        {isReadOnly ? (
+          resolvedOutcomeText
+            ? <p className="whitespace-pre-wrap text-sm text-slate-700">{resolvedOutcomeText}</p>
+            : <p className="text-xs text-slate-400">No outcome captured.</p>
+        ) : (
+          <textarea
+            value={resolvedOutcomeText}
+            onChange={(event) => updateAgendaItem?.(item.id, { outcomeText: event.target.value })}
+            className="min-h-[5rem] w-full resize-none rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-300"
+            placeholder="What was decided or agreed?"
+          />
+        )}
+      </div>
 
-          {!isReadOnly ? (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <label className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600">
-                <input type="checkbox" checked={isCovered} onChange={(event) => { updateAgendaItem?.(item.id, { isCovered: event.target.checked, completed: event.target.checked }); if (event.target.checked) setIsExpanded(false); }} className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600" />
-                Covered
-              </label>
-              <label className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700" title="Include this item in the Cascading Communication rollup.">
-                <input type="checkbox" checked={item.cascadeNeeded ?? false} onChange={(event) => updateAgendaItem?.(item.id, { cascadeNeeded: event.target.checked })} className="h-3.5 w-3.5 rounded border-slate-300 text-amber-600" />
-                Cascade
-              </label>
-              <button type="button" disabled={Boolean(item.promotedStrategicTopicId)} onClick={() => section.promoteAgendaItem?.(item)} className="rounded-md border border-purple-200 bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-60">
-                {item.promotedStrategicTopicId ? 'In Topics' : '+ Strategic Topic'}
-              </button>
-            </div>
-          ) : null}
-
-          <div className="flex flex-wrap items-center gap-1">
-            {hasOutcome ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">Outcome</span> : null}
-            {item.cascadeNeeded ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">Cascade</span> : null}
-            {item.promotedStrategicTopicId ? <span className="rounded-full bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-700">In Topics</span> : null}
-            {isCovered ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Covered</span> : null}
-          </div>
-        </div>
-
-        <div className="w-64 shrink-0 xl:w-72">
-          <div className="h-full rounded-xl border border-slate-200 bg-slate-50 p-2.5">
-            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Discussion Notes</p>
-            {isReadOnly
-              ? <RichTextRenderer value={item.discussionNotes ?? ''} placeholder="No discussion notes yet." className="text-sm text-slate-700" />
-              : <RichTextEditor value={item.discussionNotes ?? ''} onChange={(value) => updateAgendaItem?.(item.id, { discussionNotes: value })} placeholder="Capture discussion notes for this agenda item." minHeightClassName="min-h-[8rem]" activationMode="doubleClick" manualPresentation="inline" />
-            }
-          </div>
-        </div>
+      {/* Row 2 right — Discussion Notes */}
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Notes</p>
+        {isReadOnly
+          ? <RichTextRenderer value={item.discussionNotes ?? ''} placeholder="No discussion notes yet." className="text-sm text-slate-700" />
+          : <RichTextEditor
+              value={item.discussionNotes ?? ''}
+              onChange={(value) => updateAgendaItem?.(item.id, { discussionNotes: value })}
+              placeholder="Discussion notes…"
+              minHeightClassName="min-h-[5rem]"
+              activationMode="doubleClick"
+              manualPresentation="inline"
+            />
+        }
       </div>
     </div>
   );
@@ -278,12 +279,12 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
               return <AgendaItemCard key={`${item.id}:${String(item.isCovered ?? item.completed ?? false)}`} item={item} section={section} isReadOnly={isReadOnly} />;
             }
             return (
-              <div key={item.id} draggable={section.id === 'topic' && !isReadOnly} onDragStart={(event) => { if (section.id !== 'topic' || isReadOnly) return; event.stopPropagation(); setDraggingTopicItemId(item.id); event.dataTransfer.setData('text/plain', String(item.id)); }} onDragOver={(event) => { if (section.id !== 'topic' || isReadOnly) return; event.stopPropagation(); event.preventDefault(); }} onDrop={(event) => { if (section.id !== 'topic' || isReadOnly) return; event.stopPropagation(); event.preventDefault(); const draggedId = Number(event.dataTransfer.getData('text/plain')) || draggingTopicItemId; if (typeof draggedId === 'number') section.reorderItems?.(draggedId, item.id); setDraggingTopicItemId(null); }} onDragEnd={() => setDraggingTopicItemId(null)} className={`rounded-2xl border border-slate-100 bg-white p-2.5 shadow-sm ${section.id === 'topic' ? 'cursor-grab' : ''} ${draggingTopicItemId === item.id ? 'opacity-60' : ''}`}>
-                <div className="flex gap-2">
+              <div key={item.id} draggable={section.id === 'topic' && !isReadOnly} onDragStart={(event) => { if (section.id !== 'topic' || isReadOnly) return; event.stopPropagation(); setDraggingTopicItemId(item.id); event.dataTransfer.setData('text/plain', String(item.id)); }} onDragOver={(event) => { if (section.id !== 'topic' || isReadOnly) return; event.stopPropagation(); event.preventDefault(); }} onDrop={(event) => { if (section.id !== 'topic' || isReadOnly) return; event.stopPropagation(); event.preventDefault(); const draggedId = Number(event.dataTransfer.getData('text/plain')) || draggingTopicItemId; if (typeof draggedId === 'number') section.reorderItems?.(draggedId, item.id); setDraggingTopicItemId(null); }} onDragEnd={() => setDraggingTopicItemId(null)} className={`rounded-2xl border border-slate-100 bg-white shadow-sm ${section.id === 'topic' ? 'p-2.5 cursor-grab' : 'p-3'} ${draggingTopicItemId === item.id ? 'opacity-60' : ''}`}>
+                <div className={section.id === 'topic' ? 'flex gap-2' : 'flex gap-3'}>
                   <div className="flex-1">
-                    <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between">
+                    <div className={`flex flex-col sm:flex-row sm:items-start sm:justify-between ${section.id === 'topic' ? 'gap-1.5' : 'gap-2'}`}>
                       <div className="flex-1">{isReadOnly ? <p className="whitespace-pre-wrap rounded-lg p-2 text-slate-800">{item.text || section.editPlaceholder}</p> : <EditableField value={item.text} onSave={(value) => section.updateItem(item.id, value)} placeholder={section.editPlaceholder} ariaLabel={`${section.title} item`} className="text-slate-800" activationMode="doubleClick" />}</div>
-                      <span className="flex shrink-0 items-center gap-2 text-xs font-semibold"><span className="text-slate-500">Date added</span><span className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-700">{formatDisplayDate(item.capturedDate)}</span></span>
+                      {section.id === 'topic' ? <span className="flex shrink-0 items-center gap-2 text-xs font-semibold"><span className="text-slate-500">Date added</span><span className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-700">{formatDisplayDate(item.capturedDate)}</span></span> : null}
                     </div>
                     <StrategicTopicControls item={item} section={section} />
                   </div>
