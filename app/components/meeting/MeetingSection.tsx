@@ -71,6 +71,11 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
 
   const resolvedOutcomeText = item.outcomeText ?? [item.decisionText?.trim(), item.actionText?.trim()].filter(Boolean).join('\n\n') ?? '';
   const hasOutcome = Boolean(item.outcomeText?.trim() || item.decisionText?.trim() || item.actionText?.trim());
+  const hasDiscussionNotes = Boolean(
+    typeof item.discussionNotes === 'string'
+      ? item.discussionNotes.trim()
+      : item.discussionNotes,
+  );
 
   if (!isExpanded) {
     return (
@@ -98,6 +103,11 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
               <span className="italic text-slate-400">none</span>
             )}
           </span>
+          {hasDiscussionNotes ? (
+            <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">
+              Notes
+            </span>
+          ) : null}
           {!isReadOnly ? (
             <button
               type="button"
@@ -184,7 +194,7 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
           </div>
         </div>
 
-        <div className="w-64 shrink-0 xl:w-72">
+        <div className="min-w-0 flex-1">
           <div className="h-full rounded-xl border border-slate-200 bg-slate-50 p-2.5">
             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Discussion Notes</p>
             {isReadOnly
