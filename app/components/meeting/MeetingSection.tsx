@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { EditableField } from '@/app/components/ui/EditableField';
-import { RichTextEditor, RichTextRenderer } from '@/app/components/ui/RichTextEditor';
+import { RichTextEditor, RichTextRenderer, getRichTextPlainText, normalizeRichTextValue } from '@/app/components/ui/RichTextEditor';
 import { useBodyScrollLock } from '@/app/hooks/useBodyScrollLock';
 import type { MeetingItem, MeetingSectionConfig, MeetingSectionKey } from '@/app/types/dashboard';
 
