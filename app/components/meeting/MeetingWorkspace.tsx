@@ -1833,6 +1833,17 @@ export default function MeetingWorkspace() {
     (m) => m.role === "owner" && m.user_id === authSession?.user.id,
   );
 
+  // Load members automatically so isMeetingOwner is populated without opening the
+  // members modal. Required for owner-only menu items like Edit Playbook.
+  useEffect(() => {
+    if (!authSession || !selectedMeetingId) return;
+    supabaseMemberClient
+      .listMeetingMembers({ accessToken: authSession.accessToken, meetingId: selectedMeetingId })
+      .then(setWorkspaceMeetingMembers)
+      .catch(() => undefined);
+  }, [authSession, selectedMeetingId]);
+
+
   const handleOpenMembersModal = async () => {
     if (!authSession || !selectedMeetingId) return;
     setShowSettingsMenu(false);

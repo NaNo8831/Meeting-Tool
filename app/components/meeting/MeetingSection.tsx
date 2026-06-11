@@ -81,10 +81,10 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
   const resolvedOutcomeText = item.outcomeText ?? [item.decisionText?.trim(), item.actionText?.trim()].filter(Boolean).join("\n\n") ?? "";
   const updateAgendaItem = section.updateAgendaItem;
 
-  // Collapsed single-line view — caret + title + outcome preview + Notes pill + delete
+  // Collapsed card — same border/shadow as expanded so both states feel like one object
   if (!isExpanded) {
     return (
-      <div className="flex items-center gap-2 py-0.5">
+      <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
         <button
           type="button"
           onClick={() => setIsExpanded(true)}
@@ -93,8 +93,8 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
         >
           ▶
         </button>
-        <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
-          {item.text || <span className="italic text-slate-400">Agenda item</span>}
+        <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-900">
+          {item.text || <span className="font-normal italic text-slate-400">Agenda item</span>}
         </span>
         {resolvedOutcomeText ? (
           <span className="hidden shrink-0 truncate text-xs text-slate-500 sm:inline">

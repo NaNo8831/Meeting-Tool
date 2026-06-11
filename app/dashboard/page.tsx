@@ -581,7 +581,7 @@ export default function DashboardPage() {
   };
 
 
-  const handleDashboardImportBackup = async (file: File) => {
+  const handleDashboardImportBackup = async (file: File, meetingName = "Restored Meeting") => {
     try {
       const parsed = JSON.parse(await file.text()) as unknown;
       const backup = validateWorkspaceBackup(parsed);
@@ -590,7 +590,7 @@ export default function DashboardPage() {
         // Create a new cloud meeting pre-filled with backup data, then navigate into it.
         const meeting = await supabaseMeetingClient.createWorkspace({
           accessToken: session.accessToken,
-          name: "Restored Meeting",
+          name: meetingName,
         });
         restoreWorkspaceBackup(backup);
         // Mark setup as complete so the workspace skips first-time setup on load.
@@ -1759,7 +1759,7 @@ export default function DashboardPage() {
       <BackupRestoreModal
         isOpen={showDashboardBackupRestore}
         onClose={() => setShowDashboardBackupRestore(false)}
-        onImportWorkspaceBackup={(file) => void handleDashboardImportBackup(file)}
+        onImportWorkspaceBackup={(file, name) => void handleDashboardImportBackup(file, name)}
         backupFeedback={dashboardBackupFeedback}
         mode="import-only"
       />

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useBodyScrollLock } from '@/app/hooks/useBodyScrollLock';
 import type { WorkspaceBackupFeedback } from '@/app/lib/workspaceBackup';
 
@@ -7,7 +8,7 @@ interface BackupRestoreModalProps {
   isOpen: boolean;
   onClose: () => void;
   onExportWorkspaceBackup?: () => void;
-  onImportWorkspaceBackup?: (file: File) => void;
+  onImportWorkspaceBackup?: (file: File, meetingName: string) => void;
   backupFeedback: WorkspaceBackupFeedback | null;
   /** Controls which actions are visible. Defaults to 'both'. */
   mode?: 'both' | 'export-only' | 'import-only';
@@ -21,6 +22,7 @@ export function BackupRestoreModal({
   backupFeedback,
   mode = 'both',
 }: BackupRestoreModalProps) {
+  const [importMeetingName, setImportMeetingName] = useState('Restored Meeting');
   useBodyScrollLock(isOpen);
 
   if (!isOpen) return null;
@@ -69,19 +71,34 @@ export function BackupRestoreModal({
           ) : null}
 
           {mode !== 'export-only' && onImportWorkspaceBackup ? (
-            <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-800 hover:bg-slate-50">
-              Choose Backup File
-              <input
-                type="file"
-                accept="application/json,.json"
-                className="sr-only"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) onImportWorkspaceBackup(file);
-                  event.target.value = '';
-                }}
-              />
-            </label>
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-slate-700">
+                  Meeting name
+                </label>
+                <input
+                  type="text"
+                  value={importMeetingName}
+                  onChange={(e) => setImportMeetingName(e.target.value)}
+                  maxLength={80}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  placeholder="Restored Meeting"
+                />
+              </div>
+              <label className="inline-flex cursor-pointer items-center justify-center self-start rounded-xl border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-800 hover:bg-slate-50">
+                Choose Backup File
+                <input
+                  type="file"
+                  accept="application/json,.json"
+                  className="sr-only"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) onImportWorkspaceBackup(file, importMeetingName.trim() || 'Restored Meeting');
+                    event.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
           ) : null}
         </div>
 
