@@ -327,6 +327,14 @@ export default function DashboardPage() {
     ? { display_name: profile.display_name, email: profile.email }
     : null;
 
+  const getNextUniqueCreationName = (desiredName: string): string => {
+    const existingNames = new Set(meetings.map((m) => m.name.trim()));
+    if (!existingNames.has(desiredName)) return desiredName;
+    let n = 2;
+    while (existingNames.has(`${desiredName} (${n})`)) n++;
+    return `${desiredName} (${n})`;
+  };
+
   const handleCreateBlankMeeting = async () => {
     if (!session || isCreatingMeeting) return;
 
@@ -343,7 +351,7 @@ export default function DashboardPage() {
     try {
       const meeting = await supabaseMeetingClient.createWorkspace({
         accessToken: session.accessToken,
-        name: trimmedName,
+        name: getNextUniqueCreationName(trimmedName),
       });
 
       setMeetings((currentMeetings) => [
@@ -590,7 +598,7 @@ export default function DashboardPage() {
         // Create a new cloud meeting pre-filled with backup data, then navigate into it.
         const meeting = await supabaseMeetingClient.createWorkspace({
           accessToken: session.accessToken,
-          name: meetingName,
+          name: getNextUniqueCreationName(meetingName),
         });
         restoreWorkspaceBackup(backup);
         // Mark setup as complete so the workspace skips first-time setup on load.

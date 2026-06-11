@@ -22,7 +22,7 @@ export function BackupRestoreModal({
   backupFeedback,
   mode = 'both',
 }: BackupRestoreModalProps) {
-  const [importMeetingName, setImportMeetingName] = useState('Restored Meeting');
+  const [importMeetingName, setImportMeetingName] = useState('');
   const [showNameError, setShowNameError] = useState(false);
   const trimmedName = importMeetingName.trim();
   useBodyScrollLock(isOpen);
