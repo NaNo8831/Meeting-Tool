@@ -87,7 +87,7 @@ export function BackupRestoreModal({
                   }}
                   maxLength={80}
                   className={`w-full rounded-xl border px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 ${showNameError ? 'border-red-400 bg-red-50' : 'border-slate-300 bg-white'}`}
-                  placeholder="Restored Meeting"
+                  placeholder="Enter meeting name"
                 />
                 {showNameError ? (
                   <p className="mt-1 text-xs text-red-600">Please enter a meeting name.</p>
