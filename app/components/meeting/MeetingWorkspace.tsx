@@ -32,6 +32,7 @@ import { useBodyScrollLock } from "@/app/hooks/useBodyScrollLock";
 import { useLocalStorage } from "@/app/hooks/useLocalStorage";
 import { useObjectives } from "@/app/hooks/useObjectives";
 import { useSupabaseAuth } from "@/app/hooks/useSupabaseAuth";
+import { useWorkspacePersistence } from "@/app/hooks/useWorkspacePersistence";
 import {
   defaultDashboardTitle,
   defaultMeetingSectionOrder,
@@ -201,11 +202,7 @@ const strategicTopicsStorageKey = "leadership-strategic-topic-items";
 const strategicTopicNotesStorageKey = "leadership-strategic-topic-notes";
 const meetingSetupCompletedStorageKey = "leadership-meeting-setup-completed";
 
-const strategicTopicsAutosaveDebounceMs = 1200;
 const topicNotesAutosaveDebounceMs = 1000;
-const meetingNotesAutosaveDebounceMs = 1000;
-const agendaItemsAutosaveDebounceMs = 1000;
-const objectivesAutosaveDebounceMs = 1200;
 
 type StrategicTopicsAutosaveStatus =
   | "ready"
@@ -318,21 +315,6 @@ const mapStrategicTopicToSupabase = (
   },
 });
 
-const mergeSavedStrategicTopicIds = (
-  currentItems: MeetingItem[],
-  savedTopics: SupabaseStrategicTopic[],
-) => {
-  if (savedTopics.length === 0) return currentItems;
-
-  const savedIdsByClientId = new Map(
-    savedTopics.map((topic) => [topic.client_item_id, topic.id]),
-  );
-
-  return currentItems.map((item) => {
-    const strategicTopicId = savedIdsByClientId.get(item.id);
-    return strategicTopicId ? { ...item, strategicTopicId } : item;
-  });
-};
 
 const isRichTextDocumentValue = (value: unknown): value is RichTextDocument => {
   if (typeof value !== "object" || value === null) return false;
@@ -955,8 +937,6 @@ const getAutosaveSummaryStatus = ({
   return "autosaved";
 };
 
-const meetingSettingsAutosaveDebounceMs = 1200;
-
 const readBackupEntry = <T,>(
   backup: WorkspaceBackupFile,
   key: string,
@@ -1440,26 +1420,6 @@ export default function MeetingWorkspace() {
   const [draggingStandardObjectiveId, setDraggingStandardObjectiveId] =
     useState<number | null>(null);
   const lastCloudAutosaveSignatureRef = useRef("");
-  const lastMeetingSettingsAutosaveSignatureRef = useRef("");
-  const meetingSettingsAutosaveWorkspaceIdRef = useRef("");
-  const pendingMeetingSettingsAutosaveSignatureRef = useRef("");
-  const isMeetingSettingsAutosaveInFlightRef = useRef(false);
-  const lastStrategicTopicsAutosaveSignatureRef = useRef("");
-  const strategicTopicsAutosaveWorkspaceIdRef = useRef("");
-  const pendingStrategicTopicsAutosaveSignatureRef = useRef("");
-  const isStrategicTopicsAutosaveInFlightRef = useRef(false);
-  const lastMeetingNotesAutosaveSignatureRef = useRef("");
-  const meetingNotesAutosaveWorkspaceIdRef = useRef("");
-  const pendingMeetingNotesAutosaveSignatureRef = useRef("");
-  const isMeetingNotesAutosaveInFlightRef = useRef(false);
-  const lastAgendaItemsAutosaveSignatureRef = useRef("");
-  const pendingAgendaItemsAutosaveSignatureRef = useRef("");
-  const agendaItemsAutosaveWorkspaceIdRef = useRef("");
-  const isAgendaItemsAutosaveInFlightRef = useRef(false);
-  const lastObjectivesAutosaveSignatureRef = useRef("");
-  const objectivesAutosaveWorkspaceIdRef = useRef("");
-  const pendingObjectivesAutosaveSignatureRef = useRef("");
-  const isObjectivesAutosaveInFlightRef = useRef(false);
   const lastTopicNotesAutosaveSignatureRef = useRef("");
   const topicNotesAutosaveKeyRef = useRef("");
   const lastAutoLoadedCloudMeetingIdRef = useRef("");
@@ -3838,9 +3798,6 @@ export default function MeetingWorkspace() {
       );
       if (wasSaved) {
         await saveAgendaItemsBackupToCloud(meetings);
-        lastAgendaItemsAutosaveSignatureRef.current = JSON.stringify(
-          buildAgendaItemsAutosavePayload(meetings, selectedMeetingId),
-        );
       }
     } catch (error) {
       setCloudSaveStatus("error");
@@ -3862,56 +3819,24 @@ export default function MeetingWorkspace() {
     selectedMeetingName,
   ]);
 
+  // Reset cloud-save-status, active-workspace-id, and parent-owned autosave refs
+  // when workspace mode changes. Hook-owned autosave refs are reset inside
+  // useWorkspacePersistence.
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       if (workspaceMode === "local") {
+        setCloudSaveStatus("local");
+        setActiveCloudWorkspaceId("");
         lastCloudAutosaveSignatureRef.current = "";
-        lastMeetingSettingsAutosaveSignatureRef.current = "";
-        meetingSettingsAutosaveWorkspaceIdRef.current = "";
-        pendingMeetingSettingsAutosaveSignatureRef.current = "";
-        lastStrategicTopicsAutosaveSignatureRef.current = "";
-        strategicTopicsAutosaveWorkspaceIdRef.current = "";
-        pendingStrategicTopicsAutosaveSignatureRef.current = "";
-        lastMeetingNotesAutosaveSignatureRef.current = "";
-        meetingNotesAutosaveWorkspaceIdRef.current = "";
-        pendingMeetingNotesAutosaveSignatureRef.current = "";
-        lastAgendaItemsAutosaveSignatureRef.current = "";
-        agendaItemsAutosaveWorkspaceIdRef.current = "";
-        pendingAgendaItemsAutosaveSignatureRef.current = "";
-        lastObjectivesAutosaveSignatureRef.current = "";
-        objectivesAutosaveWorkspaceIdRef.current = "";
-        pendingObjectivesAutosaveSignatureRef.current = "";
         topicNotesAutosaveKeyRef.current = "";
         lastTopicNotesAutosaveSignatureRef.current = "";
-        setHasUnsavedFullWorkspaceChanges(false);
-        setSettingsAutosaveStatus("ready");
-        setStrategicTopicsAutosaveStatus("ready");
-        setMeetingNotesAutosaveStatus("ready");
-        setAgendaItemsAutosaveStatus("ready");
-        setObjectivesAutosaveStatus("ready");
-        setCloudSaveStatus("local");
-        setCloudMeetingMessage(
-          authSession
-            ? "Local changes are stored only in this browser. To move them to cloud, export/import or create a cloud meeting."
-            : "",
-        );
-        setActiveCloudWorkspaceId("");
         return;
       }
-
-      setSettingsAutosaveStatus("ready");
-      setStrategicTopicsAutosaveStatus("ready");
-      setMeetingNotesAutosaveStatus("ready");
-      setAgendaItemsAutosaveStatus("ready");
-      setObjectivesAutosaveStatus("ready");
       setCloudSaveStatus("idle");
-      setCloudMeetingMessage(
-        "Cloud workspace selected. Load cloud data when needed.",
-      );
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [authSession, selectedMeetingId, workspaceMode]);
+  }, [selectedMeetingId, workspaceMode]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -3944,128 +3869,6 @@ export default function MeetingWorkspace() {
       organizationInfo,
     ],
   );
-  const meetingSettingsAutosaveSignature = useMemo(
-    () => JSON.stringify(meetingSettingsAutosavePayload),
-    [meetingSettingsAutosavePayload],
-  );
-
-  useEffect(() => {
-    if (workspaceMode !== "cloud") return;
-    if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace)
-      return;
-    if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
-      return;
-    if (isRouteCloudBootstrapping || !hasLoadedDashboardStorage) return;
-
-    if (meetingSettingsAutosaveWorkspaceIdRef.current !== selectedMeetingId) {
-      meetingSettingsAutosaveWorkspaceIdRef.current = selectedMeetingId;
-      lastMeetingSettingsAutosaveSignatureRef.current =
-        meetingSettingsAutosaveSignature;
-      pendingMeetingSettingsAutosaveSignatureRef.current = "";
-      return;
-    }
-
-    if (
-      meetingSettingsAutosaveSignature ===
-      lastMeetingSettingsAutosaveSignatureRef.current
-    ) {
-      if (pendingMeetingSettingsAutosaveSignatureRef.current) {
-        pendingMeetingSettingsAutosaveSignatureRef.current = "";
-        setSettingsAutosaveStatus("saved");
-        setCloudMeetingMessage("Meeting settings match the saved cloud version.");
-      }
-      return;
-    }
-
-    pendingMeetingSettingsAutosaveSignatureRef.current =
-      meetingSettingsAutosaveSignature;
-    setSettingsAutosaveStatus("pending");
-    setCloudMeetingMessage("Settings autosave pending… Manual Save still backs up the full workspace.");
-
-    let isCancelled = false;
-    let timeoutId: number;
-    const flushPendingSettings = async () => {
-      if (isCancelled) return;
-      if (isMeetingSettingsAutosaveInFlightRef.current) {
-        timeoutId = window.setTimeout(
-          flushPendingSettings,
-          meetingSettingsAutosaveDebounceMs,
-        );
-        return;
-      }
-
-      const pendingSignature =
-        pendingMeetingSettingsAutosaveSignatureRef.current;
-      if (
-        !pendingSignature ||
-        pendingSignature === lastMeetingSettingsAutosaveSignatureRef.current
-      )
-        return;
-
-      isMeetingSettingsAutosaveInFlightRef.current = true;
-      pendingMeetingSettingsAutosaveSignatureRef.current = "";
-      setSettingsAutosaveStatus("saving");
-      setCloudMeetingMessage("Saving meeting settings to cloud…");
-
-      try {
-        await supabaseMeetingClient.saveMeetingSettings({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          settings: JSON.parse(pendingSignature) as SupabaseMeetingSettingsUpsert,
-        });
-        lastMeetingSettingsAutosaveSignatureRef.current = pendingSignature;
-
-        if (
-          !isCancelled &&
-          !pendingMeetingSettingsAutosaveSignatureRef.current
-        ) {
-          setSettingsAutosaveStatus("saved");
-          setCloudMeetingMessage(
-            "Meeting settings saved to cloud. Manual Save still backs up the full workspace.",
-          );
-        }
-      } catch (error) {
-        if (!isCancelled) {
-          setSettingsAutosaveStatus("error");
-          setCloudMeetingMessage(
-            error instanceof Error
-              ? error.message
-              : "Meeting settings could not be saved to cloud.",
-          );
-        }
-      } finally {
-        isMeetingSettingsAutosaveInFlightRef.current = false;
-        if (
-          !isCancelled &&
-          pendingMeetingSettingsAutosaveSignatureRef.current
-        ) {
-          timeoutId = window.setTimeout(
-            flushPendingSettings,
-            meetingSettingsAutosaveDebounceMs,
-          );
-        }
-      }
-    };
-
-    timeoutId = window.setTimeout(
-      flushPendingSettings,
-      meetingSettingsAutosaveDebounceMs,
-    );
-
-    return () => {
-      isCancelled = true;
-      window.clearTimeout(timeoutId);
-    };
-  }, [
-    activeCloudWorkspaceId,
-    authSession,
-    hasLoadedDashboardStorage,
-    isCurrentCloudRouteWorkspace,
-    isRouteCloudBootstrapping,
-    meetingSettingsAutosaveSignature,
-    selectedMeetingId,
-    workspaceMode,
-  ]);
 
   const strategicTopicsAutosavePayload = useMemo(
     () =>
@@ -4074,164 +3877,6 @@ export default function MeetingWorkspace() {
       ),
     [selectedMeetingId, strategicTopicItems],
   );
-  const strategicTopicsAutosaveSignature = useMemo(
-    () => JSON.stringify(strategicTopicsAutosavePayload),
-    [strategicTopicsAutosavePayload],
-  );
-
-  useEffect(() => {
-    if (workspaceMode !== "cloud") return;
-    if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace)
-      return;
-    if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
-      return;
-    if (isRouteCloudBootstrapping || !hasLoadedDashboardStorage) return;
-
-    if (strategicTopicsAutosaveWorkspaceIdRef.current !== selectedMeetingId) {
-      strategicTopicsAutosaveWorkspaceIdRef.current = selectedMeetingId;
-      lastStrategicTopicsAutosaveSignatureRef.current =
-        strategicTopicsAutosaveSignature;
-      pendingStrategicTopicsAutosaveSignatureRef.current = "";
-      return;
-    }
-
-    if (
-      strategicTopicsAutosaveSignature ===
-      lastStrategicTopicsAutosaveSignatureRef.current
-    ) {
-      if (pendingStrategicTopicsAutosaveSignatureRef.current) {
-        pendingStrategicTopicsAutosaveSignatureRef.current = "";
-        setStrategicTopicsAutosaveStatus("saved");
-        setCloudMeetingMessage("Strategic Topics match the saved cloud version.");
-      }
-      return;
-    }
-
-    pendingStrategicTopicsAutosaveSignatureRef.current =
-      strategicTopicsAutosaveSignature;
-    setStrategicTopicsAutosaveStatus("pending");
-    setCloudMeetingMessage(
-      "Strategic Topics autosave pending… Manual Save still backs up the full workspace.",
-    );
-
-    let isCancelled = false;
-    let timeoutId: number;
-    const flushPendingTopics = async () => {
-      if (isCancelled) return;
-      if (isStrategicTopicsAutosaveInFlightRef.current) {
-        timeoutId = window.setTimeout(
-          flushPendingTopics,
-          strategicTopicsAutosaveDebounceMs,
-        );
-        return;
-      }
-
-      const pendingSignature =
-        pendingStrategicTopicsAutosaveSignatureRef.current;
-      if (
-        !pendingSignature ||
-        pendingSignature === lastStrategicTopicsAutosaveSignatureRef.current
-      )
-        return;
-
-      const pendingTopics = JSON.parse(
-        pendingSignature,
-      ) as SupabaseStrategicTopicUpsert[];
-
-      isStrategicTopicsAutosaveInFlightRef.current = true;
-      pendingStrategicTopicsAutosaveSignatureRef.current = "";
-      setStrategicTopicsAutosaveStatus("saving");
-      setCloudMeetingMessage("Saving Strategic Topics to cloud…");
-
-      try {
-        const savedTopics = await supabaseMeetingClient.saveStrategicTopics({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          topics: pendingTopics,
-        });
-        await supabaseMeetingClient.deleteMissingStrategicTopics({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          retainedClientItemIds: pendingTopics.map((topic) => topic.client_item_id),
-        });
-        lastStrategicTopicsAutosaveSignatureRef.current = pendingSignature;
-
-        if (savedTopics.length > 0) {
-          setStrategicTopicItems((currentItems) =>
-            mergeSavedStrategicTopicIds(currentItems, savedTopics),
-          );
-          const savedTopicIdsByClientId = new Map(
-            savedTopics.map((topic) => [String(topic.client_item_id), topic.id]),
-          );
-          setMeetings((currentMeetings) =>
-            currentMeetings.map((meeting) => ({
-              ...meeting,
-              agendaItems: meeting.agendaItems.map((agendaItem) => {
-                const promotedStrategicTopicId = agendaItem.promotedStrategicTopicId
-                  ? savedTopicIdsByClientId.get(agendaItem.promotedStrategicTopicId)
-                  : undefined;
-
-                return promotedStrategicTopicId
-                  ? { ...agendaItem, promotedStrategicTopicId }
-                  : agendaItem;
-              }),
-            })),
-          );
-        }
-
-        if (
-          !isCancelled &&
-          !pendingStrategicTopicsAutosaveSignatureRef.current
-        ) {
-          setStrategicTopicsAutosaveStatus("saved");
-          setCloudMeetingMessage(
-            "Strategic Topics saved to cloud. Manual Save still backs up the full workspace.",
-          );
-        }
-      } catch (error) {
-        if (!isCancelled) {
-          setStrategicTopicsAutosaveStatus("error");
-          setCloudMeetingMessage(
-            error instanceof Error
-              ? error.message
-              : "Strategic Topics could not be saved to cloud.",
-          );
-        }
-      } finally {
-        isStrategicTopicsAutosaveInFlightRef.current = false;
-        if (
-          !isCancelled &&
-          pendingStrategicTopicsAutosaveSignatureRef.current
-        ) {
-          timeoutId = window.setTimeout(
-            flushPendingTopics,
-            strategicTopicsAutosaveDebounceMs,
-          );
-        }
-      }
-    };
-
-    timeoutId = window.setTimeout(
-      flushPendingTopics,
-      strategicTopicsAutosaveDebounceMs,
-    );
-
-    return () => {
-      isCancelled = true;
-      window.clearTimeout(timeoutId);
-    };
-  }, [
-    activeCloudWorkspaceId,
-    authSession,
-    hasLoadedDashboardStorage,
-    isCurrentCloudRouteWorkspace,
-    isRouteCloudBootstrapping,
-    selectedMeetingId,
-    setMeetings,
-    setStrategicTopicItems,
-    strategicTopicsAutosaveSignature,
-    workspaceMode,
-  ]);
 
   const meetingNotesAutosavePayload = useMemo(
     () =>
@@ -4240,267 +3885,11 @@ export default function MeetingWorkspace() {
       ),
     [meetings, selectedMeetingId],
   );
-  const meetingNotesAutosaveSignature = useMemo(
-    () => JSON.stringify(meetingNotesAutosavePayload),
-    [meetingNotesAutosavePayload],
-  );
-
-  useEffect(() => {
-    if (workspaceMode !== "cloud") return;
-    if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace)
-      return;
-    if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
-      return;
-    if (isRouteCloudBootstrapping || !hasLoadedDashboardStorage) return;
-
-    if (meetingNotesAutosaveWorkspaceIdRef.current !== selectedMeetingId) {
-      meetingNotesAutosaveWorkspaceIdRef.current = selectedMeetingId;
-      lastMeetingNotesAutosaveSignatureRef.current =
-        meetingNotesAutosaveSignature;
-      pendingMeetingNotesAutosaveSignatureRef.current = "";
-      return;
-    }
-
-    if (
-      meetingNotesAutosaveSignature ===
-      lastMeetingNotesAutosaveSignatureRef.current
-    ) {
-      if (pendingMeetingNotesAutosaveSignatureRef.current) {
-        pendingMeetingNotesAutosaveSignatureRef.current = "";
-        setMeetingNotesAutosaveStatus("saved");
-        setCloudMeetingMessage(
-          "Meeting Notes and Cascading Communications match the saved cloud version.",
-        );
-      }
-      return;
-    }
-
-    pendingMeetingNotesAutosaveSignatureRef.current =
-      meetingNotesAutosaveSignature;
-    setMeetingNotesAutosaveStatus("pending");
-    setCloudMeetingMessage(
-      "Meeting Notes autosave pending… Manual Save still backs up the full workspace.",
-    );
-
-    let isCancelled = false;
-    let timeoutId: number;
-    const flushPendingMeetingNotes = async () => {
-      if (isCancelled) return;
-      if (isMeetingNotesAutosaveInFlightRef.current) {
-        timeoutId = window.setTimeout(
-          flushPendingMeetingNotes,
-          meetingNotesAutosaveDebounceMs,
-        );
-        return;
-      }
-
-      const pendingSignature = pendingMeetingNotesAutosaveSignatureRef.current;
-      if (
-        !pendingSignature ||
-        pendingSignature === lastMeetingNotesAutosaveSignatureRef.current
-      )
-        return;
-
-      const pendingNotes = JSON.parse(
-        pendingSignature,
-      ) as SupabaseMeetingNoteUpsert[];
-
-      isMeetingNotesAutosaveInFlightRef.current = true;
-      pendingMeetingNotesAutosaveSignatureRef.current = "";
-      setMeetingNotesAutosaveStatus("saving");
-      setCloudMeetingMessage("Saving Meeting Notes to cloud…");
-
-      try {
-        await supabaseMeetingClient.saveMeetingNotes({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          notes: pendingNotes,
-        });
-        await supabaseMeetingClient.deleteMissingMeetingNotes({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          retainedClientMeetingIds: pendingNotes.map(
-            (note) => note.client_meeting_id,
-          ),
-        });
-        lastMeetingNotesAutosaveSignatureRef.current = pendingSignature;
-
-        if (!isCancelled && !pendingMeetingNotesAutosaveSignatureRef.current) {
-          setMeetingNotesAutosaveStatus("saved");
-          setCloudMeetingMessage(
-            "Meeting Notes and Cascading Communications saved to cloud. Manual Save still backs up the full workspace.",
-          );
-        }
-      } catch (error) {
-        if (!isCancelled) {
-          setMeetingNotesAutosaveStatus("error");
-          setCloudMeetingMessage(
-            error instanceof Error
-              ? error.message
-              : "Meeting Notes could not be saved to cloud.",
-          );
-        }
-      } finally {
-        isMeetingNotesAutosaveInFlightRef.current = false;
-        if (!isCancelled && pendingMeetingNotesAutosaveSignatureRef.current) {
-          timeoutId = window.setTimeout(
-            flushPendingMeetingNotes,
-            meetingNotesAutosaveDebounceMs,
-          );
-        }
-      }
-    };
-
-    timeoutId = window.setTimeout(
-      flushPendingMeetingNotes,
-      meetingNotesAutosaveDebounceMs,
-    );
-
-    return () => {
-      isCancelled = true;
-      window.clearTimeout(timeoutId);
-    };
-  }, [
-    activeCloudWorkspaceId,
-    authSession,
-    hasLoadedDashboardStorage,
-    isCurrentCloudRouteWorkspace,
-    isRouteCloudBootstrapping,
-    meetingNotesAutosaveSignature,
-    selectedMeetingId,
-    workspaceMode,
-  ]);
 
   const agendaItemsAutosavePayload = useMemo(
     () => buildAgendaItemsAutosavePayload(meetings, selectedMeetingId),
     [meetings, selectedMeetingId],
   );
-  const agendaItemsAutosaveSignature = useMemo(
-    () => JSON.stringify(agendaItemsAutosavePayload),
-    [agendaItemsAutosavePayload],
-  );
-
-  useEffect(() => {
-    if (workspaceMode !== "cloud") return;
-    if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace)
-      return;
-    if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
-      return;
-    if (isRouteCloudBootstrapping || !hasLoadedDashboardStorage) return;
-
-    if (agendaItemsAutosaveWorkspaceIdRef.current !== selectedMeetingId) {
-      agendaItemsAutosaveWorkspaceIdRef.current = selectedMeetingId;
-      lastAgendaItemsAutosaveSignatureRef.current = agendaItemsAutosaveSignature;
-      pendingAgendaItemsAutosaveSignatureRef.current = "";
-      return;
-    }
-
-    if (
-      agendaItemsAutosaveSignature ===
-      lastAgendaItemsAutosaveSignatureRef.current
-    ) {
-      if (pendingAgendaItemsAutosaveSignatureRef.current) {
-        pendingAgendaItemsAutosaveSignatureRef.current = "";
-        setAgendaItemsAutosaveStatus("saved");
-        setCloudMeetingMessage("Agenda Items match the saved cloud version.");
-      }
-      return;
-    }
-
-    pendingAgendaItemsAutosaveSignatureRef.current = agendaItemsAutosaveSignature;
-    setAgendaItemsAutosaveStatus("pending");
-    setCloudMeetingMessage(
-      "Agenda Items autosave pending… Manual Save still backs up the full workspace.",
-    );
-
-    let isCancelled = false;
-    let timeoutId: number;
-    const flushPendingAgendaItems = async () => {
-      if (isCancelled) return;
-      if (isAgendaItemsAutosaveInFlightRef.current) {
-        timeoutId = window.setTimeout(
-          flushPendingAgendaItems,
-          agendaItemsAutosaveDebounceMs,
-        );
-        return;
-      }
-
-      const pendingSignature = pendingAgendaItemsAutosaveSignatureRef.current;
-      if (
-        !pendingSignature ||
-        pendingSignature === lastAgendaItemsAutosaveSignatureRef.current
-      )
-        return;
-
-      const pendingAgendaItems = JSON.parse(
-        pendingSignature,
-      ) as SupabaseAgendaItemUpsert[];
-
-      isAgendaItemsAutosaveInFlightRef.current = true;
-      pendingAgendaItemsAutosaveSignatureRef.current = "";
-      setAgendaItemsAutosaveStatus("saving");
-      setCloudMeetingMessage("Saving Agenda Items to cloud…");
-
-      try {
-        await supabaseMeetingClient.saveAgendaItems({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          agendaItems: pendingAgendaItems,
-        });
-        await supabaseMeetingClient.deleteMissingAgendaItems({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          retainedClientAgendaItemIds: pendingAgendaItems.map(
-            (item) => item.client_agenda_item_id,
-          ),
-        });
-        lastAgendaItemsAutosaveSignatureRef.current = pendingSignature;
-
-        if (!isCancelled && !pendingAgendaItemsAutosaveSignatureRef.current) {
-          setAgendaItemsAutosaveStatus("saved");
-          setCloudMeetingMessage(
-            "Agenda Items saved to cloud. Manual Save still backs up the full workspace.",
-          );
-        }
-      } catch (error) {
-        if (!isCancelled) {
-          setAgendaItemsAutosaveStatus("error");
-          setCloudMeetingMessage(
-            error instanceof Error
-              ? error.message
-              : "Agenda Items could not be saved to cloud.",
-          );
-        }
-      } finally {
-        isAgendaItemsAutosaveInFlightRef.current = false;
-        if (!isCancelled && pendingAgendaItemsAutosaveSignatureRef.current) {
-          timeoutId = window.setTimeout(
-            flushPendingAgendaItems,
-            agendaItemsAutosaveDebounceMs,
-          );
-        }
-      }
-    };
-
-    timeoutId = window.setTimeout(
-      flushPendingAgendaItems,
-      agendaItemsAutosaveDebounceMs,
-    );
-
-    return () => {
-      isCancelled = true;
-      window.clearTimeout(timeoutId);
-    };
-  }, [
-    activeCloudWorkspaceId,
-    agendaItemsAutosaveSignature,
-    authSession,
-    hasLoadedDashboardStorage,
-    isCurrentCloudRouteWorkspace,
-    isRouteCloudBootstrapping,
-    selectedMeetingId,
-    workspaceMode,
-  ]);
 
   const objectivesAutosavePayload = useMemo(() => {
     const { objectiveRows, taskRows } = buildObjectivesAutosavePayload(
@@ -4513,190 +3902,32 @@ export default function MeetingWorkspace() {
 
     return { objectiveRows, taskRows, sooRows };
   }, [buildObjectivesAutosavePayload, objectives, selectedMeetingId, standardOperatingObjectives]);
-  const objectivesAutosaveSignature = useMemo(
-    () => JSON.stringify(objectivesAutosavePayload),
-    [objectivesAutosavePayload],
-  );
 
-  useEffect(() => {
-    if (workspaceMode !== "cloud") return;
-    if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace)
-      return;
-    if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
-      return;
-    if (isRouteCloudBootstrapping || !hasLoadedDashboardStorage) return;
-
-    if (objectivesAutosaveWorkspaceIdRef.current !== selectedMeetingId) {
-      objectivesAutosaveWorkspaceIdRef.current = selectedMeetingId;
-      lastObjectivesAutosaveSignatureRef.current = objectivesAutosaveSignature;
-      pendingObjectivesAutosaveSignatureRef.current = "";
-      return;
-    }
-
-    if (objectivesAutosaveSignature === lastObjectivesAutosaveSignatureRef.current) {
-      if (pendingObjectivesAutosaveSignatureRef.current) {
-        pendingObjectivesAutosaveSignatureRef.current = "";
-        setObjectivesAutosaveStatus("saved");
-        setCloudMeetingMessage(
-          "Objectives, Tasks, and SOOs match the saved cloud version.",
-        );
-      }
-      return;
-    }
-
-    pendingObjectivesAutosaveSignatureRef.current = objectivesAutosaveSignature;
-    setObjectivesAutosaveStatus("pending");
-    setCloudMeetingMessage(
-      "Objectives, Tasks, and SOOs autosave pending… Manual Save still backs up the full workspace.",
-    );
-
-    let isCancelled = false;
-    let timeoutId: number;
-    const flushPendingObjectives = async () => {
-      if (isCancelled) return;
-      if (isObjectivesAutosaveInFlightRef.current) {
-        timeoutId = window.setTimeout(
-          flushPendingObjectives,
-          objectivesAutosaveDebounceMs,
-        );
-        return;
-      }
-
-      const pendingSignature = pendingObjectivesAutosaveSignatureRef.current;
-      if (
-        !pendingSignature ||
-        pendingSignature === lastObjectivesAutosaveSignatureRef.current
-      )
-        return;
-
-      const pendingPayload = JSON.parse(pendingSignature) as {
-        objectiveRows: SupabaseObjectiveUpsert[];
-        taskRows: SupabaseTaskUpsert[];
-        sooRows: SupabaseStandardOperatingObjectiveUpsert[];
-      };
-
-      isObjectivesAutosaveInFlightRef.current = true;
-      pendingObjectivesAutosaveSignatureRef.current = "";
-      setObjectivesAutosaveStatus("saving");
-      setCloudMeetingMessage("Saving Objectives, Tasks, and SOOs to cloud…");
-
-      try {
-        const savedObjectives = await supabaseMeetingClient.saveObjectives({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          objectives: pendingPayload.objectiveRows,
-        });
-        const objectiveUuidByClientId = new Map(
-          savedObjectives.map((objective) => [
-            objective.client_objective_id,
-            objective.id,
-          ]),
-        );
-        await supabaseMeetingClient.saveTasks({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          tasks: pendingPayload.taskRows.map((task) => ({
-            ...task,
-            objective_id:
-              objectiveUuidByClientId.get(task.client_objective_id) ?? null,
-          })),
-        });
-        await supabaseMeetingClient.deleteMissingTasks({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          retainedClientTaskIds: pendingPayload.taskRows.map(
-            (task) => task.client_task_id,
-          ),
-        });
-        await supabaseMeetingClient.deleteMissingObjectives({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          retainedClientObjectiveIds: pendingPayload.objectiveRows.map(
-            (objective) => objective.client_objective_id,
-          ),
-        });
-        await supabaseMeetingClient.saveStandardOperatingObjectives({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          standardOperatingObjectives: pendingPayload.sooRows,
-        });
-        await supabaseMeetingClient.deleteMissingStandardOperatingObjectives({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          retainedClientSooIds: pendingPayload.sooRows.map(
-            (soo) => soo.client_soo_id,
-          ),
-        });
-        lastObjectivesAutosaveSignatureRef.current = pendingSignature;
-
-        if (!isCancelled && !pendingObjectivesAutosaveSignatureRef.current) {
-          setObjectivesAutosaveStatus("saved");
-          setCloudMeetingMessage(
-            "Objectives, Tasks, and SOOs saved to cloud. Manual Save still backs up the full workspace.",
-          );
-        }
-      } catch (error) {
-        if (!isCancelled) {
-          setObjectivesAutosaveStatus("error");
-          setCloudMeetingMessage(
-            error instanceof Error
-              ? error.message
-              : "Objectives, Tasks, and SOOs could not be saved to cloud.",
-          );
-        }
-      } finally {
-        isObjectivesAutosaveInFlightRef.current = false;
-        if (!isCancelled && pendingObjectivesAutosaveSignatureRef.current) {
-          timeoutId = window.setTimeout(
-            flushPendingObjectives,
-            objectivesAutosaveDebounceMs,
-          );
-        }
-      }
-    };
-
-    timeoutId = window.setTimeout(
-      flushPendingObjectives,
-      objectivesAutosaveDebounceMs,
-    );
-
-    return () => {
-      isCancelled = true;
-      window.clearTimeout(timeoutId);
-    };
-  }, [
-    activeCloudWorkspaceId,
+  useWorkspacePersistence({
     authSession,
-    hasLoadedDashboardStorage,
-    isCurrentCloudRouteWorkspace,
-    isRouteCloudBootstrapping,
-    objectivesAutosaveSignature,
     selectedMeetingId,
     workspaceMode,
-  ]);
-
-  useEffect(() => {
-    if (workspaceMode !== "cloud") return;
-    if (!selectedMeetingId || !isCurrentCloudRouteWorkspace) return;
-    if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
-      return;
-    if (isRouteCloudBootstrapping || !hasLoadedDashboardStorage) return;
-
-    const currentSignature = getWorkspaceStorageSignature(
-      getCurrentWorkspaceStorage(),
-    );
-    setHasUnsavedFullWorkspaceChanges(
-      currentSignature !== lastCloudAutosaveSignatureRef.current,
-    );
-  }, [
     activeCloudWorkspaceId,
-    getCurrentWorkspaceStorage,
-    hasLoadedDashboardStorage,
     isCurrentCloudRouteWorkspace,
     isRouteCloudBootstrapping,
-    selectedMeetingId,
-    workspaceMode,
-  ]);
+    hasLoadedDashboardStorage,
+    meetingSettingsAutosavePayload,
+    strategicTopicsAutosavePayload,
+    meetingNotesAutosavePayload,
+    agendaItemsAutosavePayload,
+    objectivesAutosavePayload,
+    getCurrentWorkspaceStorage,
+    getLastCloudAutosaveSignature: () => lastCloudAutosaveSignatureRef.current,
+    setSettingsAutosaveStatus,
+    setStrategicTopicsAutosaveStatus,
+    setMeetingNotesAutosaveStatus,
+    setAgendaItemsAutosaveStatus,
+    setObjectivesAutosaveStatus,
+    setCloudMeetingMessage,
+    setHasUnsavedFullWorkspaceChanges,
+    setStrategicTopicItems,
+    setMeetings,
+  });
 
   const handleExportWorkspaceBackup = async () => {
     try {
