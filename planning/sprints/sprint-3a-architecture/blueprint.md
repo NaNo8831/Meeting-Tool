@@ -86,6 +86,10 @@ Steps:
 
 ## Item 3 — Dead Code Removal
 
+Sequencing note: Delete handleOpenMembersModal before starting Slice C of Item 1.
+They share the same code region and removing the dead code first
+makes the extraction cleaner.
+
 Files to modify:
 - MeetingWorkspace.tsx (or extracted hooks post-Item 1)
 - app/dashboard/page.tsx
@@ -93,12 +97,16 @@ Files to modify:
 Remove with a one-line comment before each deletion explaining why:
 - handleOpenMembersModal — never called; ESLint warning every build
 - handleImportWorkspaceBackup — workspace import removed from UI in Sprint 2
-- collectLocalWorkspaceStorage — dashboard export removed in Sprint 2
 - handleImportBackupPlaceholder in dashboard/page.tsx — stub, never wired
+
+Note: collectLocalWorkspaceStorage is NOT Item 3 scope. It has two active
+callsites (refreshLocalWorkspaceMigrationSignature and
+handleMigrateLocalWorkspaceToCloud) that exist solely for Local Mode.
+It will be removed as part of Item 4.
 
 Run: npm run lint && npx tsc --noEmit && npm run build
 Commit: "Remove dead code: handleOpenMembersModal, handleImportWorkspaceBackup,
-collectLocalWorkspaceStorage, handleImportBackupPlaceholder"
+handleImportBackupPlaceholder"
 
 ---
 
