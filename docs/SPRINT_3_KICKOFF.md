@@ -163,6 +163,17 @@ Seed items (subject to revision after 3A review):
 - Owner-only action audit
 - Export Backup — confirm owner-only or editor-accessible
 - Tactical History — confirm view-only for editors
+- Empty State Guidance: when a user has no meetings on the dashboard,
+  show a helpful empty state with a brief app description, a clear
+  "Create your first meeting" CTA, and 3 simple steps:
+  Create a meeting → Run it with your team → Review outcomes.
+  No library needed — empty state copy and design only.
+- Help Panel: a "?" button accessible from both dashboard and workspace
+  that opens a slide-over or modal containing a quick start guide
+  (3-4 steps), a feature glossary covering jargon terms (Strategic
+  Topics, Cascading Communications, SOOs, Tactical History), and a
+  feedback/contact link. No tour library needed — static content modal
+  easy to update as the app evolves.
 
 ---
 
