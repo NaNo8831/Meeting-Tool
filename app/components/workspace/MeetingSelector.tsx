@@ -8,8 +8,7 @@ import {
   type SupabaseMeeting,
 } from "@/app/lib/supabaseClient";
 
-type WorkspaceMode = "local" | "cloud";
-type SaveStatus = "local" | "idle" | "saving" | "saved" | "error";
+type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 type MeetingSelectorProps = {
   session: SupabaseAuthSession | null;
@@ -64,10 +63,8 @@ const getStatusLabel = (status: SaveStatus) => {
     case "error":
       return "Save error";
     case "idle":
-      return "Cloud Meeting";
-    case "local":
     default:
-      return "Local only";
+      return "Cloud Meeting";
   }
 };
 
@@ -80,10 +77,8 @@ const getStatusClasses = (status: SaveStatus) => {
     case "error":
       return "border-red-200 bg-red-50 text-red-700";
     case "idle":
-      return "border-slate-200 bg-white text-slate-700";
-    case "local":
     default:
-      return "border-slate-200 bg-slate-50 text-slate-700";
+      return "border-slate-200 bg-white text-slate-700";
   }
 };
 
@@ -119,10 +114,6 @@ export function MeetingSelector({
       ) ?? null,
     [selectedMeetingId, visibleWorkspaces],
   );
-  const effectiveWorkspaceMode: WorkspaceMode = selectedWorkspace
-    ? "cloud"
-    : "local";
-
   useEffect(() => {
     let isMounted = true;
 
@@ -204,12 +195,6 @@ export function MeetingSelector({
     writeStoredCloudWorkspaceId(session.user.id, selectedMeetingId);
   }, [hasLoadedWorkspaceSelection, selectedMeetingId, session]);
 
-  const selectLocalWorkspace = () => {
-    onSelectedCloudWorkspaceIdChange("");
-    onSelectedCloudWorkspaceNameChange("");
-    setWorkspaceMessage(null);
-  };
-
   const selectCloudWorkspace = (workspaceId: string) => {
     const workspace = visibleWorkspaces.find((item) => item.id === workspaceId);
     onSelectedCloudWorkspaceIdChange(workspaceId);
@@ -268,15 +253,10 @@ export function MeetingSelector({
             Workspace
           </p>
           <p className="mt-1 text-lg font-bold text-slate-900">
-            {effectiveWorkspaceMode === "cloud" && selectedWorkspace
-              ? selectedWorkspace.name
-              : "Local Workspace"}
+            {selectedWorkspace ? selectedWorkspace.name : "No Meeting Selected"}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            Mode:{" "}
-            {effectiveWorkspaceMode === "cloud"
-              ? "Cloud Meeting"
-              : "Local only"}
+            Mode: Cloud Meeting
           </p>
         </div>
         <span
@@ -288,16 +268,9 @@ export function MeetingSelector({
         </span>
       </div>
 
-      <p className="mt-3 text-xs leading-relaxed text-slate-500">
-        Local Workspace keeps this browser&apos;s localStorage data. Cloud
-        Meeting saves and loads the selected workspace in Supabase without
-        auto-migrating local data.
-      </p>
-
       {!session ? (
         <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Sign in to create or select cloud meetings. Signed-out users can keep
-          using Local Workspace.
+          Sign in to create or select cloud meetings.
         </p>
       ) : !isSupabaseConfigured ? (
         <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -306,54 +279,43 @@ export function MeetingSelector({
         </p>
       ) : (
         <div className="mt-4 space-y-3">
-          <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-            <select
-              value={selectedMeetingId}
-              onChange={(event) => selectCloudWorkspace(event.target.value)}
-              disabled={isLoadingWorkspaces || visibleWorkspaces.length === 0}
-              className="min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2 font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
-              aria-label="Select cloud meeting"
-            >
-              <option value="" disabled>
-                {visibleWorkspaces.length === 0
-                  ? "No cloud meetings yet"
-                  : "Select Cloud Meeting"}
+          <select
+            value={selectedMeetingId}
+            onChange={(event) => selectCloudWorkspace(event.target.value)}
+            disabled={isLoadingWorkspaces || visibleWorkspaces.length === 0}
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label="Select cloud meeting"
+          >
+            <option value="" disabled>
+              {visibleWorkspaces.length === 0
+                ? "No cloud meetings yet"
+                : "Select Cloud Meeting"}
+            </option>
+            {visibleWorkspaces.map((workspace) => (
+              <option key={workspace.id} value={workspace.id}>
+                {workspace.name}
               </option>
-              {visibleWorkspaces.map((workspace) => (
-                <option key={workspace.id} value={workspace.id}>
-                  {workspace.name}
-                </option>
-              ))}
-            </select>
+            ))}
+          </select>
+
+          <div className="grid gap-2 sm:grid-cols-2">
             <button
               type="button"
-              onClick={selectLocalWorkspace}
-              className="rounded-xl border border-slate-300 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50"
+              onClick={onLoadCloudMeeting}
+              disabled={saveStatus === "saving"}
+              className="rounded-xl border border-blue-200 px-3 py-2 font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Use Local
+              Load cloud meeting
+            </button>
+            <button
+              type="button"
+              onClick={onSaveCloudMeeting}
+              disabled={saveStatus === "saving"}
+              className="rounded-xl bg-blue-600 px-3 py-2 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Save current workspace to cloud
             </button>
           </div>
-
-          {effectiveWorkspaceMode === "cloud" ? (
-            <div className="grid gap-2 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={onLoadCloudMeeting}
-                disabled={saveStatus === "saving"}
-                className="rounded-xl border border-blue-200 px-3 py-2 font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Load cloud meeting
-              </button>
-              <button
-                type="button"
-                onClick={onSaveCloudMeeting}
-                disabled={saveStatus === "saving"}
-                className="rounded-xl bg-blue-600 px-3 py-2 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Save current workspace to cloud
-              </button>
-            </div>
-          ) : null}
 
           <form
             className="grid gap-2 sm:grid-cols-[1fr_auto]"

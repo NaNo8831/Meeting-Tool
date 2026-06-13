@@ -5,7 +5,7 @@ import Link from "next/link";
 
 // ─── Status types (mirror of MeetingWorkspace private types) ─────────────────
 
-export type CloudSaveStatus = "local" | "idle" | "saving" | "saved" | "error";
+export type CloudSaveStatus = "idle" | "saving" | "saved" | "error";
 export type AutosaveSummaryStatus =
   | "autosaved"
   | "saving"
@@ -59,7 +59,6 @@ const autosaveSummaryChipClassName: Record<AutosaveSummaryStatus, string> = {
 };
 
 const cloudSaveStatusLabel: Record<CloudSaveStatus, string> = {
-  local: "Local only",
   idle: "Cloud ready",
   saving: "Working…",
   saved: "Full workspace backup saved",
@@ -121,7 +120,6 @@ const objectivesAutosaveStatusLabel: Record<ObjectivesAutosaveStatus, string> =
 // Title / badge group
 type TitleProps = {
   stickyMeetingTitle: string;
-  isLocalRoute: boolean;
 };
 
 // Lifecycle status group
@@ -205,7 +203,6 @@ export type MeetingHeaderProps = TitleProps &
 export function MeetingHeader({
   // Title
   stickyMeetingTitle,
-  isLocalRoute,
   // Lifecycle
   lifecycleHelpRef,
   lifecycleStatusClassName,
@@ -271,16 +268,8 @@ export function MeetingHeader({
             <h1 className="truncate text-lg font-bold text-slate-900 sm:text-xl">
               {stickyMeetingTitle}
             </h1>
-            <span
-              className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-                isLocalRoute
-                  ? "border-slate-300 bg-slate-100 text-slate-700"
-                  : "border-blue-200 bg-blue-50 text-blue-700"
-              }`}
-            >
-              {isLocalRoute
-                ? "Local Mode (Legacy — browser only)"
-                : "Cloud Meeting"}
+            <span className="shrink-0 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+              Cloud Meeting
             </span>
           </div>
 
@@ -422,11 +411,6 @@ export function MeetingHeader({
                   </div>
                 ) : null}
               </div>
-            ) : isLocalRoute ? (
-              <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 sm:flex-1 lg:mx-4">
-                Saved in this browser only. Not shared with members and not
-                cloud autosaved.
-              </p>
             ) : null}
 
             <div className="flex flex-wrap items-center justify-end gap-2">

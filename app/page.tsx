@@ -40,7 +40,6 @@ export default function LandingPage() {
           onSignUp={signUp}
           onRequestPasswordReset={requestPasswordReset}
           onSignOut={signOut}
-          onContinueLocally={() => router.push("/meeting/local")}
         />
       </div>
     </main>

@@ -35,7 +35,7 @@ export interface UseWorkspacePersistenceParams {
   // identity / guards
   authSession: AuthSession | null;
   selectedMeetingId: string;
-  workspaceMode: "cloud" | "local";
+  workspaceMode: "cloud";
   activeCloudWorkspaceId: string;
   isCurrentCloudRouteWorkspace: boolean;
   isRouteCloudBootstrapping: boolean;
@@ -108,7 +108,6 @@ export function useWorkspacePersistence(
   const {
     authSession,
     selectedMeetingId,
-    workspaceMode,
     activeCloudWorkspaceId,
     isCurrentCloudRouteWorkspace,
     isRouteCloudBootstrapping,
@@ -193,36 +192,6 @@ export function useWorkspacePersistence(
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      if (workspaceMode === "local") {
-        lastMeetingSettingsAutosaveSignatureRef.current = "";
-        meetingSettingsAutosaveWorkspaceIdRef.current = "";
-        pendingMeetingSettingsAutosaveSignatureRef.current = "";
-        lastStrategicTopicsAutosaveSignatureRef.current = "";
-        strategicTopicsAutosaveWorkspaceIdRef.current = "";
-        pendingStrategicTopicsAutosaveSignatureRef.current = "";
-        lastMeetingNotesAutosaveSignatureRef.current = "";
-        meetingNotesAutosaveWorkspaceIdRef.current = "";
-        pendingMeetingNotesAutosaveSignatureRef.current = "";
-        lastAgendaItemsAutosaveSignatureRef.current = "";
-        agendaItemsAutosaveWorkspaceIdRef.current = "";
-        pendingAgendaItemsAutosaveSignatureRef.current = "";
-        lastObjectivesAutosaveSignatureRef.current = "";
-        objectivesAutosaveWorkspaceIdRef.current = "";
-        pendingObjectivesAutosaveSignatureRef.current = "";
-        setHasUnsavedFullWorkspaceChanges(false);
-        setSettingsAutosaveStatus("ready");
-        setStrategicTopicsAutosaveStatus("ready");
-        setMeetingNotesAutosaveStatus("ready");
-        setAgendaItemsAutosaveStatus("ready");
-        setObjectivesAutosaveStatus("ready");
-        setCloudMeetingMessage(
-          authSession
-            ? "Local changes are stored only in this browser. To move them to cloud, export/import or create a cloud meeting."
-            : "",
-        );
-        return;
-      }
-
       setSettingsAutosaveStatus("ready");
       setStrategicTopicsAutosaveStatus("ready");
       setMeetingNotesAutosaveStatus("ready");
@@ -235,10 +204,7 @@ export function useWorkspacePersistence(
 
     return () => window.clearTimeout(timeoutId);
   }, [
-    authSession,
     selectedMeetingId,
-    workspaceMode,
-    setHasUnsavedFullWorkspaceChanges,
     setSettingsAutosaveStatus,
     setStrategicTopicsAutosaveStatus,
     setMeetingNotesAutosaveStatus,
@@ -252,7 +218,6 @@ export function useWorkspacePersistence(
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    if (workspaceMode !== "cloud") return;
     if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace)
       return;
     if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
@@ -366,7 +331,6 @@ export function useWorkspacePersistence(
     isRouteCloudBootstrapping,
     meetingSettingsAutosaveSignature,
     selectedMeetingId,
-    workspaceMode,
     setSettingsAutosaveStatus,
     setCloudMeetingMessage,
   ]);
@@ -376,7 +340,6 @@ export function useWorkspacePersistence(
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    if (workspaceMode !== "cloud") return;
     if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace)
       return;
     if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
@@ -529,7 +492,6 @@ export function useWorkspacePersistence(
     setMeetings,
     setStrategicTopicItems,
     strategicTopicsAutosaveSignature,
-    workspaceMode,
     setStrategicTopicsAutosaveStatus,
     setCloudMeetingMessage,
   ]);
@@ -539,7 +501,6 @@ export function useWorkspacePersistence(
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    if (workspaceMode !== "cloud") return;
     if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace)
       return;
     if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
@@ -661,7 +622,6 @@ export function useWorkspacePersistence(
     isRouteCloudBootstrapping,
     meetingNotesAutosaveSignature,
     selectedMeetingId,
-    workspaceMode,
     setMeetingNotesAutosaveStatus,
     setCloudMeetingMessage,
   ]);
@@ -671,7 +631,6 @@ export function useWorkspacePersistence(
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    if (workspaceMode !== "cloud") return;
     if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace)
       return;
     if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
@@ -789,7 +748,6 @@ export function useWorkspacePersistence(
     isCurrentCloudRouteWorkspace,
     isRouteCloudBootstrapping,
     selectedMeetingId,
-    workspaceMode,
     setAgendaItemsAutosaveStatus,
     setCloudMeetingMessage,
   ]);
@@ -799,7 +757,6 @@ export function useWorkspacePersistence(
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    if (workspaceMode !== "cloud") return;
     if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace)
       return;
     if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
@@ -952,7 +909,6 @@ export function useWorkspacePersistence(
     isRouteCloudBootstrapping,
     objectivesAutosaveSignature,
     selectedMeetingId,
-    workspaceMode,
     setObjectivesAutosaveStatus,
     setCloudMeetingMessage,
   ]);
@@ -962,7 +918,6 @@ export function useWorkspacePersistence(
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    if (workspaceMode !== "cloud") return;
     if (!selectedMeetingId || !isCurrentCloudRouteWorkspace) return;
     if (!activeCloudWorkspaceId || activeCloudWorkspaceId !== selectedMeetingId)
       return;
@@ -982,7 +937,6 @@ export function useWorkspacePersistence(
     isCurrentCloudRouteWorkspace,
     isRouteCloudBootstrapping,
     selectedMeetingId,
-    workspaceMode,
     setHasUnsavedFullWorkspaceChanges,
   ]);
 }

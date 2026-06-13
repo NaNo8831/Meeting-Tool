@@ -18,7 +18,6 @@ Meeting Tool by LyArk is a lightweight operational leadership meeting tool for s
 - **Structured autosave** for all major surfaces (meeting settings, Strategic Topics, Topic Notes, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, Standard Operating Objectives, Agenda Items). Autosave is debounced, per-surface, and Last Save Wins.
 - **Manual Save** to cloud full-workspace backup JSON — the cloud safety net while autosave stabilizes.
 - **JSON workspace export/import** backup and restore.
-- **Browser-only Local Mode** as a signed-out fallback (no cloud sync).
 - **Meeting lifecycle**: Start Meeting, End Meeting (creates Tactical History snapshot), read-only closed and past meetings, Test Mode date override for preview/development.
 - **Tactical History** of past ended meetings.
 
@@ -67,7 +66,6 @@ Authorization is enforced at the database level through Supabase RLS. See `docs/
 - **Auth and database:** Supabase — email/password auth, cloud meeting containers, structured persistence tables, row-level security, and owner-only RPCs.
 - **Cloud persistence:** Structured autosave covers all major meeting surfaces. Cloud routes hydrate `meetings.meeting_data` full-workspace backup first, then overlay structured rows per surface.
 - **Autosave model:** Debounced, per-surface, Last Save Wins. No realtime collaboration, presence, locks, or conflict resolution.
-- **Local Mode:** `/meeting/local` route — browser `localStorage` only, no cloud sync.
 - **Manual Save:** Writes the full workspace backup JSON to `meetings.meeting_data`. Mandatory as the cloud rollback and backup/import path.
 - **JSON export/import:** Full workspace backup and restore, compatible with `meetings.meeting_data` and structured rows.
 
@@ -102,7 +100,7 @@ Authorization is enforced at the database level through Supabase RLS. See `docs/
 
 4. Open [http://localhost:3000](http://localhost:3000).
 
-Local Mode runs without Supabase credentials. Cloud meetings and shared access require a Supabase project with all migrations in `supabase/migrations/` applied in timestamp order.
+Cloud meetings and shared access require a Supabase project with all migrations in `supabase/migrations/` applied in timestamp order.
 
 ## Supabase Auth URL Configuration
 

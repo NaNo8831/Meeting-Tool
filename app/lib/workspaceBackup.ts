@@ -187,23 +187,6 @@ export const restoreWorkspaceBackup = (backup: WorkspaceBackupFile) => {
   });
 };
 
-export const collectLocalWorkspaceStorage = (): Record<string, unknown> => {
-  if (typeof window === "undefined") return {};
-
-  const storedEntries: Record<string, unknown> = {};
-  for (let index = 0; index < window.localStorage.length; index += 1) {
-    const key = window.localStorage.key(index);
-    if (!key?.startsWith(workspaceStorageKeyPrefix)) continue;
-
-    const storedValue = window.localStorage.getItem(key);
-    if (storedValue !== null) {
-      storedEntries[key] = parseStoredValue(storedValue);
-    }
-  }
-
-  return storedEntries;
-};
-
 export const hasMeaningfulWorkspaceStorage = (
   entries: Record<string, unknown>,
 ) =>
