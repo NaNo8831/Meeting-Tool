@@ -64,23 +64,25 @@ Steps:
 
 ## Item 2 — Edit Playbook Cloud Persistence
 
-Files to modify:
-- supabase/migrations/ — new migration file
-- MeetingWorkspace.tsx (or useWorkspacePersistence.ts post-slice)
-- components/PlaybookDefinitionsModal.tsx (or equivalent)
+**Status: already implemented prior to Sprint 3A. Comment fix only.**
 
-Steps:
-1. Verify current behavior: confirm getWorkspaceScopedStorageKey
-   ("leadership-organization-info") is the current write path.
-2. Create a new migration adding organization_info TEXT column to
-   meeting_settings. Follow existing migration naming convention.
-3. On workspace load: read organization_info from meeting_settings;
-   fall back to localStorage if null.
-4. On Edit Playbook save: write to meeting_settings.organization_info
-   AND keep the localStorage write as fallback.
-5. Fix the inaccurate comment in MeetingWorkspace.tsx.
-6. Run: npm run lint && npx tsc --noEmit && npm run build
-7. Commit: "Migrate Edit Playbook to meeting_settings cloud persistence"
+Investigation findings (Sprint 3A):
+- organization_info JSONB column already existed in meeting_settings
+  (migration 20260523000000_add_structured_persistence_foundation.sql).
+  No new migration was required (blueprint said TEXT; actual type is
+  JSONB, which is correct for structured data).
+- Cloud load was already wired: applyMeetingSettingsToState reads
+  settings.organization_info and applies it to state on workspace load.
+- Cloud save was already wired: meetingSettingsAutosavePayload includes
+  organization_info and is debounce-autosaved via useWorkspacePersistence.
+- localStorage key is already scoped per-meeting via
+  getWorkspaceScopedStorageKey("leadership-organization-info").
+- PlaybookDefinitionsModal is prop-driven; no direct storage access.
+
+Action taken:
+- Fixed inaccurate comment in MeetingHeader.tsx (L560–563) that said
+  organization_info used a global localStorage key and that cloud
+  scoping was deferred to Sprint 3. Corrected to reflect actual state.
 
 ---
 

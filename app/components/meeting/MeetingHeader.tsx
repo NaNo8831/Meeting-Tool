@@ -557,10 +557,9 @@ export function MeetingHeader({
                         >
                           Change Password
                         </button>
-                        {/* Edit Playbook currently writes to global localStorage key
-                            leadership-organization-info. Per-meeting cloud scoping deferred
-                            to Sprint 3 — each meeting should eventually have its own
-                            playbook tied to meeting_settings. Owner-only. */}
+                        {/* Edit Playbook: organization_info is scoped per-meeting via
+                            getWorkspaceScopedStorageKey and is already cloud-persisted
+                            via meeting_settings through useWorkspacePersistence. Owner-only. */}
                         {isMeetingOwner ? (
                           <button
                             type="button"

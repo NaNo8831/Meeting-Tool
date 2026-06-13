@@ -40,10 +40,10 @@ export function useWorkspaceMembers(
   >([]);
   const [workspaceMeetingInvitations, setWorkspaceMeetingInvitations] =
     useState<SupabaseMeetingInvitation[]>([]);
-  const [isLoadingWorkspaceMembers, setIsLoadingWorkspaceMembers] =
-    useState(false);
-  const [isLoadingWorkspaceInvitations, setIsLoadingWorkspaceInvitations] =
-    useState(false);
+  // Setters omitted — loading state was only used in handleOpenMembersModal
+  // (deleted in Slice C as dead code). Auto-load useEffect does not show a spinner.
+  const [isLoadingWorkspaceMembers] = useState(false);
+  const [isLoadingWorkspaceInvitations] = useState(false);
   const [workspaceMembersMessage, setWorkspaceMembersMessage] = useState("");
   const [workspaceInviteEmail, setWorkspaceInviteEmail] = useState("");
   const [isCreatingWorkspaceInvitation, setIsCreatingWorkspaceInvitation] =
