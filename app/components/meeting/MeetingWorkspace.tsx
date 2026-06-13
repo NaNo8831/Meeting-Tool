@@ -2742,27 +2742,6 @@ export default function MeetingWorkspace() {
     });
   }, [authSession, isCurrentCloudRouteWorkspace, selectedMeetingId]);
 
-  const saveStrategicTopicNotesBackupToCloud = useCallback(
-    async (notesByTopicItemId: Record<number, StrategicTopicNoteBackupEntry>) => {
-      if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
-        return;
-      }
-
-      await Promise.all(
-        Object.values(notesByTopicItemId).map((note) =>
-          supabaseMeetingClient.saveStrategicTopicNote({
-            accessToken: authSession.accessToken,
-            workspaceId: selectedMeetingId,
-            strategicTopicItemId: note.strategic_topic_item_id,
-            contentText: note.content_text ?? "",
-            contentJson: note.content_json,
-          }),
-        ),
-      );
-    },
-    [authSession, isCurrentCloudRouteWorkspace, selectedMeetingId],
-  );
-
   const getCurrentWorkspaceStorageForBackup = useCallback(async () => {
     const cloudNotes = await loadCloudStrategicTopicNotesForBackup();
     const cachedNotes = Object.values(strategicTopicNotesById).filter(
@@ -3159,76 +3138,6 @@ export default function MeetingWorkspace() {
     [],
   );
 
-  const saveObjectivesBackupToCloud = useCallback(
-    async (objectiveItems: Objective[]) => {
-      if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
-        return;
-      }
-
-      const { objectiveRows, taskRows } = buildObjectivesAutosavePayload(
-        objectiveItems,
-        selectedMeetingId,
-      );
-      const savedObjectives = await supabaseMeetingClient.saveObjectives({
-        accessToken: authSession.accessToken,
-        workspaceId: selectedMeetingId,
-        objectives: objectiveRows,
-      });
-      const objectiveUuidByClientId = new Map(
-        savedObjectives.map((objective) => [objective.client_objective_id, objective.id]),
-      );
-      await supabaseMeetingClient.saveTasks({
-        accessToken: authSession.accessToken,
-        workspaceId: selectedMeetingId,
-        tasks: taskRows.map((task) => ({
-          ...task,
-          objective_id: objectiveUuidByClientId.get(task.client_objective_id) ?? null,
-        })),
-      });
-      await supabaseMeetingClient.deleteMissingTasks({
-        accessToken: authSession.accessToken,
-        workspaceId: selectedMeetingId,
-        retainedClientTaskIds: taskRows.map((task) => task.client_task_id),
-      });
-      await supabaseMeetingClient.deleteMissingObjectives({
-        accessToken: authSession.accessToken,
-        workspaceId: selectedMeetingId,
-        retainedClientObjectiveIds: objectiveRows.map(
-          (objective) => objective.client_objective_id,
-        ),
-      });
-    },
-    [
-      authSession,
-      buildObjectivesAutosavePayload,
-      isCurrentCloudRouteWorkspace,
-      selectedMeetingId,
-    ],
-  );
-
-  const saveStandardOperatingObjectivesBackupToCloud = useCallback(
-    async (sooItems: StandardOperatingObjective[]) => {
-      if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
-        return;
-      }
-
-      const sooRows = sooItems.map((soo, index) =>
-        mapSooToSupabase(soo, selectedMeetingId, index),
-      );
-      await supabaseMeetingClient.saveStandardOperatingObjectives({
-        accessToken: authSession.accessToken,
-        workspaceId: selectedMeetingId,
-        standardOperatingObjectives: sooRows,
-      });
-      await supabaseMeetingClient.deleteMissingStandardOperatingObjectives({
-        accessToken: authSession.accessToken,
-        workspaceId: selectedMeetingId,
-        retainedClientSooIds: sooRows.map((soo) => soo.client_soo_id),
-      });
-    },
-    [authSession, isCurrentCloudRouteWorkspace, selectedMeetingId],
-  );
-
   const applyMeetingNotesToState = useCallback(
     (notes: SupabaseMeetingNote[], endedMeetingIds = new Set<number>()) => {
       if (notes.length === 0) return;
@@ -3257,29 +3166,6 @@ export default function MeetingWorkspace() {
       );
     },
     [setMeetings],
-  );
-
-  const saveMeetingNotesBackupToCloud = useCallback(
-    async (meetingRecords: MeetingRecord[]) => {
-      if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
-        return;
-      }
-
-      const meetingNotes = meetingRecords.map((meeting) =>
-        mapMeetingRecordToSupabase(meeting, selectedMeetingId),
-      );
-      await supabaseMeetingClient.saveMeetingNotes({
-        accessToken: authSession.accessToken,
-        workspaceId: selectedMeetingId,
-        notes: meetingNotes,
-      });
-      await supabaseMeetingClient.deleteMissingMeetingNotes({
-        accessToken: authSession.accessToken,
-        workspaceId: selectedMeetingId,
-        retainedClientMeetingIds: meetingRecords.map((meeting) => meeting.id),
-      });
-    },
-    [authSession, isCurrentCloudRouteWorkspace, selectedMeetingId],
   );
 
   const saveAgendaItemsBackupToCloud = useCallback(
@@ -3795,81 +3681,8 @@ export default function MeetingWorkspace() {
     }
   };
 
-  // Import/Restore intentionally removed from workspace UI per Sprint 2 — preserved for Sprint 3 cleanup.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleImportWorkspaceBackup = async (file: File) => {
-    try {
-      const fileText = await file.text();
-      const parsedBackup = JSON.parse(fileText) as unknown;
-      const backup = validateWorkspaceBackup(parsedBackup);
-      const shouldReplace = window.confirm(
-        "Importing this backup will replace the current Meeting Tool data stored in this browser. Continue?",
-      );
-
-      if (!shouldReplace) {
-        setBackupFeedback({
-          type: "error",
-          message: "Import canceled. Current workspace data was not changed.",
-        });
-        return;
-      }
-
-      const restoredStrategicTopicNotes = normalizeStrategicTopicNotesBackup(
-        readBackupEntry(backup, strategicTopicNotesStorageKey, {}),
-      );
-      const restoredMeetings = readBackupEntry(
-        backup,
-        "leadership-meetings",
-        initialMeetings,
-      );
-      const restoredObjectives = readBackupEntry(
-        backup,
-        "leadership-objectives",
-        objectives,
-      );
-      const restoredStandardOperatingObjectives = readBackupEntry(
-        backup,
-        "leadership-standard-operating-objectives",
-        defaultStandardOperatingObjectives,
-      );
-
-      storeWorkspaceBackupInBrowser(backup, activeCloudWorkspaceId);
-      applyWorkspaceBackupToState(backup);
-      if (workspaceMode === "cloud") {
-        await Promise.all([
-          saveStrategicTopicNotesBackupToCloud(restoredStrategicTopicNotes),
-          saveMeetingNotesBackupToCloud(restoredMeetings),
-          saveAgendaItemsBackupToCloud(restoredMeetings),
-          saveObjectivesBackupToCloud(restoredObjectives),
-          saveStandardOperatingObjectivesBackupToCloud(
-            restoredStandardOperatingObjectives,
-          ),
-        ]);
-      }
-      setHasCompletedMeetingSetup(true);
-      setCloudSaveStatus(workspaceMode === "cloud" ? "idle" : "local");
-      setCloudMeetingMessage(
-        workspaceMode === "cloud"
-          ? "Backup imported into the current view. Meeting Notes, Cascading Communications, Strategic Topic Notes, Objectives, Tasks, and SOOs were restored; click Save current workspace to cloud for the full workspace backup."
-          : "",
-      );
-      setBackupFeedback({
-        type: "success",
-        message:
-          workspaceMode === "cloud"
-            ? "Workspace backup imported into the selected Cloud Meeting view. Meeting Notes, Cascading Communications, Strategic Topic Notes, Objectives, Tasks, and SOOs were restored; use Manual Save for the full workspace backup."
-            : "Workspace backup imported successfully.",
-      });
-    } catch (error) {
-      setBackupFeedback({
-        type: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unable to import workspace backup.",
-      });
-    }
-  };
+  // handleImportWorkspaceBackup removed — workspace import was removed from UI in Sprint 2;
+  // the function was defined but never passed to BackupRestoreModal (export-only mode).
 
   const renderMissionValue = (value: RichTextValue) => {
     if (typeof value !== "string") {
@@ -4801,8 +4614,6 @@ export default function MeetingWorkspace() {
         onDashboardTitleChange={setDashboardTitle}
       />
 
-      {/* Import/Restore intentionally removed from workspace UI per Sprint 2 — pending Sprint 3 cleanup.
-          handleImportWorkspaceBackup is preserved below. */}
       <BackupRestoreModal
         isOpen={showBackupRestore}
         onClose={() => setShowBackupRestore(false)}
