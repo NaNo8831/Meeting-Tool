@@ -599,7 +599,13 @@ useBodyScrollLock(
           accessToken: session.accessToken,
           name: getNextUniqueCreationName(meetingName),
         });
-        restoreWorkspaceBackup(backup);
+        // Write backup keys scoped to the new meeting so cloud hydration can read them.
+        Object.entries(backup.localStorage).forEach(([key, value]) => {
+          localStorage.setItem(
+            `meeting-tool-cloud-workspace:${meeting.id}:${key}`,
+            JSON.stringify(value),
+          );
+        });
         // Mark setup as complete so the workspace skips first-time setup on load.
         const setupKey = `meeting-tool-cloud-workspace:${meeting.id}:leadership-meeting-setup-completed`;
         localStorage.setItem(setupKey, "true");
