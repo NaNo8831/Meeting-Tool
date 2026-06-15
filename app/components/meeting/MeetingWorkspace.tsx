@@ -3001,10 +3001,11 @@ export default function MeetingWorkspace() {
         workspaceId: selectedMeetingId,
         data: backup,
       });
-      const signature = getWorkspaceStorageSignature(backup.localStorage);
       storeWorkspaceBackupInBrowser(backup, selectedMeetingId);
       setActiveCloudWorkspaceId(selectedMeetingId);
-      lastCloudAutosaveSignatureRef.current = signature;
+      lastCloudAutosaveSignatureRef.current = getWorkspaceStorageSignature(
+        getCurrentWorkspaceStorageRef.current?.() ?? {},
+      );
       setHasUnsavedFullWorkspaceChanges(false);
       setCloudSaveStatus("saved");
       setCloudMeetingMessage(statusMessage);
