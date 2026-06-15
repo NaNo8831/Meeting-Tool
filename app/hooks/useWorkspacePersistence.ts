@@ -204,6 +204,7 @@ export function useWorkspacePersistence(
 
     return () => window.clearTimeout(timeoutId);
   }, [
+    authSession,
     selectedMeetingId,
     setSettingsAutosaveStatus,
     setStrategicTopicsAutosaveStatus,
