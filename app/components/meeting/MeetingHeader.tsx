@@ -8,6 +8,7 @@ import Link from "next/link";
 export type CloudSaveStatus = "idle" | "saving" | "saved" | "error";
 export type AutosaveSummaryStatus =
   | "autosaved"
+  | "saved"
   | "saving"
   | "backup-needed"
   | "error";
@@ -46,6 +47,7 @@ export type ObjectivesAutosaveStatus =
 
 const autosaveSummaryLabel: Record<AutosaveSummaryStatus, string> = {
   autosaved: "Autosaved",
+  saved: "Saved",
   saving: "Saving…",
   "backup-needed": "Manual Save needed",
   error: "Autosave issue",
@@ -53,6 +55,7 @@ const autosaveSummaryLabel: Record<AutosaveSummaryStatus, string> = {
 
 const autosaveSummaryChipClassName: Record<AutosaveSummaryStatus, string> = {
   autosaved: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  saved: "border-emerald-200 bg-emerald-50 text-emerald-800",
   saving: "border-blue-200 bg-blue-50 text-blue-800",
   "backup-needed": "border-amber-200 bg-amber-50 text-amber-900",
   error: "border-red-200 bg-red-50 text-red-800",

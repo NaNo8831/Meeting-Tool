@@ -846,7 +846,7 @@ const buildTacticalSnapshotSummary = (
 
 type CloudSaveStatus = "idle" | "saving" | "saved" | "error";
 type SettingsAutosaveStatus = "ready" | "pending" | "saving" | "saved" | "error";
-type AutosaveSummaryStatus = "autosaved" | "saving" | "backup-needed" | "error";
+type AutosaveSummaryStatus = "autosaved" | "saved" | "saving" | "backup-needed" | "error";
 
 type StructuredAutosaveStatus =
   | SettingsAutosaveStatus
@@ -885,6 +885,8 @@ const getAutosaveSummaryStatus = ({
   }
 
   if (hasUnsavedFullWorkspaceChanges) return "backup-needed";
+
+  if (cloudSaveStatus === "saved") return "saved";
 
   return "autosaved";
 };
