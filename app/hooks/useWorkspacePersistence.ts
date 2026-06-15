@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
   supabaseMeetingClient,
   type SupabaseMeetingNoteUpsert,
@@ -58,6 +58,10 @@ export interface UseWorkspacePersistenceParams {
   // Getter for the last cloud-autosave signature (owned by parent, written on
   // manual save success; hook reads it to decide if unsaved changes exist).
   getLastCloudAutosaveSignature: () => string;
+
+  // Ref set synchronously when sign-out begins; guards catch blocks so a 401
+  // from an in-flight autosave during sign-out does not surface as an error.
+  isSigningOutRef: React.RefObject<boolean>;
 
   // setters for state that lives in the parent
   setSettingsAutosaveStatus: (status: SettingsAutosaveStatus) => void;
@@ -128,6 +132,7 @@ export function useWorkspacePersistence(
     setHasUnsavedFullWorkspaceChanges,
     setStrategicTopicItems,
     setMeetings,
+    isSigningOutRef,
   } = params;
 
   // --- autosave refs (owned exclusively by this hook) ---
@@ -293,7 +298,7 @@ export function useWorkspacePersistence(
           );
         }
       } catch (error) {
-        if (!isCancelled) {
+        if (!isCancelled && !isSigningOutRef.current) {
           setSettingsAutosaveStatus("error");
           setCloudMeetingMessage(
             error instanceof Error
@@ -324,6 +329,7 @@ export function useWorkspacePersistence(
       isCancelled = true;
       window.clearTimeout(timeoutId);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isSigningOutRef is a stable ref; live-read via .current, intentionally omitted
   }, [
     activeCloudWorkspaceId,
     authSession,
@@ -452,7 +458,7 @@ export function useWorkspacePersistence(
           );
         }
       } catch (error) {
-        if (!isCancelled) {
+        if (!isCancelled && !isSigningOutRef.current) {
           setStrategicTopicsAutosaveStatus("error");
           setCloudMeetingMessage(
             error instanceof Error
@@ -483,6 +489,7 @@ export function useWorkspacePersistence(
       isCancelled = true;
       window.clearTimeout(timeoutId);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isSigningOutRef is a stable ref; live-read via .current, intentionally omitted
   }, [
     activeCloudWorkspaceId,
     authSession,
@@ -587,7 +594,7 @@ export function useWorkspacePersistence(
           );
         }
       } catch (error) {
-        if (!isCancelled) {
+        if (!isCancelled && !isSigningOutRef.current) {
           setMeetingNotesAutosaveStatus("error");
           setCloudMeetingMessage(
             error instanceof Error
@@ -615,6 +622,7 @@ export function useWorkspacePersistence(
       isCancelled = true;
       window.clearTimeout(timeoutId);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isSigningOutRef is a stable ref; live-read via .current, intentionally omitted
   }, [
     activeCloudWorkspaceId,
     authSession,
@@ -713,7 +721,7 @@ export function useWorkspacePersistence(
           );
         }
       } catch (error) {
-        if (!isCancelled) {
+        if (!isCancelled && !isSigningOutRef.current) {
           setAgendaItemsAutosaveStatus("error");
           setCloudMeetingMessage(
             error instanceof Error
@@ -741,6 +749,7 @@ export function useWorkspacePersistence(
       isCancelled = true;
       window.clearTimeout(timeoutId);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isSigningOutRef is a stable ref; live-read via .current, intentionally omitted
   }, [
     activeCloudWorkspaceId,
     agendaItemsAutosaveSignature,
@@ -874,7 +883,7 @@ export function useWorkspacePersistence(
           );
         }
       } catch (error) {
-        if (!isCancelled) {
+        if (!isCancelled && !isSigningOutRef.current) {
           setObjectivesAutosaveStatus("error");
           setCloudMeetingMessage(
             error instanceof Error
@@ -902,6 +911,7 @@ export function useWorkspacePersistence(
       isCancelled = true;
       window.clearTimeout(timeoutId);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isSigningOutRef is a stable ref; live-read via .current, intentionally omitted
   }, [
     activeCloudWorkspaceId,
     authSession,

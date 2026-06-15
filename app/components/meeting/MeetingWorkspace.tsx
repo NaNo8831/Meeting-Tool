@@ -1271,6 +1271,7 @@ export default function MeetingWorkspace() {
   const lastCloudAutosaveSignatureRef = useRef("");
   const lastTopicNotesAutosaveSignatureRef = useRef("");
   const topicNotesAutosaveKeyRef = useRef("");
+  const isSigningOutRef = useRef(false);
   const lastAutoLoadedCloudMeetingIdRef = useRef("");
   const [isRouteCloudBootstrapping, setIsRouteCloudBootstrapping] =
     useState(false);
@@ -1601,6 +1602,7 @@ export default function MeetingWorkspace() {
 
   const handleSignOutAndExit = async () => {
     if (isSigningOut) return;
+    isSigningOutRef.current = true;
     setIsSigningOut(true);
     setShowSettingsMenu(false);
     setShowAuthModal(false);
@@ -3242,6 +3244,7 @@ export default function MeetingWorkspace() {
     setHasUnsavedFullWorkspaceChanges,
     setStrategicTopicItems,
     setMeetings,
+    isSigningOutRef,
   });
 
   const handleExportWorkspaceBackup = async () => {
