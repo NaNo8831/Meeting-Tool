@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useBodyScrollLock } from "@/app/hooks/useBodyScrollLock";
@@ -147,8 +147,7 @@ export default function DashboardPage() {
   >(null);
   const dashboardMenuRef = useRef<HTMLDivElement>(null);
   const meetingOverflowMenuRef = useRef<HTMLDivElement>(null);
-  const backupInputRef = useRef<HTMLInputElement>(null);
-  useBodyScrollLock(
+useBodyScrollLock(
     showDashboardMenu ||
       meetingPendingDuplicate !== null ||
       meetingPendingDelete !== null ||
@@ -600,7 +599,13 @@ export default function DashboardPage() {
           accessToken: session.accessToken,
           name: getNextUniqueCreationName(meetingName),
         });
-        restoreWorkspaceBackup(backup);
+        // Write backup keys scoped to the new meeting so cloud hydration can read them.
+        Object.entries(backup.localStorage).forEach(([key, value]) => {
+          localStorage.setItem(
+            `meeting-tool-cloud-workspace:${meeting.id}:${key}`,
+            JSON.stringify(value),
+          );
+        });
         // Mark setup as complete so the workspace skips first-time setup on load.
         const setupKey = `meeting-tool-cloud-workspace:${meeting.id}:leadership-meeting-setup-completed`;
         localStorage.setItem(setupKey, "true");
@@ -625,28 +630,8 @@ export default function DashboardPage() {
     }
   };
 
-  const handleImportBackupPlaceholder = async (
-    event: ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const parsed = JSON.parse(await file.text()) as unknown;
-      validateWorkspaceBackup(parsed);
-      setMessage(
-        "Import Backup for new cloud meeting is UI-ready, but write-to-new-meeting is deferred in this PR for safety.",
-      );
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Could not read this backup file.",
-      );
-    } finally {
-      event.target.value = "";
-    }
-  };
+  // handleImportBackupPlaceholder removed — stub never wired to any UI element;
+  // the hidden input's ref was declared but never triggered via .current.click().
 
   const handleDeleteArchivedMeeting = async (meeting: DashboardMeeting) => {
     if (!session || isDeletingArchived || !meeting.canManageMeetingLifecycle)
@@ -1193,20 +1178,7 @@ export default function DashboardPage() {
               />
 
               <div className="flex items-center justify-end gap-2">
-                {/* Import Backup UI removed from menus per Sprint 2 simplification.
-                    Underlying code preserved for Sprint 3 cleanup. Cloud persistence
-                    and autosave make standalone import unnecessary for most users. */}
-                <input
-                  ref={backupInputRef}
-                  type="file"
-                  accept="application/json"
-                  className="hidden"
-                  onChange={(event) =>
-                    void handleImportBackupPlaceholder(event)
-                  }
-                />
-
-                <button
+                  <button
                   type="button"
                   onClick={() => void handleCreateBlankMeeting()}
                   disabled={isCreatingMeeting}
@@ -1302,7 +1274,7 @@ export default function DashboardPage() {
             id="cloud-meetings-heading"
             className="text-2xl font-semibold text-slate-900"
           >
-            Cloud Meetings
+            Your Meetings
           </h2>
 
           {isLoadingMeetings ? (
@@ -1323,7 +1295,7 @@ export default function DashboardPage() {
                   id="owned-meetings-heading"
                   className="text-xl font-semibold text-slate-900"
                 >
-                  Owned by Me
+                  Owned by You
                 </h2>
                 {ownedMeetings.length > 0 ? (
                   ownedMeetings.map(renderMeetingCard)
@@ -1342,7 +1314,7 @@ export default function DashboardPage() {
                   id="shared-meetings-heading"
                   className="text-xl font-semibold text-slate-900"
                 >
-                  Shared with Me
+                  Shared with You
                 </h2>
                 {sharedMeetings.length > 0 ? (
                   sharedMeetings.map(renderMeetingCard)

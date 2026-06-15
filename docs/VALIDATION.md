@@ -126,12 +126,6 @@ This is the final gate before merging `phase-3-shared-access` to `main`. Run on 
 - [ ] `test3` cannot list members or view invitations.
 - [ ] `test3` cannot write meeting content.
 
-**Regression — Local Mode:**
-- [ ] `/meeting/local` loads without authentication.
-- [ ] Local Mode edits do not write to Supabase.
-- [ ] JSON export and import work in Local Mode.
-- [ ] Navigating to Local Mode from the landing page works.
-
 **Known before-main merge concern (do not fix in readiness pass — document the outcome):**
 - PR #112 hotfix migration (`20260609000000_add_create_owned_meeting_rpc.sql`) exists on `main` but not on `phase-3-shared-access`. At merge time, the hotfix migration must be removed from the merge because `phase-3-shared-access` already has a more robust equivalent (`20260604150000_add_owned_meeting_create_rpc.sql`). Running both would silently downgrade the database function. Resolve the `supabaseClient.ts` conflict in favor of the phase-3 version.
 

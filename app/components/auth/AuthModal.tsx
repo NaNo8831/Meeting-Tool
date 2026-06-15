@@ -19,7 +19,6 @@ type AuthModalProps = {
   ) => Promise<SupabaseAuthSession | null>;
   onRequestPasswordReset: (email: string) => Promise<void>;
   onSignOut: () => Promise<void>;
-  onContinueLocally?: () => void;
 };
 
 export function AuthModal({
@@ -32,7 +31,6 @@ export function AuthModal({
   onSignUp,
   onRequestPasswordReset,
   onSignOut,
-  onContinueLocally,
 }: AuthModalProps) {
   const [mode, setMode] = useState<AuthMode>("signIn");
   const [email, setEmail] = useState("");
@@ -276,17 +274,6 @@ export function AuthModal({
                 ? "Need an account? Sign Up"
                 : "Have an account? Sign In"}
             </button>
-            {onContinueLocally ? (
-              <p className="text-center text-xs text-slate-400">
-                <button
-                  type="button"
-                  onClick={onContinueLocally}
-                  className="underline hover:text-slate-600"
-                >
-                  Continue without an account (browser only)
-                </button>
-              </p>
-            ) : null}
           </form>
         )}
 

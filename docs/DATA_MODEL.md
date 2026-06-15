@@ -1,6 +1,6 @@
 # Data Model
 
-This document describes all Supabase tables, key columns, relationships, RLS approach, and structured autosave tables as of Sprint 2 (`ux/sprint-2-simplification`). Migrations are in `supabase/migrations/` and must be applied in timestamp order.
+This document describes all Supabase tables, key columns, relationships, RLS approach, and structured autosave tables as of Sprint 3A. Migrations are in `supabase/migrations/` and must be applied in timestamp order.
 
 ---
 
@@ -290,7 +290,6 @@ These tables store read-only historical records and are not used for active auto
 | Agenda Items | `agenda_items` (structured), fallback from `meetings.meeting_data` |
 | Full workspace backup / safety net | `meetings.meeting_data` + JSON export/import |
 | User display metadata | `profiles` (display only, not authorization) |
-| Local Mode | Browser `localStorage` only |
 
 ---
 
@@ -300,6 +299,51 @@ These tables store read-only historical records and are not used for active auto
 - **`meetings.meeting_data`** remains in place as the full-workspace backup, export/import shape, and safety fallback. Do not remove it.
 - **Import into Cloud Meeting** upserts structured rows while preserving `meetings.meeting_data`. Cloud imports restore Objective/Task/SOO structured rows and the full workspace backup simultaneously.
 - **Legacy `decisionItems`** in older backup payloads remain readable through backup/import compatibility paths. A migration tool for legacy decision data is deferred to post-main.
+
+---
+
+## Migration Inventory
+
+All 22 migration files in `supabase/migrations/`, in chronological order.
+
+| Filename | What it does | Tables / Objects affected | Status |
+|----------|-------------|--------------------------|--------|
+| `20260515000000_create_feedback.sql` | Creates the `feedback` table for tester feedback submission with RLS insert policy. | `feedback` | active |
+| `20260516000000_create_workspaces.sql` | Creates the original `workspaces` table (later renamed `meetings`) with owner RLS and `updated_at` trigger. | `workspaces`, `set_workspace_updated_at()` | superseded by rename migration |
+| `20260517000000_add_workspace_data.sql` | Adds `workspace_data` JSONB column to `workspaces` for full backup cloud persistence. | `workspaces` | superseded by rename migration |
+| `20260521000000_rename_workspaces_to_meetings.sql` | Renames `workspaces` → `meetings`, `workspace_data` → `meeting_data`, and all related indexes and functions. | `meetings` (renamed), `set_meeting_updated_at()` | active (schema shape now in effect) |
+| `20260523000000_add_structured_persistence_foundation.sql` | Creates 10 structured content tables with owner-only RLS and helper functions. | `meeting_members`, `meeting_settings`, `objectives`, `tasks`, `standard_operating_objectives`, `strategic_topics`, `tactical_sessions`, `tactical_items`, `strategic_sessions`, `strategic_session_notes`, `user_owns_meeting()`, `set_entity_updated_at()` | active |
+| `20260523110000_add_meetings_archived_at.sql` | Adds `archived_at` timestamp column to `meetings` for soft archive. | `meetings` | active |
+| `20260528090000_add_meetings_deleted_at.sql` | Adds `deleted_at` timestamp column to `meetings` for permanent soft delete of archived meetings. | `meetings` | active |
+| `20260603090000_align_shared_access_schema.sql` | Updates `meeting_members` roles to owner/editor/viewer and creates the `meeting_invitations` table with email-normalization trigger. | `meeting_members`, `meeting_invitations`, `normalize_meeting_invitation_email()` | active |
+| `20260604090000_add_membership_rls_foundation.sql` | Expands RLS from owner-only to membership-based across all content tables; adds four RLS helper functions and owner-enforcement triggers on `meetings`. | `meetings`, `meeting_members`, all content tables, `user_is_active_meeting_member()`, `user_can_access_meeting()`, `user_can_edit_meeting()`, `user_can_manage_meeting_access()`, `ensure_meeting_owner_member()`, `prevent_meeting_owner_id_update()` | active |
+| `20260604100000_add_admin_readability_views.sql` | Creates five read-only admin views joining content tables to `meetings` for dashboard display. | views: `meeting_members_with_meeting`, `meeting_invitations_with_meeting`, `meeting_settings_with_meeting`, `strategic_topics_with_meeting`, `tactical_sessions_with_meeting` | active |
+| `20260604110000_add_user_metadata_to_admin_readability_views.sql` | Enhances two readability views with auth.users email join for member/invitation attribution. | views: `meeting_members_with_meeting`, `meeting_invitations_with_meeting` | active |
+| `20260604120000_add_owned_archived_meeting_soft_delete_rpc.sql` | Adds owner-only RPC to soft-delete archived meetings without broadening REST update permissions. | `soft_delete_owned_archived_meeting(uuid)` | active |
+| `20260604130000_add_user_profiles.sql` | Creates `profiles` table with display name derivation and auth sync triggers. | `profiles`, `derive_profile_display_name()`, `set_profile_fields()`, `handle_new_auth_user_profile()`, `ensure_own_profile()`, `get_accessible_meeting_owner_profiles()` | active |
+| `20260604140000_add_invite_flow_rpcs.sql` | Implements full invitation lifecycle with five RPCs for owner-managed invites and invitee acceptance. | `create_meeting_invitation()`, `list_meeting_pending_invitations()`, `revoke_meeting_invitation()`, `list_my_pending_meeting_invitations()`, `accept_meeting_invitation()` | active |
+| `20260604150000_add_owned_meeting_create_rpc.sql` | Adds narrow RPC for creating meetings without allowing client-supplied owner manipulation. | `create_owned_meeting(text)` | active |
+| `20260605100000_add_member_management_rpcs.sql` | Adds member listing and removal RPCs for the dashboard member management UI. | `list_meeting_members()`, `remove_meeting_editor()`, `get_accessible_meeting_member_counts()` | active |
+| `20260605110000_refine_member_display_names.sql` | Refines display name fallback priority (profile display_name → derived name → email) across owner profile and member list RPCs. | `get_accessible_meeting_owner_profiles()`, `list_meeting_members()` | active |
+| `20260605120000_harden_meeting_lifecycle_mutations.sql` | Restricts direct REST mutations on `meetings`, adds trigger defense against non-owner container updates, and adds four owner-only lifecycle RPCs. | `meetings`, `prevent_non_owner_meeting_container_update()`, `duplicate_owned_meeting()`, `archive_owned_meeting()`, `restore_owned_archived_meeting()`, `rename_owned_meeting()` | active |
+| `20260605150000_add_strategic_topic_autosave.sql` | Adds client ID and lifecycle columns to `strategic_topics`; creates `strategic_topic_notes` table for topic-attached autosave notes. | `strategic_topics`, `strategic_topic_notes` | active |
+| `20260605160000_add_meeting_notes_autosave.sql` | Creates `meeting_notes` table for dated meeting records with notes and cascade items. | `meeting_notes` | active |
+| `20260605170000_add_objectives_tasks_soos_autosave.sql` | Adds client ID mapping and structured fields to `objectives`, `tasks`, and `standard_operating_objectives`. | `objectives`, `tasks`, `standard_operating_objectives` | active |
+| `20260608100000_add_agenda_items_autosave.sql` | Creates `agenda_items` table as first-class autosave for agenda discussion notes, decisions, actions, and promote linkage. | `agenda_items` | active |
+
+---
+
+## Orphaned Schema
+
+The following tables exist in the database (created in `20260523000000_add_structured_persistence_foundation.sql`) but have **no references in current application code** as of Sprint 3A:
+
+| Table | Created by | App references | Notes |
+|-------|-----------|---------------|-------|
+| `tactical_items` | `20260523000000` | None | Schema exists alongside `tactical_sessions` but the app only reads/writes `tactical_sessions.snapshot_json`. Items were intended as a normalized alternative but were never used. |
+| `strategic_sessions` | `20260523000000` | None | No app code creates or reads strategic session records. |
+| `strategic_session_notes` | `20260523000000` | None | No app code creates or reads notes for strategic sessions. |
+
+**Do not drop these tables via a new migration without explicit product approval.** The tables carry no user data and impose no runtime cost, but dropping them is irreversible. They are candidates for removal in a post-Sprint-3 cleanup migration if the product decision is made not to implement strategic session history.
 
 ---
 
