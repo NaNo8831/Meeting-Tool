@@ -1274,7 +1274,7 @@ useBodyScrollLock(
             id="cloud-meetings-heading"
             className="text-2xl font-semibold text-slate-900"
           >
-            Cloud Meetings
+            Your Meetings
           </h2>
 
           {isLoadingMeetings ? (
@@ -1295,7 +1295,7 @@ useBodyScrollLock(
                   id="owned-meetings-heading"
                   className="text-xl font-semibold text-slate-900"
                 >
-                  Owned by Me
+                  Owned by You
                 </h2>
                 {ownedMeetings.length > 0 ? (
                   ownedMeetings.map(renderMeetingCard)
@@ -1314,7 +1314,7 @@ useBodyScrollLock(
                   id="shared-meetings-heading"
                   className="text-xl font-semibold text-slate-900"
                 >
-                  Shared with Me
+                  Shared with You
                 </h2>
                 {sharedMeetings.length > 0 ? (
                   sharedMeetings.map(renderMeetingCard)
