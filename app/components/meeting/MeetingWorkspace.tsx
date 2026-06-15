@@ -1273,6 +1273,7 @@ export default function MeetingWorkspace() {
   const topicNotesAutosaveKeyRef = useRef("");
   const isSigningOutRef = useRef(false);
   const lastAutoLoadedCloudMeetingIdRef = useRef("");
+  const getCurrentWorkspaceStorageRef = useRef<(() => Record<string, unknown>) | null>(null);
   const [isRouteCloudBootstrapping, setIsRouteCloudBootstrapping] =
     useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -2506,6 +2507,8 @@ export default function MeetingWorkspace() {
     ],
   );
 
+  getCurrentWorkspaceStorageRef.current = getCurrentWorkspaceStorage;
+
   const normalizeStrategicTopicNotesBackup = useCallback(
     (value: unknown): Record<number, StrategicTopicNoteBackupEntry> => {
       if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -3162,12 +3165,12 @@ export default function MeetingWorkspace() {
     if (!activeCloudWorkspaceId) return;
     const timeoutId = window.setTimeout(() => {
       lastCloudAutosaveSignatureRef.current = getWorkspaceStorageSignature(
-        getCurrentWorkspaceStorage(),
+        getCurrentWorkspaceStorageRef.current?.() ?? {},
       );
       setHasUnsavedFullWorkspaceChanges(false);
     }, 0);
     return () => window.clearTimeout(timeoutId);
-  }, [activeCloudWorkspaceId, getCurrentWorkspaceStorage]);
+  }, [activeCloudWorkspaceId]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
