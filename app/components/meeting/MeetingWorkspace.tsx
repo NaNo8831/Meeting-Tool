@@ -3155,6 +3155,20 @@ export default function MeetingWorkspace() {
     return () => window.clearTimeout(timeoutId);
   }, [selectedMeetingId]);
 
+  // After a cloud meeting loads (activeCloudWorkspaceId is set), sync the
+  // baseline signature to current workspace state so the "Manual Save needed"
+  // banner only appears when the user actually changes something post-load.
+  useEffect(() => {
+    if (!activeCloudWorkspaceId) return;
+    const timeoutId = window.setTimeout(() => {
+      lastCloudAutosaveSignatureRef.current = getWorkspaceStorageSignature(
+        getCurrentWorkspaceStorage(),
+      );
+      setHasUnsavedFullWorkspaceChanges(false);
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [activeCloudWorkspaceId, getCurrentWorkspaceStorage]);
+
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       void loadTacticalSessions();
