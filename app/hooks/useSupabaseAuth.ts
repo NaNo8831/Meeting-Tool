@@ -5,6 +5,7 @@ import {
   getPasswordResetRedirectUrl,
   isSupabaseConfigured,
   supabaseAuthClient,
+  supabaseProfileClient,
   type SupabaseAuthSession,
 } from "@/app/lib/supabaseClient";
 
@@ -81,9 +82,30 @@ export const useSupabaseAuth = () => {
   }, [saveSession]);
 
   const signUp = useCallback(
-    async (email: string, password: string) => {
+    async (
+      email: string,
+      password: string,
+      firstName?: string,
+      lastName?: string,
+    ) => {
       const nextSession = await supabaseAuthClient.signUp(email, password);
       saveSession(nextSession);
+
+      if (nextSession && (firstName || lastName)) {
+        try {
+          await supabaseProfileClient.updateOwnProfile({
+            accessToken: nextSession.accessToken,
+            userId: nextSession.user.id,
+            profile: {
+              first_name: firstName ?? null,
+              last_name: lastName ?? null,
+            },
+          });
+        } catch (error) {
+          console.error("Profile name update failed after sign-up:", error);
+        }
+      }
+
       return nextSession;
     },
     [saveSession],

@@ -3915,8 +3915,8 @@ export default function MeetingWorkspace() {
           router.replace("/dashboard");
           return result;
         }}
-        onSignUp={async (email, password) => {
-          const result = await signUp(email, password);
+        onSignUp={async (email, password, firstName, lastName) => {
+          const result = await signUp(email, password, firstName, lastName);
           router.replace("/dashboard");
           return result;
         }}

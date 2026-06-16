@@ -11,10 +11,10 @@
 - [ ] Build, lint, and tsc all clean
 
 ## Item 2 — Team/Meeting name persistence
-- [ ] Investigation report reviewed and approach approved
-- [ ] Name entered during meeting creation persists and does
-      not need to be re-entered
-- [ ] Existing meeting creation flow unchanged beyond pre-fill
+> **Deferred to Sprint 4.**
+> Investigation confirmed that `leadership-dashboard-title` already
+> persists in localStorage across sessions and is pre-filled when
+> the setup modal reopens. No cloud sync is needed in this sprint.
 
 ## Overall
 - [ ] npm run lint clean
