@@ -16,8 +16,6 @@ type AuthModalProps = {
   onSignUp: (
     email: string,
     password: string,
-    firstName?: string,
-    lastName?: string,
   ) => Promise<SupabaseAuthSession | null>;
   onRequestPasswordReset: (email: string) => Promise<void>;
   onSignOut: () => Promise<void>;
@@ -37,8 +35,6 @@ export function AuthModal({
   const [mode, setMode] = useState<AuthMode>("signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
     message: string;
@@ -60,12 +56,7 @@ export function AuthModal({
         setFeedback({ type: "success", message: "Signed in successfully." });
         setPassword("");
       } else if (mode === "signUp") {
-        const nextSession = await onSignUp(
-          email.trim(),
-          password,
-          firstName.trim() || undefined,
-          lastName.trim() || undefined,
-        );
+        const nextSession = await onSignUp(email.trim(), password);
         setMode("signIn");
         setFeedback({
           type: "success",
@@ -201,34 +192,6 @@ export function AuthModal({
           </div>
         ) : (
           <form className="space-y-4" onSubmit={handleSubmit}>
-            {mode === "signUp" ? (
-              <div className="flex gap-3">
-                <label className="block flex-1">
-                  <span className="mb-1 block text-sm font-semibold text-slate-700">
-                    First Name
-                  </span>
-                  <input
-                    type="text"
-                    value={firstName}
-                    onChange={(event) => setFirstName(event.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                    placeholder="First name"
-                  />
-                </label>
-                <label className="block flex-1">
-                  <span className="mb-1 block text-sm font-semibold text-slate-700">
-                    Last Name
-                  </span>
-                  <input
-                    type="text"
-                    value={lastName}
-                    onChange={(event) => setLastName(event.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                    placeholder="Last name"
-                  />
-                </label>
-              </div>
-            ) : null}
             <label className="block">
               <span className="mb-1 block text-sm font-semibold text-slate-700">
                 Email
@@ -303,8 +266,6 @@ export function AuthModal({
               onClick={() => {
                 setMode(mode === "signIn" ? "signUp" : "signIn");
                 setPassword("");
-                setFirstName("");
-                setLastName("");
                 setFeedback(null);
               }}
               className="w-full rounded-full border border-slate-300 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-50"
