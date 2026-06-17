@@ -903,9 +903,9 @@ useBodyScrollLock(
     const showOverflowMenu = meetingOverflowMenuId === meeting.id;
     const hasOverflowActions =
       !meeting.archived_at && meeting.canManageMeetingLifecycle;
-    const hasArchivedOverflowActions =
-      Boolean(meeting.archived_at) && meeting.canManageMeetingLifecycle;
     const showMembersAccess = !meeting.archived_at;
+    const showArchivedActions =
+      Boolean(meeting.archived_at) && meeting.canManageMeetingLifecycle;
 
     return (
       <article
@@ -943,19 +943,36 @@ useBodyScrollLock(
                 type="button"
                 onClick={() => void handleOpenAccess(meeting)}
                 className={`rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 ${
-                  hasOverflowActions || hasArchivedOverflowActions
-                    ? ""
-                    : "col-span-2"
+                  hasOverflowActions ? "" : "col-span-2"
                 }`}
                 disabled={isLoadingOwnedInvitations || isLoadingMeetingMembers}
               >
                 Members
               </button>
+            ) : showArchivedActions ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void handleRestoreArchivedMeeting(meeting)}
+                  disabled={Boolean(isRestoringArchived)}
+                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isRestoringArchived === meeting.id ? "Restoring…" : "Restore"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMeetingPendingDelete(meeting)}
+                  disabled={Boolean(isDeletingArchived)}
+                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isDeletingArchived === meeting.id ? "Deleting…" : "Delete"}
+                </button>
+              </>
             ) : (
               <span className="hidden sm:block sm:w-[7.5rem]" aria-hidden="true" />
             )}
 
-            {hasOverflowActions || hasArchivedOverflowActions ? (
+            {hasOverflowActions ? (
               <div
                 ref={showOverflowMenu ? meetingOverflowMenuRef : undefined}
                 className="relative"
@@ -1022,39 +1039,6 @@ useBodyScrollLock(
                           {isArchiving === meeting.id
                             ? "Archiving…"
                             : "Archive"}
-                        </button>
-                      </>
-                    ) : null}
-                    {meeting.archived_at && meeting.canManageMeetingLifecycle ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMeetingOverflowMenuId(null);
-                            void handleRestoreArchivedMeeting(meeting);
-                          }}
-                          className="block w-full px-4 py-2.5 text-left text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
-                          role="menuitem"
-                          disabled={Boolean(isRestoringArchived)}
-                        >
-                          {isRestoringArchived === meeting.id
-                            ? "Restoring…"
-                            : "Restore"}
-                        </button>
-                        <div className="my-1 border-t border-slate-100" />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMeetingOverflowMenuId(null);
-                            setMeetingPendingDelete(meeting);
-                          }}
-                          className="block w-full px-4 py-2.5 text-left text-sm font-semibold text-red-700 hover:bg-red-50"
-                          role="menuitem"
-                          disabled={Boolean(isDeletingArchived)}
-                        >
-                          {isDeletingArchived === meeting.id
-                            ? "Deleting…"
-                            : "Delete"}
                         </button>
                       </>
                     ) : null}
