@@ -148,6 +148,7 @@ export default function DashboardPage() {
   >(null);
   const dashboardMenuRef = useRef<HTMLDivElement>(null);
   const meetingOverflowMenuRef = useRef<HTMLDivElement>(null);
+  const newMeetingInputRef = useRef<HTMLInputElement>(null);
 useBodyScrollLock(
     showDashboardMenu ||
       meetingPendingDuplicate !== null ||
@@ -1183,6 +1184,7 @@ useBodyScrollLock(
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <input
+                ref={newMeetingInputRef}
                 type="text"
                 value={newMeetingName}
                 onChange={(event) => {
@@ -1316,6 +1318,49 @@ useBodyScrollLock(
                 </h2>
                 {ownedMeetings.length > 0 ? (
                   ownedMeetings.map(renderMeetingCard)
+                ) : ownedMeetingCount === 0 ? (
+                  <div className="rounded-2xl border border-slate-200 bg-white px-6 py-8 shadow-sm">
+                    <h3 className="text-xl font-bold text-slate-900">
+                      Welcome to Meeting Tool
+                    </h3>
+                    <p className="mt-2 text-sm text-slate-600">
+                      Run focused leadership meetings, track strategic topics,
+                      and follow up on outcomes — all in one place.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        newMeetingInputRef.current?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "center",
+                        });
+                        newMeetingInputRef.current?.focus();
+                      }}
+                      className="mt-5 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+                    >
+                      Create your first meeting
+                    </button>
+                    <ol className="mt-6 space-y-2 text-sm text-slate-600">
+                      <li className="flex items-start gap-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                          1
+                        </span>
+                        Create a meeting
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                          2
+                        </span>
+                        Run it with your team
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                          3
+                        </span>
+                        Review outcomes and follow up
+                      </li>
+                    </ol>
+                  </div>
                 ) : (
                   <p className="rounded-2xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-600 shadow-sm">
                     {getOwnedMeetingsEmptyMessage()}
