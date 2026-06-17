@@ -31,6 +31,8 @@ import { defaultOrganizationInfo } from "@/app/lib/objectiveOptions";
 import { BackupRestoreModal } from "@/app/components/dashboard/BackupRestoreModal";
 import { PlaybookDefinitionsModal } from "@/app/components/dashboard/PlaybookDefinitionsModal";
 import { ProfileSetupModal } from "@/app/components/auth/ProfileSetupModal";
+import { HelpPanel } from "@/app/components/help/HelpPanel";
+import { FeedbackWidget } from "@/app/components/feedback/FeedbackWidget";
 import { useLocalStorage } from "@/app/hooks/useLocalStorage";
 
 const sortMeetingsByName = (meetings: DashboardMeeting[]) =>
@@ -143,6 +145,7 @@ export default function DashboardPage() {
   const [profileMessage, setProfileMessage] = useState("");
   const [message, setMessage] = useState("");
   const [createMeetingError, setCreateMeetingError] = useState("");
+  const [showHelp, setShowHelp] = useState(false);
   const [meetingOverflowMenuId, setMeetingOverflowMenuId] = useState<
     string | null
   >(null);
@@ -1804,6 +1807,24 @@ useBodyScrollLock(
         onImportWorkspaceBackup={(file, name) => void handleDashboardImportBackup(file, name)}
         backupFeedback={dashboardBackupFeedback}
         mode="import-only"
+      />
+
+      {showHelp ? (
+        <HelpPanel onClose={() => setShowHelp(false)} />
+      ) : null}
+
+      <button
+        type="button"
+        onClick={() => setShowHelp(true)}
+        className="fixed bottom-20 right-5 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-bold text-slate-600 shadow-lg transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
+        aria-label="Open help panel"
+      >
+        ?
+      </button>
+
+      <FeedbackWidget
+        session={session}
+        onCollectWorkspaceSnapshot={() => ({})}
       />
     </main>
   );
