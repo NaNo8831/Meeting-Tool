@@ -30,6 +30,7 @@ import {
 import { defaultOrganizationInfo } from "@/app/lib/objectiveOptions";
 import { BackupRestoreModal } from "@/app/components/dashboard/BackupRestoreModal";
 import { PlaybookDefinitionsModal } from "@/app/components/dashboard/PlaybookDefinitionsModal";
+import { ProfileSetupModal } from "@/app/components/auth/ProfileSetupModal";
 import { useLocalStorage } from "@/app/hooks/useLocalStorage";
 
 const sortMeetingsByName = (meetings: DashboardMeeting[]) =>
@@ -1066,6 +1067,38 @@ useBodyScrollLock(
       </article>
     );
   };
+
+  const needsProfileSetup =
+    session !== null &&
+    !isLoadingProfile &&
+    profile !== null &&
+    !profile.first_name?.trim();
+
+  if (needsProfileSetup) {
+    return (
+      <ProfileSetupModal
+        accessToken={session.accessToken}
+        userId={session.user.id}
+        onSave={async (firstName, lastName) => {
+          await supabaseProfileClient.updateOwnProfile({
+            accessToken: session.accessToken,
+            userId: session.user.id,
+            profile: { first_name: firstName, last_name: lastName },
+          });
+          setProfile((current) =>
+            current
+              ? { ...current, first_name: firstName, last_name: lastName }
+              : current,
+          );
+        }}
+        onComplete={() => {
+          setProfile((current) =>
+            current ? { ...current } : current,
+          );
+        }}
+      />
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
