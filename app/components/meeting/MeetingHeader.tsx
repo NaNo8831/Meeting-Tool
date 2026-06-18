@@ -357,8 +357,9 @@ export function MeetingHeader({
                 >
                   {meetingActionLabel}
                 </button>
-                <span className="inline-flex items-center self-start rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-medium text-slate-500">
+                <span className="inline-flex items-center gap-1 self-start rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-medium text-slate-500">
                   Last Meeting
+                  <span className="font-medium opacity-80">{activeMeetingDate}</span>
                 </span>
               </div>
             ) : (

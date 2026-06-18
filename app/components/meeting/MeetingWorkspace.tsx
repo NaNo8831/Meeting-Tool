@@ -1459,6 +1459,7 @@ export default function MeetingWorkspace() {
       setIsRouteCloudBootstrapping(true);
       setSelectedMeetingId("");
       setSelectedMeetingName("");
+      setTacticalSessions([]);
       setCloudSaveStatus("saving");
       setCloudMeetingMessage("Loading cloud meeting from route…");
 
