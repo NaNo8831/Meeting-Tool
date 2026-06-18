@@ -31,6 +31,8 @@ import { defaultOrganizationInfo } from "@/app/lib/objectiveOptions";
 import { BackupRestoreModal } from "@/app/components/dashboard/BackupRestoreModal";
 import { PlaybookDefinitionsModal } from "@/app/components/dashboard/PlaybookDefinitionsModal";
 import { ProfileSetupModal } from "@/app/components/auth/ProfileSetupModal";
+import { HelpPanel } from "@/app/components/help/HelpPanel";
+import { FeedbackWidget } from "@/app/components/feedback/FeedbackWidget";
 import { useLocalStorage } from "@/app/hooks/useLocalStorage";
 
 const sortMeetingsByName = (meetings: DashboardMeeting[]) =>
@@ -143,11 +145,13 @@ export default function DashboardPage() {
   const [profileMessage, setProfileMessage] = useState("");
   const [message, setMessage] = useState("");
   const [createMeetingError, setCreateMeetingError] = useState("");
+  const [showHelp, setShowHelp] = useState(false);
   const [meetingOverflowMenuId, setMeetingOverflowMenuId] = useState<
     string | null
   >(null);
   const dashboardMenuRef = useRef<HTMLDivElement>(null);
   const meetingOverflowMenuRef = useRef<HTMLDivElement>(null);
+  const newMeetingInputRef = useRef<HTMLInputElement>(null);
 useBodyScrollLock(
     showDashboardMenu ||
       meetingPendingDuplicate !== null ||
@@ -903,9 +907,9 @@ useBodyScrollLock(
     const showOverflowMenu = meetingOverflowMenuId === meeting.id;
     const hasOverflowActions =
       !meeting.archived_at && meeting.canManageMeetingLifecycle;
-    const hasArchivedOverflowActions =
-      Boolean(meeting.archived_at) && meeting.canManageMeetingLifecycle;
     const showMembersAccess = !meeting.archived_at;
+    const showArchivedActions =
+      Boolean(meeting.archived_at) && meeting.canManageMeetingLifecycle;
 
     return (
       <article
@@ -943,19 +947,36 @@ useBodyScrollLock(
                 type="button"
                 onClick={() => void handleOpenAccess(meeting)}
                 className={`rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 ${
-                  hasOverflowActions || hasArchivedOverflowActions
-                    ? ""
-                    : "col-span-2"
+                  hasOverflowActions ? "" : "col-span-2"
                 }`}
                 disabled={isLoadingOwnedInvitations || isLoadingMeetingMembers}
               >
                 Members
               </button>
+            ) : showArchivedActions ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void handleRestoreArchivedMeeting(meeting)}
+                  disabled={Boolean(isRestoringArchived)}
+                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isRestoringArchived === meeting.id ? "Restoring…" : "Restore"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMeetingPendingDelete(meeting)}
+                  disabled={Boolean(isDeletingArchived)}
+                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isDeletingArchived === meeting.id ? "Deleting…" : "Delete"}
+                </button>
+              </>
             ) : (
               <span className="hidden sm:block sm:w-[7.5rem]" aria-hidden="true" />
             )}
 
-            {hasOverflowActions || hasArchivedOverflowActions ? (
+            {hasOverflowActions ? (
               <div
                 ref={showOverflowMenu ? meetingOverflowMenuRef : undefined}
                 className="relative"
@@ -1022,39 +1043,6 @@ useBodyScrollLock(
                           {isArchiving === meeting.id
                             ? "Archiving…"
                             : "Archive"}
-                        </button>
-                      </>
-                    ) : null}
-                    {meeting.archived_at && meeting.canManageMeetingLifecycle ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMeetingOverflowMenuId(null);
-                            void handleRestoreArchivedMeeting(meeting);
-                          }}
-                          className="block w-full px-4 py-2.5 text-left text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
-                          role="menuitem"
-                          disabled={Boolean(isRestoringArchived)}
-                        >
-                          {isRestoringArchived === meeting.id
-                            ? "Restoring…"
-                            : "Restore"}
-                        </button>
-                        <div className="my-1 border-t border-slate-100" />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMeetingOverflowMenuId(null);
-                            setMeetingPendingDelete(meeting);
-                          }}
-                          className="block w-full px-4 py-2.5 text-left text-sm font-semibold text-red-700 hover:bg-red-50"
-                          role="menuitem"
-                          disabled={Boolean(isDeletingArchived)}
-                        >
-                          {isDeletingArchived === meeting.id
-                            ? "Deleting…"
-                            : "Delete"}
                         </button>
                       </>
                     ) : null}
@@ -1199,6 +1187,7 @@ useBodyScrollLock(
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <input
+                ref={newMeetingInputRef}
                 type="text"
                 value={newMeetingName}
                 onChange={(event) => {
@@ -1332,6 +1321,49 @@ useBodyScrollLock(
                 </h2>
                 {ownedMeetings.length > 0 ? (
                   ownedMeetings.map(renderMeetingCard)
+                ) : ownedMeetingCount === 0 ? (
+                  <div className="rounded-2xl border border-slate-200 bg-white px-6 py-8 shadow-sm">
+                    <h3 className="text-xl font-bold text-slate-900">
+                      Welcome to Meeting Tool
+                    </h3>
+                    <p className="mt-2 text-sm text-slate-600">
+                      Run focused leadership meetings, track strategic topics,
+                      and follow up on outcomes — all in one place.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        newMeetingInputRef.current?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "center",
+                        });
+                        newMeetingInputRef.current?.focus();
+                      }}
+                      className="mt-5 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+                    >
+                      Create your first meeting
+                    </button>
+                    <ol className="mt-6 space-y-2 text-sm text-slate-600">
+                      <li className="flex items-start gap-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                          1
+                        </span>
+                        Create a meeting
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                          2
+                        </span>
+                        Run it with your team
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                          3
+                        </span>
+                        Review outcomes and follow up
+                      </li>
+                    </ol>
+                  </div>
                 ) : (
                   <p className="rounded-2xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-600 shadow-sm">
                     {getOwnedMeetingsEmptyMessage()}
@@ -1775,6 +1807,24 @@ useBodyScrollLock(
         onImportWorkspaceBackup={(file, name) => void handleDashboardImportBackup(file, name)}
         backupFeedback={dashboardBackupFeedback}
         mode="import-only"
+      />
+
+      {showHelp ? (
+        <HelpPanel onClose={() => setShowHelp(false)} />
+      ) : null}
+
+      <button
+        type="button"
+        onClick={() => setShowHelp(true)}
+        className="fixed bottom-20 right-5 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-bold text-slate-600 shadow-lg transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
+        aria-label="Open help panel"
+      >
+        ?
+      </button>
+
+      <FeedbackWidget
+        session={session}
+        onCollectWorkspaceSnapshot={() => ({})}
       />
     </main>
   );
