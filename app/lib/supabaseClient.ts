@@ -61,7 +61,7 @@ export type SupabaseMeetingInvitation = {
 export type SupabaseMeetingMember = {
   meeting_id: string;
   user_id: string;
-  role: "owner" | "editor";
+  role: "owner" | "editor" | "viewer";
   display_name: string | null;
   email: string | null;
   created_at: string;

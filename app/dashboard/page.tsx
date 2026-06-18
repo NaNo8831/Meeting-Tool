@@ -1616,11 +1616,14 @@ useBodyScrollLock(
                     .map((member) => (
                       <div
                         key={member.user_id}
-                        className="rounded-xl border border-slate-200 px-3 py-2"
+                        className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2"
                       >
                         <p className="text-sm font-semibold text-slate-800">
                           {getMemberDisplayName(member)}
                         </p>
+                        <span className="rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                          Owner
+                        </span>
                       </div>
                     ))
                 ) : (
@@ -1646,10 +1649,13 @@ useBodyScrollLock(
                         key={member.user_id}
                         className="flex flex-col gap-2 rounded-xl border border-slate-200 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
                       >
-                        <div>
+                        <div className="flex items-center gap-2">
                           <p className="text-sm font-semibold text-slate-800">
                             {getMemberDisplayName(member)}
                           </p>
+                          <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                            Editor
+                          </span>
                         </div>
                         {meetingPendingAccess.canManageMeetingLifecycle ? (
                           <button
@@ -1672,6 +1678,29 @@ useBodyScrollLock(
                 )}
               </section>
 
+              {meetingMembers.some((member) => member.role === "viewer") ? (
+                <section className="space-y-2" aria-label="Viewers">
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    Viewers
+                  </h3>
+                  {meetingMembers
+                    .filter((member) => member.role === "viewer")
+                    .map((member) => (
+                      <div
+                        key={member.user_id}
+                        className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2"
+                      >
+                        <p className="text-sm font-semibold text-slate-800">
+                          {getMemberDisplayName(member)}
+                        </p>
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-500">
+                          Viewer
+                        </span>
+                      </div>
+                    ))}
+                </section>
+              ) : null}
+
               {meetingPendingAccess.canManageMeetingLifecycle ? (
                 <>
                   <section
@@ -1692,6 +1721,9 @@ useBodyScrollLock(
                           <div>
                             <p className="text-sm font-semibold text-slate-800">
                               {invitation.email}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {invitation.role === "viewer" ? "Viewer" : "Editor"}
                             </p>
                           </div>
                           <button
