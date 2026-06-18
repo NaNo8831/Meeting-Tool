@@ -91,6 +91,27 @@ Do not bundle architecture changes, schema changes, RLS changes, persistence cha
 - **Documentation PR** — updates handoff, state, architecture, validation, README, or planning docs without app-code changes.
 - **Readiness Review PR** — evaluates whether a branch or feature set is ready for main, preview validation, or a broader merge.
 
+## UI/UX Changes — Design Brief Required
+
+Before implementing any change to layout, visual hierarchy,
+or user interaction patterns:
+
+1. Do not write any code
+2. Read the design brief in the sprint artifacts
+3. If no design brief exists, stop and ask the Architect
+   to produce one before proceeding
+4. A design brief must answer:
+   - Every visual state the component can be in
+   - What each element's single responsibility is
+   - What is removed vs added vs changed
+   - Responsive behavior on small screens
+5. Implementation begins only after the Project Lead
+   has approved the design brief
+
+This rule exists because patching UI without a complete
+picture produces compounding regressions. See the
+sprint-pre-beta-header branch as the reference case.
+
 ## Red Flags
 
 - Implementing schema and UI redesign in one PR.
