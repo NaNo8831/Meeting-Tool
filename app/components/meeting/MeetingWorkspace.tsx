@@ -2782,6 +2782,61 @@ export default function MeetingWorkspace() {
     [setMeetings],
   );
 
+  const saveStrategicTopicsBackupToCloud = useCallback(
+    async (currentMeetings: MeetingRecord[]): Promise<MeetingRecord[]> => {
+      if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
+        return currentMeetings;
+      }
+
+      const topicRows = strategicTopicItems.map((item, index) =>
+        mapStrategicTopicToSupabase(item, selectedMeetingId, index),
+      );
+      const savedTopics = await supabaseMeetingClient.saveStrategicTopics({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        topics: topicRows,
+      });
+      await supabaseMeetingClient.deleteMissingStrategicTopics({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        retainedClientItemIds: topicRows.map((t) => t.client_item_id),
+      });
+
+      if (savedTopics.length === 0) return currentMeetings;
+
+      const savedIdsByClientId = new Map(
+        savedTopics.map((t) => [String(t.client_item_id), t.id]),
+      );
+      setStrategicTopicItems((current) =>
+        current.map((item) => {
+          const cloudId = savedIdsByClientId.get(String(item.id));
+          return cloudId ? { ...item, strategicTopicId: cloudId } : item;
+        }),
+      );
+      const updatedMeetings = currentMeetings.map((meeting) => ({
+        ...meeting,
+        agendaItems: meeting.agendaItems.map((agendaItem) => {
+          const resolvedId = agendaItem.promotedStrategicTopicId
+            ? savedIdsByClientId.get(agendaItem.promotedStrategicTopicId)
+            : undefined;
+          return resolvedId
+            ? { ...agendaItem, promotedStrategicTopicId: resolvedId }
+            : agendaItem;
+        }),
+      }));
+      setMeetings(updatedMeetings);
+      return updatedMeetings;
+    },
+    [
+      authSession,
+      isCurrentCloudRouteWorkspace,
+      selectedMeetingId,
+      setMeetings,
+      setStrategicTopicItems,
+      strategicTopicItems,
+    ],
+  );
+
   const saveAgendaItemsBackupToCloud = useCallback(
     async (meetingRecords: MeetingRecord[]) => {
       if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
@@ -3118,7 +3173,9 @@ export default function MeetingWorkspace() {
         "Full workspace saved to cloud backup.",
       );
       if (wasSaved) {
-        await saveAgendaItemsBackupToCloud(meetings);
+        const meetingsWithResolvedTopicIds =
+          await saveStrategicTopicsBackupToCloud(meetings);
+        await saveAgendaItemsBackupToCloud(meetingsWithResolvedTopicIds);
       }
     } catch (error) {
       setCloudSaveStatus("error");
@@ -3134,6 +3191,7 @@ export default function MeetingWorkspace() {
     isCurrentCloudRouteWorkspace,
     meetings,
     saveAgendaItemsBackupToCloud,
+    saveStrategicTopicsBackupToCloud,
     saveWorkspaceBackupToCloud,
     selectedMeetingId,
     selectedMeetingName,
