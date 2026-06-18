@@ -206,8 +206,6 @@ export function MeetingHeader({
   lifecycleStatusDescription,
   lifecycleStatusLabel,
   activeMeetingDate,
-  isActionDateDifferentFromActiveMeeting,
-  meetingActionDate,
   showLifecycleHelp,
   onToggleLifecycleHelp,
   onOpenLifecycleHelp,
@@ -266,7 +264,72 @@ export function MeetingHeader({
         : "Manual Save";
 
   const isOpenMeeting = lifecycleStatusLabel === "Open Meeting";
+  const isTestModeMeeting = lifecycleStatusLabel === "Test Mode";
   const isPastMeeting = lifecycleStatusLabel === "Past Meeting";
+
+  // Shared card layout used for both Open Meeting and Test Mode states
+  const actionCardGroup = (
+    <div className="inline-flex flex-col gap-1.5 rounded-xl border border-slate-200 bg-white/70 px-2.5 py-2">
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={onMeetingAction}
+          disabled={!hasMeetingActionDate}
+          title={meetingActionHelpText}
+          className="rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {meetingActionLabel}
+        </button>
+        <button
+          type="button"
+          onClick={onEndMeeting}
+          disabled={
+            isEndingMeeting ||
+            !authSession ||
+            !selectedMeetingId ||
+            !isCurrentCloudRouteWorkspace ||
+            !canEndMeeting
+          }
+          title="End Meeting captures a Tactical History snapshot and closes this dated record for editing."
+          className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isEndingMeeting ? "Ending…" : "End Meeting"}
+        </button>
+      </div>
+      <div
+        ref={lifecycleHelpRef}
+        className="relative flex items-center gap-1.5 text-xs"
+      >
+        <span
+          className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 font-semibold ${lifecycleStatusClassName}`}
+          title={lifecycleStatusDescription}
+          aria-label={`${lifecycleStatusLabel}: ${lifecycleStatusDescription}`}
+        >
+          {lifecycleStatusLabel}
+          <span className="font-medium opacity-80">{activeMeetingDate}</span>
+        </span>
+        <button
+          type="button"
+          onClick={() => onToggleLifecycleHelp()}
+          onFocus={() => onOpenLifecycleHelp()}
+          className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] font-bold text-slate-400 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          title={`${lifecycleStatusDescription} ${meetingActionHelpText}`}
+          aria-label="Meeting lifecycle help"
+          aria-expanded={showLifecycleHelp}
+        >
+          ?
+        </button>
+        {showLifecycleHelp ? (
+          <div className="absolute left-0 top-full z-40 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-3 text-xs font-medium leading-relaxed text-slate-700 shadow-xl">
+            <p className="font-semibold text-slate-900">
+              {lifecycleStatusDescription}
+            </p>
+            <p className="mt-1">{meetingActionHelpText}</p>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-slate-100/95 backdrop-blur">
@@ -283,68 +346,9 @@ export function MeetingHeader({
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:flex-1 lg:flex-nowrap lg:justify-between lg:gap-3">
 
             {/* Group 1 (left): action buttons + lifecycle context */}
-            {isOpenMeeting ? (
-              // Open Meeting: card wrapping buttons row + lifecycle chip below
-              <div className="inline-flex flex-col gap-1.5 rounded-xl border border-slate-200 bg-white/70 px-2.5 py-2">
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={onMeetingAction}
-                    disabled={!hasMeetingActionDate}
-                    title={meetingActionHelpText}
-                    className="rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {meetingActionLabel}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onEndMeeting}
-                    disabled={
-                      isEndingMeeting ||
-                      !authSession ||
-                      !selectedMeetingId ||
-                      !isCurrentCloudRouteWorkspace ||
-                      !canEndMeeting
-                    }
-                    title="End Meeting captures a Tactical History snapshot and closes this dated record for editing."
-                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isEndingMeeting ? "Ending…" : "End Meeting"}
-                  </button>
-                </div>
-                <div
-                  ref={lifecycleHelpRef}
-                  className="relative flex items-center gap-1.5 text-xs"
-                >
-                  <span
-                    className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 font-semibold ${lifecycleStatusClassName}`}
-                    title={lifecycleStatusDescription}
-                    aria-label={`${lifecycleStatusLabel}: ${lifecycleStatusDescription}`}
-                  >
-                    {lifecycleStatusLabel}
-                    <span className="font-medium opacity-80">{activeMeetingDate}</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => onToggleLifecycleHelp()}
-                    onFocus={() => onOpenLifecycleHelp()}
-                    className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] font-bold text-slate-400 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    title={`${lifecycleStatusDescription} ${meetingActionHelpText}`}
-                    aria-label="Meeting lifecycle help"
-                    aria-expanded={showLifecycleHelp}
-                  >
-                    ?
-                  </button>
-                  {showLifecycleHelp ? (
-                    <div className="absolute left-0 top-full z-40 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-3 text-xs font-medium leading-relaxed text-slate-700 shadow-xl">
-                      <p className="font-semibold text-slate-900">
-                        {lifecycleStatusDescription}
-                      </p>
-                      <p className="mt-1">{meetingActionHelpText}</p>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
+            {isOpenMeeting || isTestModeMeeting ? (
+              // Open Meeting / Test Mode: card with buttons row + lifecycle chip below
+              actionCardGroup
             ) : isPastMeeting ? (
               // Past Meeting: Start button + "Last Meeting" chip below, no dates
               <div ref={lifecycleHelpRef} className="relative inline-flex flex-col gap-1.5">
@@ -363,7 +367,7 @@ export function MeetingHeader({
                 </span>
               </div>
             ) : (
-              // Default (Closed Meeting, Test Mode): original layout
+              // Closed Meeting: chip + action buttons, no separate meeting date span
               <div className="flex flex-wrap items-center gap-2">
                 <div
                   ref={lifecycleHelpRef}
@@ -377,14 +381,6 @@ export function MeetingHeader({
                     {lifecycleStatusLabel}
                     <span className="font-medium opacity-80">{activeMeetingDate}</span>
                   </span>
-                  {isActionDateDifferentFromActiveMeeting ? (
-                    <span
-                      className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 font-medium text-slate-500"
-                      title={meetingActionHelpText}
-                    >
-                      Meeting date: {meetingActionDate}
-                    </span>
-                  ) : null}
                   <button
                     type="button"
                     onClick={() => onToggleLifecycleHelp()}
