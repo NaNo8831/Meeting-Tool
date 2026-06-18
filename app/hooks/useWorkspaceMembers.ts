@@ -22,6 +22,8 @@ interface UseWorkspaceMembersReturn {
   workspaceMembersMessage: string;
   workspaceInviteEmail: string;
   setWorkspaceInviteEmail: (email: string) => void;
+  workspaceInviteRole: "editor" | "viewer";
+  setWorkspaceInviteRole: (role: "editor" | "viewer") => void;
   isCreatingWorkspaceInvitation: boolean;
   isRemovingWorkspaceMember: string | null;
   isRevokingWorkspaceInvitation: string | null;
@@ -46,6 +48,7 @@ export function useWorkspaceMembers(
   const [isLoadingWorkspaceInvitations] = useState(false);
   const [workspaceMembersMessage, setWorkspaceMembersMessage] = useState("");
   const [workspaceInviteEmail, setWorkspaceInviteEmail] = useState("");
+  const [workspaceInviteRole, setWorkspaceInviteRole] = useState<"editor" | "viewer">("editor");
   const [isCreatingWorkspaceInvitation, setIsCreatingWorkspaceInvitation] =
     useState(false);
   const [isRemovingWorkspaceMember, setIsRemovingWorkspaceMember] = useState<
@@ -91,10 +94,12 @@ export function useWorkspaceMembers(
         accessToken: authSession.accessToken,
         meetingId: selectedMeetingId,
         email: trimmedEmail,
+        role: workspaceInviteRole,
       });
       setWorkspaceMeetingInvitations((prev) => [invitation, ...prev]);
       setWorkspaceInviteEmail("");
-      setWorkspaceMembersMessage(`Invited ${invitation.email} as an editor.`);
+      setWorkspaceInviteRole("editor");
+      setWorkspaceMembersMessage(`Invited ${invitation.email} as ${invitation.role === "viewer" ? "a viewer" : "an editor"}.`);
     } catch (error) {
       setWorkspaceMembersMessage(
         error instanceof Error
@@ -175,6 +180,8 @@ export function useWorkspaceMembers(
     workspaceMembersMessage,
     workspaceInviteEmail,
     setWorkspaceInviteEmail,
+    workspaceInviteRole,
+    setWorkspaceInviteRole,
     isCreatingWorkspaceInvitation,
     isRemovingWorkspaceMember,
     isRevokingWorkspaceInvitation,

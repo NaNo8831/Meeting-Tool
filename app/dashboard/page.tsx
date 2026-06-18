@@ -109,6 +109,7 @@ export default function DashboardPage() {
     [],
   );
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"editor" | "viewer">("editor");
   const [isLoadingInvitations, setIsLoadingInvitations] = useState(false);
   const [isAcceptingInvitation, setIsAcceptingInvitation] = useState<
     string | null
@@ -741,13 +742,15 @@ useBodyScrollLock(
         accessToken: session.accessToken,
         meetingId: meetingPendingAccess.id,
         email: trimmedEmail,
+        role: inviteRole,
       });
       setOwnedMeetingInvitations((currentInvitations) => [
         invitation,
         ...currentInvitations,
       ]);
       setInviteEmail("");
-      setAccessMessage(`Invited ${invitation.email} as an editor.`);
+      setInviteRole("editor");
+      setAccessMessage(`Invited ${invitation.email} as ${invitation.role === "viewer" ? "a viewer" : "an editor"}.`);
     } catch (error) {
       setAccessMessage(
         error instanceof Error
@@ -1271,7 +1274,7 @@ useBodyScrollLock(
                         {invitation.meeting_name}
                       </h3>
                       <p className="mt-1 text-sm text-slate-600">
-                        Invited by {invitation.owner_display_name} as an editor.
+                        Invited by {invitation.owner_display_name} as {invitation.role === "viewer" ? "a viewer" : "an editor"}.
                       </p>
                     </div>
                     <button
@@ -1569,9 +1572,9 @@ useBodyScrollLock(
               ) : null}
 
               {meetingPendingAccess.canManageMeetingLifecycle ? (
-                <section className="space-y-2" aria-label="Invite editor">
+                <section className="space-y-2" aria-label="Invite member">
                   <h3 className="text-sm font-semibold text-slate-900">
-                    Invite editor
+                    Invite member
                   </h3>
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <input
@@ -1582,6 +1585,15 @@ useBodyScrollLock(
                       disabled={isCreatingInvitation}
                       className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
                     />
+                    <select
+                      value={inviteRole}
+                      onChange={(event) => setInviteRole(event.target.value as "editor" | "viewer")}
+                      disabled={isCreatingInvitation}
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <option value="editor">Editor</option>
+                      <option value="viewer">Viewer</option>
+                    </select>
                     <button
                       type="button"
                       onClick={() => void handleCreateInvitation()}

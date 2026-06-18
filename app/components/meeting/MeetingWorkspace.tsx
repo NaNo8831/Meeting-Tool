@@ -1572,6 +1572,8 @@ export default function MeetingWorkspace() {
     workspaceMembersMessage,
     workspaceInviteEmail,
     setWorkspaceInviteEmail,
+    workspaceInviteRole,
+    setWorkspaceInviteRole,
     isCreatingWorkspaceInvitation,
     isRemovingWorkspaceMember,
     isRevokingWorkspaceInvitation,
@@ -4225,9 +4227,9 @@ export default function MeetingWorkspace() {
               ) : null}
 
               {isMeetingOwner ? (
-                <section className="space-y-2" aria-label="Invite editor">
+                <section className="space-y-2" aria-label="Invite member">
                   <h3 className="text-sm font-semibold text-slate-900">
-                    Invite editor
+                    Invite member
                   </h3>
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <input
@@ -4238,6 +4240,15 @@ export default function MeetingWorkspace() {
                       disabled={isCreatingWorkspaceInvitation}
                       className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
                     />
+                    <select
+                      value={workspaceInviteRole}
+                      onChange={(e) => setWorkspaceInviteRole(e.target.value as "editor" | "viewer")}
+                      disabled={isCreatingWorkspaceInvitation}
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <option value="editor">Editor</option>
+                      <option value="viewer">Viewer</option>
+                    </select>
                     <button
                       type="button"
                       onClick={() => void handleWorkspaceInviteMember()}
@@ -4336,9 +4347,14 @@ export default function MeetingWorkspace() {
                         key={invitation.id}
                         className="flex flex-col gap-2 rounded-xl border border-slate-200 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
                       >
-                        <p className="text-sm font-semibold text-slate-800">
-                          {invitation.email}
-                        </p>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">
+                            {invitation.email}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {invitation.role === "viewer" ? "Viewer" : "Editor"}
+                          </p>
+                        </div>
                         <button
                           type="button"
                           onClick={() =>
