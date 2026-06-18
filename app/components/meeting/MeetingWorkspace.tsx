@@ -1259,7 +1259,7 @@ export default function MeetingWorkspace() {
   const [showBackupRestore, setShowBackupRestore] = useState(false);
   const [showWorkspaceHelp, setShowWorkspaceHelp] = useState(false);
   const [showTacticalHistory, setShowTacticalHistory] = useState(false);
-  const [showMembersModal, setShowMembersModal] = useState(false);
+
   const [showEndMeetingConfirm, setShowEndMeetingConfirm] = useState(false);
   const [isTestingModeActive, setIsTestingModeActive] = useState(false);
   const [testingMeetingDate, setTestingMeetingDate] = useState(getTodayDate);
@@ -1563,23 +1563,7 @@ export default function MeetingWorkspace() {
   }, [authSession, isAuthLoading, isCloudRoute, router]);
 
   // Slice C: member state, isMeetingOwner, and invitation handlers extracted to useWorkspaceMembers.
-  const {
-    workspaceMeetingMembers,
-    workspaceMeetingInvitations,
-    isMeetingOwner,
-    isLoadingWorkspaceMembers,
-    isLoadingWorkspaceInvitations,
-    workspaceMembersMessage,
-    workspaceInviteEmail,
-    setWorkspaceInviteEmail,
-    isCreatingWorkspaceInvitation,
-    isRemovingWorkspaceMember,
-    isRevokingWorkspaceInvitation,
-    getWorkspaceMemberDisplayName,
-    handleWorkspaceInviteMember,
-    handleWorkspaceRemoveMember,
-    handleWorkspaceRevokeInvitation,
-  } = useWorkspaceMembers(authSession, selectedMeetingId);
+  const { isMeetingOwner } = useWorkspaceMembers(authSession, selectedMeetingId);
 
   const handleChangePassword = async () => {
     if (!authSession) return;
@@ -3791,7 +3775,7 @@ export default function MeetingWorkspace() {
               </p>
               {activeMeeting.isTestMeeting ? (
                 <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 font-semibold text-amber-900">
-                  Testing Mode: this snapshot uses the test date {activeMeeting.date}.
+                  Test Mode: this snapshot uses the test date {activeMeeting.date}.
                 </p>
               ) : null}
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-emerald-950">
@@ -4205,180 +4189,7 @@ export default function MeetingWorkspace() {
         mode="export-only"
       />
 
-      {showMembersModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Members
-              </p>
-              <h2 className="mt-1 text-lg font-semibold text-slate-900">
-                {selectedMeetingName ?? "Meeting"}
-              </h2>
-            </div>
 
-            <div className="mt-5 space-y-5">
-              {workspaceMembersMessage ? (
-                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-                  {workspaceMembersMessage}
-                </p>
-              ) : null}
-
-              {isMeetingOwner ? (
-                <section className="space-y-2" aria-label="Invite editor">
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    Invite editor
-                  </h3>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <input
-                      type="email"
-                      value={workspaceInviteEmail}
-                      onChange={(e) => setWorkspaceInviteEmail(e.target.value)}
-                      placeholder="teammate@example.com"
-                      disabled={isCreatingWorkspaceInvitation}
-                      className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void handleWorkspaceInviteMember()}
-                      disabled={isCreatingWorkspaceInvitation}
-                      className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isCreatingWorkspaceInvitation ? "Inviting…" : "Invite"}
-                    </button>
-                  </div>
-                </section>
-              ) : null}
-
-              <section className="space-y-2" aria-label="Owner">
-                <h3 className="text-sm font-semibold text-slate-900">Owner</h3>
-                {isLoadingWorkspaceMembers ? (
-                  <p className="text-sm text-slate-500">Loading members…</p>
-                ) : workspaceMeetingMembers.some(
-                    (m) => m.role === "owner",
-                  ) ? (
-                  workspaceMeetingMembers
-                    .filter((m) => m.role === "owner")
-                    .map((member) => (
-                      <div
-                        key={member.user_id}
-                        className="rounded-xl border border-slate-200 px-3 py-2"
-                      >
-                        <p className="text-sm font-semibold text-slate-800">
-                          {getWorkspaceMemberDisplayName(member)}
-                        </p>
-                      </div>
-                    ))
-                ) : (
-                  <p className="rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-600">
-                    Owner information is not available.
-                  </p>
-                )}
-              </section>
-
-              <section className="space-y-2" aria-label="Editors">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Editors
-                </h3>
-                {isLoadingWorkspaceMembers ? (
-                  <p className="text-sm text-slate-500">Loading members…</p>
-                ) : workspaceMeetingMembers.some(
-                    (m) => m.role === "editor",
-                  ) ? (
-                  workspaceMeetingMembers
-                    .filter((m) => m.role === "editor")
-                    .map((member) => (
-                      <div
-                        key={member.user_id}
-                        className="flex flex-col gap-2 rounded-xl border border-slate-200 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <p className="text-sm font-semibold text-slate-800">
-                          {getWorkspaceMemberDisplayName(member)}
-                        </p>
-                        {isMeetingOwner ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void handleWorkspaceRemoveMember(member)
-                            }
-                            disabled={Boolean(isRemovingWorkspaceMember)}
-                            className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {isRemovingWorkspaceMember === member.user_id
-                              ? "Removing…"
-                              : "Remove"}
-                          </button>
-                        ) : null}
-                      </div>
-                    ))
-                ) : (
-                  <p className="rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-600">
-                    No active editors for this meeting.
-                  </p>
-                )}
-              </section>
-
-              {isMeetingOwner ? (
-                <section
-                  className="space-y-2"
-                  aria-label="Pending invitations"
-                >
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    Pending invitations
-                  </h3>
-                  {isLoadingWorkspaceInvitations ? (
-                    <p className="text-sm text-slate-500">
-                      Loading invites…
-                    </p>
-                  ) : workspaceMeetingInvitations.length > 0 ? (
-                    workspaceMeetingInvitations.map((invitation) => (
-                      <div
-                        key={invitation.id}
-                        className="flex flex-col gap-2 rounded-xl border border-slate-200 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <p className="text-sm font-semibold text-slate-800">
-                          {invitation.email}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void handleWorkspaceRevokeInvitation(invitation.id)
-                          }
-                          disabled={Boolean(isRevokingWorkspaceInvitation)}
-                          className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {isRevokingWorkspaceInvitation === invitation.id
-                            ? "Revoking…"
-                            : "Revoke"}
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-600">
-                      No pending invitations for this meeting.
-                    </p>
-                  )}
-                </section>
-              ) : null}
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowMembersModal(false)}
-                disabled={
-                  isCreatingWorkspaceInvitation ||
-                  Boolean(isRevokingWorkspaceInvitation) ||
-                  Boolean(isRemovingWorkspaceMember)
-                }
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </main>
   );
 }
