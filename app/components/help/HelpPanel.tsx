@@ -31,9 +31,10 @@ const glossaryTerms = [
 
 type HelpPanelProps = {
   onClose: () => void;
+  mode?: "dashboard" | "workspace";
 };
 
-export function HelpPanel({ onClose }: HelpPanelProps) {
+export function HelpPanel({ onClose, mode = "dashboard" }: HelpPanelProps) {
   useBodyScrollLock(true);
 
   return (
@@ -58,51 +59,55 @@ export function HelpPanel({ onClose }: HelpPanelProps) {
         </div>
 
         <div className="overflow-y-auto px-6 py-5 space-y-8">
-          <section>
-            <h3 className="text-base font-bold uppercase tracking-wide text-slate-500">
-              Quick Start
-            </h3>
-            <ol className="mt-4 space-y-3">
-              <li className="flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
-                  1
-                </span>
-                <span className="text-sm text-slate-700">Create a meeting</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
-                  2
-                </span>
-                <span className="text-sm text-slate-700">
-                  Run it with your team
-                </span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
-                  3
-                </span>
-                <span className="text-sm text-slate-700">
-                  Review outcomes and follow up
-                </span>
-              </li>
-            </ol>
-          </section>
+          {mode === "dashboard" ? (
+            <section>
+              <h3 className="text-base font-bold uppercase tracking-wide text-slate-500">
+                Quick Start
+              </h3>
+              <ol className="mt-4 space-y-3">
+                <li className="flex items-start gap-3">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                    1
+                  </span>
+                  <span className="text-sm text-slate-700">Create a meeting</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                    2
+                  </span>
+                  <span className="text-sm text-slate-700">
+                    Run it with your team
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                    3
+                  </span>
+                  <span className="text-sm text-slate-700">
+                    Review outcomes and follow up
+                  </span>
+                </li>
+              </ol>
+            </section>
+          ) : null}
 
-          <section>
-            <h3 className="text-base font-bold uppercase tracking-wide text-slate-500">
-              Feature Glossary
-            </h3>
-            <dl className="mt-4 space-y-4">
-              {glossaryTerms.map(({ term, definition }) => (
-                <div key={term}>
-                  <dt className="text-sm font-semibold text-slate-900">
-                    {term}
-                  </dt>
-                  <dd className="mt-1 text-sm text-slate-600">{definition}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
+          {mode === "workspace" ? (
+            <section>
+              <h3 className="text-base font-bold uppercase tracking-wide text-slate-500">
+                Feature Glossary
+              </h3>
+              <dl className="mt-4 space-y-4">
+                {glossaryTerms.map(({ term, definition }) => (
+                  <div key={term}>
+                    <dt className="text-sm font-semibold text-slate-900">
+                      {term}
+                    </dt>
+                    <dd className="mt-1 text-sm text-slate-600">{definition}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          ) : null}
         </div>
       </div>
     </div>
