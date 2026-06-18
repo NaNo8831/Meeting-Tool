@@ -1606,44 +1606,16 @@ useBodyScrollLock(
                 </section>
               ) : null}
 
-              <section className="space-y-2" aria-label="Owner">
-                <h3 className="text-sm font-semibold text-slate-900">Owner</h3>
+              <section className="space-y-2" aria-label="Members">
+                <h3 className="text-sm font-semibold text-slate-900">Members</h3>
                 {isLoadingMeetingMembers ? (
                   <p className="text-sm text-slate-500">Loading members…</p>
-                ) : meetingMembers.some((member) => member.role === "owner") ? (
-                  meetingMembers
-                    .filter((member) => member.role === "owner")
-                    .map((member) => (
-                      <div
-                        key={member.user_id}
-                        className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2"
-                      >
-                        <p className="text-sm font-semibold text-slate-800">
-                          {getMemberDisplayName(member)}
-                        </p>
-                        <span className="rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                          Owner
-                        </span>
-                      </div>
-                    ))
-                ) : (
-                  <p className="rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-600">
-                    Owner information is not available.
-                  </p>
-                )}
-              </section>
-
-              <section className="space-y-2" aria-label="Editors">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Editors
-                </h3>
-                {isLoadingMeetingMembers ? (
-                  <p className="text-sm text-slate-500">Loading members…</p>
-                ) : meetingMembers.some(
-                    (member) => member.role === "editor",
-                  ) ? (
-                  meetingMembers
-                    .filter((member) => member.role === "editor")
+                ) : meetingMembers.length > 0 ? (
+                  [...meetingMembers]
+                    .sort((a, b) => {
+                      const order = { owner: 0, editor: 1, viewer: 2 } as Record<string, number>;
+                      return (order[a.role] ?? 3) - (order[b.role] ?? 3);
+                    })
                     .map((member) => (
                       <div
                         key={member.user_id}
@@ -1653,11 +1625,21 @@ useBodyScrollLock(
                           <p className="text-sm font-semibold text-slate-800">
                             {getMemberDisplayName(member)}
                           </p>
-                          <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
-                            Editor
-                          </span>
+                          {member.role === "owner" ? (
+                            <span className="rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                              Owner
+                            </span>
+                          ) : member.role === "editor" ? (
+                            <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                              Editor
+                            </span>
+                          ) : (
+                            <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-500">
+                              Viewer
+                            </span>
+                          )}
                         </div>
-                        {meetingPendingAccess.canManageMeetingLifecycle ? (
+                        {member.role === "editor" && meetingPendingAccess.canManageMeetingLifecycle ? (
                           <button
                             type="button"
                             onClick={() => void handleRemoveMember(member)}
@@ -1673,33 +1655,10 @@ useBodyScrollLock(
                     ))
                 ) : (
                   <p className="rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-600">
-                    No active editors for this meeting.
+                    No members found for this meeting.
                   </p>
                 )}
               </section>
-
-              {meetingMembers.some((member) => member.role === "viewer") ? (
-                <section className="space-y-2" aria-label="Viewers">
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    Viewers
-                  </h3>
-                  {meetingMembers
-                    .filter((member) => member.role === "viewer")
-                    .map((member) => (
-                      <div
-                        key={member.user_id}
-                        className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2"
-                      >
-                        <p className="text-sm font-semibold text-slate-800">
-                          {getMemberDisplayName(member)}
-                        </p>
-                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-500">
-                          Viewer
-                        </span>
-                      </div>
-                    ))}
-                </section>
-              ) : null}
 
               {meetingPendingAccess.canManageMeetingLifecycle ? (
                 <>
