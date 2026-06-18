@@ -1810,7 +1810,7 @@ useBodyScrollLock(
       />
 
       {showHelp ? (
-        <HelpPanel onClose={() => setShowHelp(false)} />
+        <HelpPanel onClose={() => setShowHelp(false)} mode="dashboard" />
       ) : null}
 
       <button

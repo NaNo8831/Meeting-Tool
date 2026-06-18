@@ -17,6 +17,7 @@ import { BackupRestoreModal } from "@/app/components/dashboard/BackupRestoreModa
 import { MeetingSetupModal } from "@/app/components/dashboard/MeetingSetupModal";
 import { PlaybookDefinitionsModal } from "@/app/components/dashboard/PlaybookDefinitionsModal";
 import { FeedbackWidget } from "@/app/components/feedback/FeedbackWidget";
+import { HelpPanel } from "@/app/components/help/HelpPanel";
 import { MeetingHeader } from "@/app/components/meeting/MeetingHeader";
 import { MeetingSection } from "@/app/components/meeting/MeetingSection";
 import { ObjectiveCard } from "@/app/components/objectives/ObjectiveCard";
@@ -1256,6 +1257,7 @@ export default function MeetingWorkspace() {
   const [showMeetingSetup, setShowMeetingSetup] = useState(false);
   const [showPlaybookDefinitions, setShowPlaybookDefinitions] = useState(false);
   const [showBackupRestore, setShowBackupRestore] = useState(false);
+  const [showWorkspaceHelp, setShowWorkspaceHelp] = useState(false);
   const [showTacticalHistory, setShowTacticalHistory] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [showEndMeetingConfirm, setShowEndMeetingConfirm] = useState(false);
@@ -3688,6 +3690,19 @@ export default function MeetingWorkspace() {
           </div>
         </div>
       </div>
+
+      {showWorkspaceHelp ? (
+        <HelpPanel onClose={() => setShowWorkspaceHelp(false)} mode="workspace" />
+      ) : null}
+
+      <button
+        type="button"
+        onClick={() => setShowWorkspaceHelp(true)}
+        className="fixed bottom-20 right-5 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-bold text-slate-600 shadow-lg transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
+        aria-label="Open help panel"
+      >
+        ?
+      </button>
 
       <FeedbackWidget
         session={authSession}
