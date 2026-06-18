@@ -61,13 +61,6 @@ const autosaveSummaryChipClassName: Record<AutosaveSummaryStatus, string> = {
   error: "border-red-200 bg-red-50 text-red-800",
 };
 
-const cloudSaveStatusLabel: Record<CloudSaveStatus, string> = {
-  idle: "Cloud ready",
-  saving: "Working…",
-  saved: "Full workspace backup saved",
-  error: "Cloud action failed",
-};
-
 const settingsAutosaveStatusLabel: Record<SettingsAutosaveStatus, string> = {
   ready: "Settings autosave ready",
   pending: "Settings autosave pending…",
@@ -120,7 +113,7 @@ const objectivesAutosaveStatusLabel: Record<ObjectivesAutosaveStatus, string> =
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
-// Title / badge group
+// Title group
 type TitleProps = {
   stickyMeetingTitle: string;
 };
@@ -169,12 +162,8 @@ type ActionProps = {
   selectedMeetingId: string;
   isCurrentCloudRouteWorkspace: boolean;
   onEndMeeting: () => void;
-  testingToolsEnabled: boolean;
-  isTestingModeActive: boolean;
-  onToggleTestingMode: (checked: boolean) => void;
-  testingMeetingDate: string;
-  onTestingMeetingDateChange: (date: string) => void;
   isManualSaveInFlight: boolean;
+  manualSaveSuccess: boolean;
   onManualSave: () => void;
 };
 
@@ -193,6 +182,11 @@ type MenuProps = {
   onSignOut: () => void;
   isSigningOut: boolean;
   onSignIn: () => void;
+  testingToolsEnabled: boolean;
+  isTestingModeActive: boolean;
+  onToggleTestingMode: (checked: boolean) => void;
+  testingMeetingDate: string;
+  onTestingMeetingDateChange: (date: string) => void;
 };
 
 export type MeetingHeaderProps = TitleProps &
@@ -228,7 +222,6 @@ export function MeetingHeader({
   agendaItemsAutosaveStatus,
   meetingNotesAutosaveStatus,
   objectivesAutosaveStatus,
-  hasUnsavedFullWorkspaceChanges,
   cloudSaveStatus,
   cloudMeetingMessage,
   onReloadCloudBackup,
@@ -242,12 +235,8 @@ export function MeetingHeader({
   authSession,
   selectedMeetingId,
   onEndMeeting,
-  testingToolsEnabled,
-  isTestingModeActive,
-  onToggleTestingMode,
-  testingMeetingDate,
-  onTestingMeetingDateChange,
   isManualSaveInFlight,
+  manualSaveSuccess,
   onManualSave,
   // Menu
   settingsMenuRef,
@@ -262,65 +251,109 @@ export function MeetingHeader({
   onSignOut,
   isSigningOut,
   onSignIn,
+  testingToolsEnabled,
+  isTestingModeActive,
+  onToggleTestingMode,
+  testingMeetingDate,
+  onTestingMeetingDateChange,
 }: MeetingHeaderProps) {
+  const manualSaveLabel = isManualSaveInFlight
+    ? "Saving…"
+    : manualSaveSuccess
+      ? "Saved"
+      : cloudSaveStatus === "error"
+        ? "Save Failed"
+        : "Manual Save";
+
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-slate-100/95 backdrop-blur">
       <div className="mx-auto max-w-[1600px] px-4 py-3 sm:px-8">
-        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 items-center gap-2">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-4">
+          {/* Title */}
+          <div className="flex min-w-0 items-center">
             <h1 className="truncate text-lg font-bold text-slate-900 sm:text-xl">
               {stickyMeetingTitle}
             </h1>
-            <span className="shrink-0 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-              Cloud Meeting
-            </span>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between lg:flex-1 lg:justify-end lg:gap-3">
-            <div
-              ref={lifecycleHelpRef}
-              className="relative flex min-w-0 flex-wrap items-center gap-2 text-xs"
-            >
-              <span
-                className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 font-semibold ${lifecycleStatusClassName}`}
-                title={lifecycleStatusDescription}
-                aria-label={`${lifecycleStatusLabel}: ${lifecycleStatusDescription}`}
+          {/* Right side: three groups */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:flex-1 lg:flex-nowrap lg:justify-between lg:gap-3">
+
+            {/* Group 1 (left): lifecycle chip + Start/Edit/View + End Meeting */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div
+                ref={lifecycleHelpRef}
+                className="relative flex items-center gap-1.5 text-xs"
               >
-                {lifecycleStatusLabel}
-                <span className="font-medium opacity-80">{activeMeetingDate}</span>
-              </span>
-              {isActionDateDifferentFromActiveMeeting ? (
                 <span
-                  className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 font-medium text-slate-500"
-                  title={meetingActionHelpText}
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 font-semibold ${lifecycleStatusClassName}`}
+                  title={lifecycleStatusDescription}
+                  aria-label={`${lifecycleStatusLabel}: ${lifecycleStatusDescription}`}
                 >
-                  Meeting date: {meetingActionDate}
+                  {lifecycleStatusLabel}
+                  <span className="font-medium opacity-80">{activeMeetingDate}</span>
                 </span>
-              ) : null}
+                {isActionDateDifferentFromActiveMeeting ? (
+                  <span
+                    className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 font-medium text-slate-500"
+                    title={meetingActionHelpText}
+                  >
+                    Meeting date: {meetingActionDate}
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => onToggleLifecycleHelp()}
+                  onFocus={() => onOpenLifecycleHelp()}
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white font-bold text-slate-500 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  title={`${lifecycleStatusDescription} ${meetingActionHelpText}`}
+                  aria-label="Meeting lifecycle help"
+                  aria-expanded={showLifecycleHelp}
+                >
+                  ?
+                </button>
+                {showLifecycleHelp ? (
+                  <div className="absolute left-0 top-full z-40 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-3 text-xs font-medium leading-relaxed text-slate-700 shadow-xl">
+                    <p className="font-semibold text-slate-900">
+                      {lifecycleStatusDescription}
+                    </p>
+                    <p className="mt-1">{meetingActionHelpText}</p>
+                  </div>
+                ) : null}
+              </div>
+
               <button
                 type="button"
-                onClick={() => onToggleLifecycleHelp()}
-                onFocus={() => onOpenLifecycleHelp()}
-                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white font-bold text-slate-500 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                title={`${lifecycleStatusDescription} ${meetingActionHelpText}`}
-                aria-label="Meeting lifecycle help"
-                aria-expanded={showLifecycleHelp}
+                onClick={onMeetingAction}
+                disabled={!hasMeetingActionDate}
+                title={meetingActionHelpText}
+                className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                ?
+                {meetingActionLabel}
               </button>
-              {showLifecycleHelp ? (
-                <div className="absolute right-0 top-full z-40 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-3 text-xs font-medium leading-relaxed text-slate-700 shadow-xl">
-                  <p className="font-semibold text-slate-900">
-                    {lifecycleStatusDescription}
-                  </p>
-                  <p className="mt-1">{meetingActionHelpText}</p>
-                </div>
-              ) : null}
+
+              <button
+                type="button"
+                onClick={onEndMeeting}
+                disabled={
+                  isEndingMeeting ||
+                  !authSession ||
+                  !selectedMeetingId ||
+                  !isCurrentCloudRouteWorkspace ||
+                  !canEndMeeting
+                }
+                title="End Meeting captures a Tactical History snapshot and closes this dated record for editing."
+                className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isEndingMeeting ? "Ending…" : "End Meeting"}
+              </button>
             </div>
+
+            {/* Group 2 (center): autosave chip */}
             {isCurrentCloudRouteWorkspace ? (
               <div
                 ref={autosaveStatusDetailRef}
-                className="relative sm:flex-1 sm:max-w-md lg:mx-4"
+                className="relative sm:flex-1 sm:max-w-xs"
               >
                 <button
                   type="button"
@@ -382,18 +415,6 @@ export function MeetingHeader({
                           ]
                         }
                       </li>
-                      <li
-                        className={
-                          hasUnsavedFullWorkspaceChanges
-                            ? "font-semibold text-amber-800"
-                            : "text-slate-600"
-                        }
-                      >
-                        <span className="font-semibold">Full backup:</span>{" "}
-                        {hasUnsavedFullWorkspaceChanges
-                          ? "Manual Save recommended for full-workspace backup."
-                          : cloudSaveStatusLabel[cloudSaveStatus]}
-                      </li>
                     </ul>
                     {autosaveSummaryStatus === "error" ? (
                       <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 font-semibold text-red-800">
@@ -416,60 +437,8 @@ export function MeetingHeader({
               </div>
             ) : null}
 
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={onMeetingAction}
-                disabled={!hasMeetingActionDate}
-                title={meetingActionHelpText}
-                className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {meetingActionLabel}
-              </button>
-              <button
-                type="button"
-                onClick={onEndMeeting}
-                disabled={
-                  isEndingMeeting ||
-                  !authSession ||
-                  !selectedMeetingId ||
-                  !isCurrentCloudRouteWorkspace ||
-                  !canEndMeeting
-                }
-                title="End Meeting captures a Tactical History snapshot and closes this dated record for editing."
-                className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isEndingMeeting ? "Ending…" : "End Meeting"}
-              </button>
-              {testingToolsEnabled ? (
-                <label
-                  className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800"
-                  title="Test meeting. Safe for practice and validation."
-                >
-                  <input
-                    type="checkbox"
-                    checked={isTestingModeActive}
-                    onChange={(event) =>
-                      onToggleTestingMode(event.target.checked)
-                    }
-                    className="h-4 w-4 rounded border-amber-300 text-amber-600"
-                  />
-                  Test Mode
-                </label>
-              ) : null}
-              {isTestingModeActive && testingToolsEnabled ? (
-                <input
-                  id="sticky-test-meeting-date"
-                  type="date"
-                  required
-                  value={testingMeetingDate}
-                  onChange={(event) =>
-                    onTestingMeetingDateChange(event.target.value)
-                  }
-                  className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-slate-900"
-                  aria-label="Test meeting date"
-                />
-              ) : null}
+            {/* Group 3 (right): Manual Save + ☰ menu */}
+            <div className="flex items-center gap-2 sm:ml-auto lg:ml-0">
               {isCurrentCloudRouteWorkspace ? (
                 <button
                   type="button"
@@ -477,9 +446,10 @@ export function MeetingHeader({
                   disabled={isManualSaveInFlight}
                   className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isManualSaveInFlight ? "Saving…" : "Manual Save"}
+                  {manualSaveLabel}
                 </button>
               ) : null}
+
               <div ref={settingsMenuRef} className="relative">
                 <button
                   type="button"
@@ -544,6 +514,36 @@ export function MeetingHeader({
                         >
                           Change Password
                         </button>
+                        {testingToolsEnabled ? (
+                          <div className="border-t border-slate-100">
+                            <label className="flex cursor-pointer items-center gap-3 px-5 py-3 text-sm font-semibold text-amber-800 hover:bg-amber-50">
+                              <input
+                                type="checkbox"
+                                checked={isTestingModeActive}
+                                onChange={(event) =>
+                                  onToggleTestingMode(event.target.checked)
+                                }
+                                className="h-4 w-4 rounded border-amber-300 text-amber-600"
+                              />
+                              Test Mode
+                            </label>
+                            {isTestingModeActive ? (
+                              <div className="px-5 pb-3">
+                                <input
+                                  id="menu-test-meeting-date"
+                                  type="date"
+                                  required
+                                  value={testingMeetingDate}
+                                  onChange={(event) =>
+                                    onTestingMeetingDateChange(event.target.value)
+                                  }
+                                  className="w-full rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-slate-900"
+                                  aria-label="Test meeting date"
+                                />
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
                         {/* Edit Playbook: organization_info is scoped per-meeting via
                             getWorkspaceScopedStorageKey and is already cloud-persisted
                             via meeting_settings through useWorkspacePersistence. Owner-only. */}

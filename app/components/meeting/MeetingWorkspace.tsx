@@ -1141,6 +1141,7 @@ export default function MeetingWorkspace() {
   const [activeCloudWorkspaceId, setActiveCloudWorkspaceId] = useState("");
   const [cloudSaveStatus, setCloudSaveStatus] =
     useState<CloudSaveStatus>("idle");
+  const [manualSaveSuccess, setManualSaveSuccess] = useState(false);
   const [settingsAutosaveStatus, setSettingsAutosaveStatus] =
     useState<SettingsAutosaveStatus>("ready");
   const [strategicTopicsAutosaveStatus, setStrategicTopicsAutosaveStatus] =
@@ -2495,6 +2496,7 @@ export default function MeetingWorkspace() {
     ],
   );
 
+  // eslint-disable-next-line react-hooks/refs
   getCurrentWorkspaceStorageRef.current = getCurrentWorkspaceStorage;
 
   const normalizeStrategicTopicNotesBackup = useCallback(
@@ -3205,6 +3207,16 @@ export default function MeetingWorkspace() {
     return () => window.clearTimeout(timeoutId);
   }, [selectedMeetingId]);
 
+  useEffect(() => {
+    if (cloudSaveStatus !== "saved") return;
+    const setId = window.setTimeout(() => setManualSaveSuccess(true), 0);
+    const clearId = window.setTimeout(() => setManualSaveSuccess(false), 2000);
+    return () => {
+      window.clearTimeout(setId);
+      window.clearTimeout(clearId);
+    };
+  }, [cloudSaveStatus]);
+
   // After a cloud meeting loads (activeCloudWorkspaceId is set), sync the
   // baseline signature to current workspace state so the "Manual Save needed"
   // banner only appears when the user actually changes something post-load.
@@ -3486,14 +3498,15 @@ export default function MeetingWorkspace() {
         isEndingMeeting={isEndingMeeting}
         canEndMeeting={canEndMeeting}
         onEndMeeting={() => setShowEndMeetingConfirm(true)}
+        isManualSaveInFlight={isManualSaveInFlight}
+        manualSaveSuccess={manualSaveSuccess}
+        onManualSave={() => void handleSaveCloudMeeting()}
+        settingsMenuRef={settingsMenuRef}
         testingToolsEnabled={testingToolsEnabled}
         isTestingModeActive={isTestingModeActive}
         onToggleTestingMode={(checked) => setIsTestingModeActive(checked)}
         testingMeetingDate={testingMeetingDate}
         onTestingMeetingDateChange={(date) => setTestingMeetingDate(date)}
-        isManualSaveInFlight={isManualSaveInFlight}
-        onManualSave={() => void handleSaveCloudMeeting()}
-        settingsMenuRef={settingsMenuRef}
         showSettingsMenu={showSettingsMenu}
         onToggleSettingsMenu={() => setShowSettingsMenu((isOpen) => !isOpen)}
         isMeetingOwner={isMeetingOwner}
