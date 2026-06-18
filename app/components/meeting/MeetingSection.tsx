@@ -175,7 +175,7 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
                 onChange={(event) => updateAgendaItem?.(item.id, { cascadeNeeded: event.target.checked })}
                 className="h-3.5 w-3.5 rounded border-slate-300 text-amber-600"
               />
-              Cascade
+              Cascade needed
             </label>
             {!item.promotedStrategicTopicId ? (
               <button

@@ -3791,7 +3791,7 @@ export default function MeetingWorkspace() {
               </p>
               {activeMeeting.isTestMeeting ? (
                 <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 font-semibold text-amber-900">
-                  Testing Mode: this snapshot uses the test date {activeMeeting.date}.
+                  Test Mode: this snapshot uses the test date {activeMeeting.date}.
                 </p>
               ) : null}
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-emerald-950">
