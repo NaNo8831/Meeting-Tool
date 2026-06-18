@@ -107,6 +107,11 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
             Notes ✓
           </span>
         ) : null}
+        {item.promotedStrategicTopicId ? (
+          <span className="shrink-0 rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
+            Strategic Topic
+          </span>
+        ) : null}
         {!isReadOnly ? (
           <button
             type="button"
@@ -125,7 +130,7 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
   // Row 1: Title (left) | Covered/Cascade/+Strategic Topic controls (right)
   // Row 2: Outcome (left) | Discussion Notes (right)
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
     <div className="grid grid-cols-2 gap-x-4 gap-y-3">
       {/* Row 1 left — Title */}
       <div className="flex items-start gap-1.5">
@@ -172,14 +177,15 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
               />
               Cascade
             </label>
-            <button
-              type="button"
-              disabled={Boolean(item.promotedStrategicTopicId)}
-              onClick={() => section.promoteAgendaItem?.(item)}
-              className="rounded-md border border-purple-200 bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {item.promotedStrategicTopicId ? 'In Topics' : '+ Strategic Topic'}
-            </button>
+            {!item.promotedStrategicTopicId ? (
+              <button
+                type="button"
+                onClick={() => { section.promoteAgendaItem?.(item); setIsExpanded(false); }}
+                className="rounded-md border border-purple-200 bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 hover:bg-purple-100"
+              >
+                + Strategic Topic
+              </button>
+            ) : null}
           </>
         ) : null}
       </div>
