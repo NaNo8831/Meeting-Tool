@@ -1626,7 +1626,7 @@ useBodyScrollLock(
                             {getMemberDisplayName(member)}
                           </p>
                           {member.role === "owner" ? (
-                            <span className="rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                            <span className="rounded-full border border-green-200 bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
                               Owner
                             </span>
                           ) : member.role === "editor" ? (
@@ -1634,7 +1634,7 @@ useBodyScrollLock(
                               Editor
                             </span>
                           ) : (
-                            <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-500">
+                            <span className="rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
                               Viewer
                             </span>
                           )}
