@@ -1425,12 +1425,31 @@ export default function MeetingWorkspace() {
 
   // handlePrimaryAction is defined below, after handleMeetingAction
 
+  // The single most recent past meeting (latest date among non-test,
+  // non-today, non-historical meetings) earns the "Last Meeting" label;
+  // every other past or ended meeting reads as "Closed".
+  const lastMeetingId: number | null = (() => {
+    const pastOpenMeetings = meetings.filter(
+      (meeting) =>
+        meeting.isTestMeeting !== true &&
+        meeting.date < todayDate &&
+        !historicalMeetingIds.has(meeting.id),
+    );
+    if (pastOpenMeetings.length === 0) return null;
+    const newestFirst = [...pastOpenMeetings].sort(
+      (firstMeeting, secondMeeting) =>
+        secondMeeting.date.localeCompare(firstMeeting.date) ||
+        secondMeeting.id - firstMeeting.id,
+    );
+    return newestFirst[0].id;
+  })();
+
   const chipLabel: "Open Meeting" | "Last Meeting" | "Closed" | "Test Mode" | null = (() => {
     if (meetings.length === 0) return null;
     if (isViewingEditableTestMeeting) return "Test Mode";
     if (isActiveMeetingHistorical) return "Closed";
     if (isViewingTodayMeeting) return "Open Meeting";
-    return "Last Meeting";
+    return activeMeeting.id === lastMeetingId ? "Last Meeting" : "Closed";
   })();
 
   const chipDate: string | null = chipLabel !== null ? activeMeeting.date : null;
@@ -3428,7 +3447,7 @@ export default function MeetingWorkspace() {
   const isManualSaveInFlight =
     cloudSaveStatus === "saving" && isCurrentCloudRouteWorkspace;
 
-  const computedManualSaveLabel: "Manual Save" | "Saving..." | "Saved" | "Up to date" | "Save failed" =
+  const computedManualSaveLabel: "Save" | "Saving..." | "Saved" | "Up to date" | "Save failed" =
     manualSaveJustSucceeded
       ? "Saved"
       : isManualSaveInFlight
@@ -3437,7 +3456,7 @@ export default function MeetingWorkspace() {
           ? "Up to date"
           : cloudSaveStatus === "error"
             ? "Save failed"
-            : "Manual Save";
+            : "Save";
 
   const computedManualSaveDisabled = isManualSaveInFlight;
 

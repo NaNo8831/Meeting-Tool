@@ -51,7 +51,7 @@ export type ChipLabel =
   | null;
 
 export type ManualSaveLabel =
-  | "Manual Save"
+  | "Save"
   | "Saving..."
   | "Saved"
   | "Up to date"
@@ -132,10 +132,12 @@ const objectivesAutosaveStatusLabel: Record<ObjectivesAutosaveStatus, string> =
   };
 
 const chipLabelClassName: Record<NonNullable<ChipLabel>, string> = {
+  // Test Mode keeps its amber warning tint; all other lifecycle chips read as
+  // muted secondary information so they do not compete with the title.
   "Test Mode": "border-amber-200 bg-amber-50 text-amber-800",
-  Closed: "border-slate-200 bg-slate-100 text-slate-600",
-  "Open Meeting": "border-slate-200 bg-slate-50 text-slate-500",
-  "Last Meeting": "border-slate-200 bg-white text-slate-500",
+  Closed: "border-slate-200 bg-slate-100 text-slate-400",
+  "Open Meeting": "border-slate-200 bg-slate-100 text-slate-400",
+  "Last Meeting": "border-slate-200 bg-slate-100 text-slate-400",
 };
 
 const manualSaveLabelClassName: Record<ManualSaveLabel, string> = {
@@ -146,8 +148,7 @@ const manualSaveLabelClassName: Record<ManualSaveLabel, string> = {
     "rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-400 hover:bg-slate-50",
   "Save failed":
     "rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100",
-  "Manual Save":
-    "rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50",
+  Save: "rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50",
 };
 
 // ─── Date formatting helper ───────────────────────────────────────────────────
@@ -289,15 +290,15 @@ export function MeetingHeader({
 }: MeetingHeaderProps) {
   const primaryActionClassName =
     primaryActionLabel === "View Meeting"
-      ? "rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-      : "rounded-xl bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60";
+      ? "rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+      : "rounded-xl bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60";
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-slate-100/95 backdrop-blur">
       <div className="mx-auto max-w-[1600px] px-4 py-3 sm:px-8">
         <div className="flex items-center justify-between gap-3">
           {/* Left: Zones 1+2 */}
-          <div className="flex min-w-0 shrink-0 items-center gap-5">
+          <div className="flex min-w-0 shrink-0 items-center gap-6">
             {/* Zone 1: Title */}
             <h1 className="truncate text-lg font-bold text-slate-900 sm:text-xl">
               {stickyMeetingTitle}
