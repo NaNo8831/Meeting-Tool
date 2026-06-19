@@ -1287,6 +1287,7 @@ export default function MeetingWorkspace() {
   const [isLoadingTacticalSessions, setIsLoadingTacticalSessions] =
     useState(false);
   const [isEndingMeeting, setIsEndingMeeting] = useState(false);
+  const [manualSaveJustSucceeded, setManualSaveJustSucceeded] = useState(false);
   const [selectedTacticalSessionId, setSelectedTacticalSessionId] =
     useState("");
   const [historyNotesTopic, setHistoryNotesTopic] = useState<MeetingItem | null>(null);
@@ -3176,6 +3177,8 @@ export default function MeetingWorkspace() {
         const meetingsWithResolvedTopicIds =
           await saveStrategicTopicsBackupToCloud(meetings);
         await saveAgendaItemsBackupToCloud(meetingsWithResolvedTopicIds);
+        setManualSaveJustSucceeded(true);
+        setTimeout(() => setManualSaveJustSucceeded(false), 2000);
       }
     } catch (error) {
       setCloudSaveStatus("error");
@@ -3493,6 +3496,8 @@ export default function MeetingWorkspace() {
         onTestingMeetingDateChange={(date) => setTestingMeetingDate(date)}
         isManualSaveInFlight={isManualSaveInFlight}
         onManualSave={() => void handleSaveCloudMeeting()}
+        manualSaveJustSucceeded={manualSaveJustSucceeded}
+        isActiveMeetingHistorical={isActiveMeetingHistorical}
         settingsMenuRef={settingsMenuRef}
         showSettingsMenu={showSettingsMenu}
         onToggleSettingsMenu={() => setShowSettingsMenu((isOpen) => !isOpen)}
