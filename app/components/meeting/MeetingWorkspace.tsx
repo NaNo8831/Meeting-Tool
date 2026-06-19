@@ -1387,13 +1387,6 @@ export default function MeetingWorkspace() {
   const meetingNotesReadOnlyMessage = isActiveMeetingHistorical
     ? "This meeting has been ended and captured in Tactical History. Dated meeting notes are read-only."
     : "This is not the current meeting date. Dated meeting notes are read-only unless this is an enabled Test Mode record.";
-  const lifecycleStatusLabel = isActiveMeetingHistorical
-    ? "Closed Meeting"
-    : isViewingEditableTestMeeting
-      ? "Test Mode"
-      : isViewingTodayMeeting
-        ? "Open Meeting"
-        : "Past Meeting";
   const lifecycleStatusDescription = isActiveMeetingHistorical
     ? "Past meeting record. Review-only unless reopened through an approved workflow."
     : isViewingEditableTestMeeting
@@ -1401,13 +1394,6 @@ export default function MeetingWorkspace() {
       : isViewingTodayMeeting
         ? "Current meeting record."
         : "Past meeting record. Review-only unless reopened through an approved workflow.";
-  const lifecycleStatusClassName = isActiveMeetingHistorical
-    ? "border-slate-300 bg-slate-50 text-slate-700"
-    : isViewingEditableTestMeeting
-      ? "border-amber-200 bg-amber-50 text-amber-900"
-      : isViewingTodayMeeting
-        ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-        : "border-slate-200 bg-white text-slate-700";
   const isActionDateMeetingHistorical = actionDateMeeting
     ? historicalMeetingIds.has(actionDateMeeting.id)
     : false;
@@ -1420,16 +1406,37 @@ export default function MeetingWorkspace() {
       : isTestingDateOverrideActive
         ? "Edit opens the existing test dated meeting while Test Mode is enabled."
         : "Edit opens today’s current meeting record for continued work.";
-  const isActionDateDifferentFromActiveMeeting =
-    actionDateMeeting !== undefined && actionDateMeeting.id !== activeMeeting.id;
-  const meetingActionLabel = !actionDateMeeting
-    ? "Start Meeting"
-    : isActionDateMeetingHistorical
-      ? "View Meeting"
-      : "Edit Meeting";
   const canEndMeeting =
     (isViewingTodayMeeting || isViewingEditableTestMeeting) &&
     !isMeetingNotesReadOnly;
+
+  // Pre-computed props for MeetingHeader — display logic lives here, not in the header
+  const primaryActionLabel: "Start Meeting" | "Edit Meeting" | "End Meeting" | "View Meeting" =
+    isCurrentCloudRouteWorkspace && canEndMeeting
+      ? "End Meeting"
+      : !actionDateMeeting
+        ? "Start Meeting"
+        : isActionDateMeetingHistorical
+          ? "View Meeting"
+          : "Edit Meeting";
+
+  const primaryActionDisabled =
+    primaryActionLabel === "Start Meeting" && !hasMeetingActionDate;
+
+  // handlePrimaryAction is defined below, after handleMeetingAction
+
+  const chipLabel: "Open Meeting" | "Last Meeting" | "Closed" | "Test Mode" | null = (() => {
+    if (meetings.length === 0) return null;
+    if (isViewingEditableTestMeeting) return "Test Mode";
+    if (isActiveMeetingHistorical) return "Closed";
+    if (isViewingTodayMeeting) return "Open Meeting";
+    return "Last Meeting";
+  })();
+
+  const chipDate: string | null = chipLabel !== null ? activeMeeting.date : null;
+
+  // computedManualSaveLabel and computedManualSaveDisabled defined below, after isManualSaveInFlight
+
   const hasLoadedDashboardStorage =
     hasLoadedObjectives &&
     hasLoadedMeetings &&
@@ -2023,6 +2030,11 @@ export default function MeetingWorkspace() {
     setNewCascadeItem("");
     scrollToMeetingNotes();
   };
+
+  const handlePrimaryAction =
+    primaryActionLabel === "End Meeting"
+      ? () => setShowEndMeetingConfirm(true)
+      : handleMeetingAction;
 
   const deleteCurrentMeetingNotes = () => {
     if (isMeetingNotesReadOnly) return;
@@ -3401,6 +3413,19 @@ export default function MeetingWorkspace() {
   const isManualSaveInFlight =
     cloudSaveStatus === "saving" && isCurrentCloudRouteWorkspace;
 
+  const computedManualSaveLabel: "Manual Save" | "Saving..." | "Saved" | "Up to date" | "Save failed" =
+    manualSaveJustSucceeded
+      ? "Saved"
+      : isManualSaveInFlight
+        ? "Saving..."
+        : !hasUnsavedFullWorkspaceChanges
+          ? "Up to date"
+          : cloudSaveStatus === "error"
+            ? "Save failed"
+            : "Manual Save";
+
+  const computedManualSaveDisabled = isManualSaveInFlight;
+
   if (!hasLoadedDashboardStorage) {
     return (
       <main className="min-h-screen bg-slate-100 p-8">
@@ -3452,15 +3477,11 @@ export default function MeetingWorkspace() {
         stickyMeetingTitle={stickyMeetingTitle}
         isCurrentCloudRouteWorkspace={isCurrentCloudRouteWorkspace}
         authSession={authSession}
-        selectedMeetingId={selectedMeetingId}
         isAuthLoading={isAuthLoading}
         lifecycleHelpRef={lifecycleHelpRef}
-        lifecycleStatusClassName={lifecycleStatusClassName}
         lifecycleStatusDescription={lifecycleStatusDescription}
-        lifecycleStatusLabel={lifecycleStatusLabel}
-        activeMeetingDate={activeMeeting.date}
-        isActionDateDifferentFromActiveMeeting={isActionDateDifferentFromActiveMeeting}
-        meetingActionDate={meetingActionDate}
+        chipLabel={chipLabel}
+        chipDate={chipDate}
         showLifecycleHelp={showLifecycleHelp}
         onToggleLifecycleHelp={() => setShowLifecycleHelp((isOpen) => !isOpen)}
         onOpenLifecycleHelp={() => setShowLifecycleHelp(true)}
@@ -3475,29 +3496,23 @@ export default function MeetingWorkspace() {
         agendaItemsAutosaveStatus={agendaItemsAutosaveStatus}
         meetingNotesAutosaveStatus={meetingNotesAutosaveStatus}
         objectivesAutosaveStatus={objectivesAutosaveStatus}
-        hasUnsavedFullWorkspaceChanges={hasUnsavedFullWorkspaceChanges}
-        cloudSaveStatus={cloudSaveStatus}
         cloudMeetingMessage={cloudMeetingMessage}
         onReloadCloudBackup={() => {
           setShowAutosaveStatusDetail(false);
           void handleLoadCloudMeeting();
         }}
         meetingActionHelpText={meetingActionHelpText}
-        meetingActionLabel={meetingActionLabel}
-        hasMeetingActionDate={hasMeetingActionDate}
-        onMeetingAction={handleMeetingAction}
-        isEndingMeeting={isEndingMeeting}
-        canEndMeeting={canEndMeeting}
-        onEndMeeting={() => setShowEndMeetingConfirm(true)}
+        primaryActionLabel={primaryActionLabel}
+        primaryActionDisabled={primaryActionDisabled}
+        onPrimaryAction={handlePrimaryAction}
         testingToolsEnabled={testingToolsEnabled}
         isTestingModeActive={isTestingModeActive}
         onToggleTestingMode={(checked) => setIsTestingModeActive(checked)}
         testingMeetingDate={testingMeetingDate}
         onTestingMeetingDateChange={(date) => setTestingMeetingDate(date)}
-        isManualSaveInFlight={isManualSaveInFlight}
+        manualSaveLabel={computedManualSaveLabel}
+        manualSaveDisabled={computedManualSaveDisabled}
         onManualSave={() => void handleSaveCloudMeeting()}
-        manualSaveJustSucceeded={manualSaveJustSucceeded}
-        isActiveMeetingHistorical={isActiveMeetingHistorical}
         settingsMenuRef={settingsMenuRef}
         showSettingsMenu={showSettingsMenu}
         onToggleSettingsMenu={() => setShowSettingsMenu((isOpen) => !isOpen)}

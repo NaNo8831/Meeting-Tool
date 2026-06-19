@@ -43,6 +43,26 @@ export type ObjectivesAutosaveStatus =
   | "saved"
   | "error";
 
+export type ChipLabel =
+  | "Open Meeting"
+  | "Last Meeting"
+  | "Closed"
+  | "Test Mode"
+  | null;
+
+export type ManualSaveLabel =
+  | "Manual Save"
+  | "Saving..."
+  | "Saved"
+  | "Up to date"
+  | "Save failed";
+
+export type PrimaryActionLabel =
+  | "Start Meeting"
+  | "Edit Meeting"
+  | "End Meeting"
+  | "View Meeting";
+
 // ─── Static label / class maps ────────────────────────────────────────────────
 
 const autosaveSummaryLabel: Record<AutosaveSummaryStatus, string> = {
@@ -60,7 +80,6 @@ const autosaveSummaryChipClassName: Record<AutosaveSummaryStatus, string> = {
   "backup-needed": "border-amber-200 bg-amber-50 text-amber-900",
   error: "border-red-200 bg-red-50 text-red-800",
 };
-
 
 const settingsAutosaveStatusLabel: Record<SettingsAutosaveStatus, string> = {
   ready: "Settings autosave ready",
@@ -112,6 +131,25 @@ const objectivesAutosaveStatusLabel: Record<ObjectivesAutosaveStatus, string> =
     error: "Objectives, Tasks, and SOOs autosave failed",
   };
 
+const chipLabelClassName: Record<NonNullable<ChipLabel>, string> = {
+  "Test Mode": "border-amber-200 bg-amber-50 text-amber-800",
+  Closed: "border-slate-200 bg-slate-100 text-slate-600",
+  "Open Meeting": "border-emerald-200 bg-emerald-50 text-emerald-800",
+  "Last Meeting": "border-slate-200 bg-white text-slate-500",
+};
+
+const manualSaveLabelClassName: Record<ManualSaveLabel, string> = {
+  "Saving...":
+    "rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-400 cursor-not-allowed",
+  Saved: "rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700",
+  "Up to date":
+    "rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-400 hover:bg-slate-50",
+  "Save failed":
+    "rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100",
+  "Manual Save":
+    "rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50",
+};
+
 // ─── Date formatting helper ───────────────────────────────────────────────────
 
 const formatMeetingDate = (date: string): string => {
@@ -132,16 +170,12 @@ type TitleProps = {
 // Lifecycle status group
 type LifecycleProps = {
   lifecycleHelpRef: RefObject<HTMLDivElement | null>;
-  lifecycleStatusClassName: string;
   lifecycleStatusDescription: string;
-  lifecycleStatusLabel: string;
-  activeMeetingDate: string;
-  isActionDateDifferentFromActiveMeeting: boolean;
-  meetingActionDate: string;
+  chipLabel: ChipLabel;
+  chipDate: string | null;
   showLifecycleHelp: boolean;
   onToggleLifecycleHelp: () => void;
   onOpenLifecycleHelp: () => void;
-  isActiveMeetingHistorical: boolean;
 };
 
 // Autosave chip group
@@ -156,8 +190,6 @@ type AutosaveProps = {
   agendaItemsAutosaveStatus: AgendaItemsAutosaveStatus;
   meetingNotesAutosaveStatus: MeetingNotesAutosaveStatus;
   objectivesAutosaveStatus: ObjectivesAutosaveStatus;
-  hasUnsavedFullWorkspaceChanges: boolean;
-  cloudSaveStatus: CloudSaveStatus;
   cloudMeetingMessage: string;
   onReloadCloudBackup: () => void;
 };
@@ -165,23 +197,17 @@ type AutosaveProps = {
 // Meeting action buttons group
 type ActionProps = {
   meetingActionHelpText: string;
-  meetingActionLabel: string;
-  hasMeetingActionDate: boolean;
-  onMeetingAction: () => void;
-  isEndingMeeting: boolean;
-  canEndMeeting: boolean;
-  authSession: { user: { email: string } } | null;
-  selectedMeetingId: string;
-  isCurrentCloudRouteWorkspace: boolean;
-  onEndMeeting: () => void;
+  primaryActionLabel: PrimaryActionLabel;
+  primaryActionDisabled: boolean;
+  onPrimaryAction: () => void;
   testingToolsEnabled: boolean;
   isTestingModeActive: boolean;
   onToggleTestingMode: (checked: boolean) => void;
   testingMeetingDate: string;
   onTestingMeetingDateChange: (date: string) => void;
-  isManualSaveInFlight: boolean;
+  manualSaveLabel: ManualSaveLabel;
+  manualSaveDisabled: boolean;
   onManualSave: () => void;
-  manualSaveJustSucceeded: boolean;
 };
 
 // Settings / account menu group
@@ -215,11 +241,11 @@ export function MeetingHeader({
   // Lifecycle
   lifecycleHelpRef,
   lifecycleStatusDescription,
-  activeMeetingDate,
+  chipLabel,
+  chipDate,
   showLifecycleHelp,
   onToggleLifecycleHelp,
   onOpenLifecycleHelp,
-  isActiveMeetingHistorical,
   // Autosave
   isCurrentCloudRouteWorkspace,
   autosaveStatusDetailRef,
@@ -231,25 +257,21 @@ export function MeetingHeader({
   agendaItemsAutosaveStatus,
   meetingNotesAutosaveStatus,
   objectivesAutosaveStatus,
-  hasUnsavedFullWorkspaceChanges,
-  cloudSaveStatus,
   cloudMeetingMessage,
   onReloadCloudBackup,
   // Actions
   meetingActionHelpText,
-  meetingActionLabel,
-  hasMeetingActionDate,
-  onMeetingAction,
-  canEndMeeting,
-  onEndMeeting,
+  primaryActionLabel,
+  primaryActionDisabled,
+  onPrimaryAction,
   testingToolsEnabled,
   isTestingModeActive,
   onToggleTestingMode,
   testingMeetingDate,
   onTestingMeetingDateChange,
-  isManualSaveInFlight,
+  manualSaveLabel,
+  manualSaveDisabled,
   onManualSave,
-  manualSaveJustSucceeded,
   // Menu
   settingsMenuRef,
   showSettingsMenu,
@@ -265,84 +287,10 @@ export function MeetingHeader({
   isSigningOut,
   onSignIn,
 }: MeetingHeaderProps) {
-  // ─── Zone 2: Primary action button ───────────────────────────────────────
-  let primaryActionLabel: string;
-  let primaryActionDisabled = false;
-  let primaryActionHandler: () => void;
-  let primaryActionIsBlue: boolean;
-
-  if (canEndMeeting) {
-    primaryActionLabel = "End Meeting";
-    primaryActionHandler = onEndMeeting;
-    primaryActionIsBlue = true;
-  } else if (meetingActionLabel === "Start Meeting") {
-    primaryActionLabel = "Start Meeting";
-    primaryActionDisabled = !hasMeetingActionDate;
-    primaryActionHandler = onMeetingAction;
-    primaryActionIsBlue = true;
-  } else if (meetingActionLabel === "Edit Meeting") {
-    primaryActionLabel = "Edit Meeting";
-    primaryActionHandler = onMeetingAction;
-    primaryActionIsBlue = true;
-  } else {
-    primaryActionLabel = "View Meeting";
-    primaryActionHandler = onMeetingAction;
-    primaryActionIsBlue = false;
-  }
-
-  const primaryActionClassName = primaryActionIsBlue
-    ? "rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-    : "rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60";
-
-  // ─── Zone 2: Lifecycle chip ───────────────────────────────────────────────
-  let lifecycleChipLabel: string;
-  let lifecycleChipClassName: string;
-
-  if (isTestingModeActive && testingToolsEnabled) {
-    lifecycleChipLabel = `Test Mode · ${formatMeetingDate(testingMeetingDate)}`;
-    lifecycleChipClassName = "border-amber-200 bg-amber-50 text-amber-800";
-  } else if (isActiveMeetingHistorical) {
-    lifecycleChipLabel = `Closed · ${formatMeetingDate(activeMeetingDate)}`;
-    lifecycleChipClassName = "border-slate-200 bg-slate-100 text-slate-600";
-  } else if (canEndMeeting) {
-    lifecycleChipLabel = `Open Meeting · ${formatMeetingDate(activeMeetingDate)}`;
-    lifecycleChipClassName = "border-emerald-200 bg-emerald-50 text-emerald-800";
-  } else {
-    lifecycleChipLabel = `Last Meeting · ${formatMeetingDate(activeMeetingDate)}`;
-    lifecycleChipClassName = "border-slate-200 bg-white text-slate-500";
-  }
-
-  // ─── Zone 4: Manual save button ──────────────────────────────────────────
-  let manualSaveLabel: string;
-  let manualSaveClassName: string;
-  let manualSaveDisabled = false;
-
-  if (isManualSaveInFlight) {
-    manualSaveLabel = "Saving…";
-    manualSaveClassName =
-      "rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-400 cursor-not-allowed";
-    manualSaveDisabled = true;
-  } else if (manualSaveJustSucceeded) {
-    manualSaveLabel = "Saved";
-    manualSaveClassName =
-      "rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700";
-  } else if (
-    !hasUnsavedFullWorkspaceChanges &&
-    !isManualSaveInFlight &&
-    !manualSaveJustSucceeded
-  ) {
-    manualSaveLabel = "Up to date";
-    manualSaveClassName =
-      "rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-400 hover:bg-slate-50";
-  } else if (cloudSaveStatus === "error") {
-    manualSaveLabel = "Save failed";
-    manualSaveClassName =
-      "rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100";
-  } else {
-    manualSaveLabel = "Manual Save";
-    manualSaveClassName =
-      "rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50";
-  }
+  const primaryActionClassName =
+    primaryActionLabel === "View Meeting"
+      ? "rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+      : "rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60";
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-slate-100/95 backdrop-blur">
@@ -358,7 +306,7 @@ export function MeetingHeader({
             <div className="flex flex-col gap-1">
               <button
                 type="button"
-                onClick={primaryActionHandler}
+                onClick={onPrimaryAction}
                 disabled={primaryActionDisabled}
                 title={meetingActionHelpText}
                 className={primaryActionClassName}
@@ -369,11 +317,14 @@ export function MeetingHeader({
                 ref={lifecycleHelpRef}
                 className="relative flex items-center gap-1.5"
               >
-                <span
-                  className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${lifecycleChipClassName}`}
-                >
-                  {lifecycleChipLabel}
-                </span>
+                {chipLabel !== null ? (
+                  <span
+                    className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${chipLabelClassName[chipLabel]}`}
+                  >
+                    {chipLabel}
+                    {chipDate ? ` · ${formatMeetingDate(chipDate)}` : ""}
+                  </span>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => onToggleLifecycleHelp()}
@@ -493,9 +444,9 @@ export function MeetingHeader({
                 type="button"
                 onClick={onManualSave}
                 disabled={manualSaveDisabled}
-                className={manualSaveClassName}
+                className={manualSaveLabelClassName[manualSaveLabel]}
               >
-                {manualSaveLabel}
+                {manualSaveLabel === "Saving..." ? "Saving…" : manualSaveLabel}
               </button>
             ) : null}
 
