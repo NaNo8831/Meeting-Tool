@@ -1423,7 +1423,7 @@ export default function MeetingWorkspace() {
   // read-only. The placeholder is editable so typing into it starts a meeting.
   const isMeetingNotesReadOnly = isActiveMeetingHistorical;
   const meetingNotesReadOnlyMessage =
-    "This meeting has been ended and captured in Tactical History. Meeting notes are read-only.";
+    "This meeting has been ended. Content is read-only.";
   const lifecycleStatusDescription = isActiveMeetingHistorical
     ? "Closed meeting. Captured in Tactical History and read-only."
     : isViewingEditableTestMeeting
@@ -1440,14 +1440,11 @@ export default function MeetingWorkspace() {
 
   // Pre-computed props for MeetingHeader — display logic lives here, not in the header
 
-  // A real (non-test) meeting that already exists for today's date — enforces one-per-date
-  const todayDateMeeting = meetings.find(
-    (meeting) =>
-      meeting.date === todayDate &&
-      meeting.isTestMeeting !== true &&
-      isRealMeeting(meeting),
+  // A real meeting that already exists for the action date (real today, or Test Mode date) — enforces one-per-date
+  const actionDateMeetingExists = meetings.some(
+    (meeting) => meeting.date === meetingActionDate && isRealMeeting(meeting),
   );
-  const todayHasMeeting = Boolean(todayDateMeeting);
+  const todayHasMeeting = Boolean(meetingActionDate) && actionDateMeetingExists;
 
   const primaryActionLabel: "Start Meeting" | "End Meeting" | "View" =
     isActiveMeetingOpenReal && !isViewingEditableTestMeeting
@@ -3634,7 +3631,7 @@ export default function MeetingWorkspace() {
         {isActiveMeetingHistorical ? (
           <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
             <span className="font-semibold">This meeting has been ended.</span>{" "}
-            Content is read-only. To continue taking notes, start a new meeting for today.
+            Content is read-only.
           </div>
         ) : null}
 
