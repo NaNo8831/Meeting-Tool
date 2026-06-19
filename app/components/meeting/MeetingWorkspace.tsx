@@ -1476,6 +1476,11 @@ export default function MeetingWorkspace() {
       : "Open"
     : null;
 
+  // Known limitation note shown in the lifecycle help popover when viewing a Test Mode meeting
+  const chipTestModeHelpNote: string | null = isViewingEditableTestMeeting
+    ? "Test Mode lets you set any date as the current date. Unlike normal use, Test Mode may allow more than one open meeting at a time across different test dates. This is expected and only occurs in Test Mode."
+    : null;
+
   const chipDate: string | null = chipLabel !== null ? activeMeeting.date : null;
 
   // computedManualSaveLabel and computedManualSaveDisabled defined below, after isManualSaveInFlight
@@ -3581,6 +3586,7 @@ export default function MeetingWorkspace() {
         lifecycleStatusDescription={lifecycleStatusDescription}
         chipLabel={chipLabel}
         chipTestModeStatus={chipTestModeStatus}
+        chipTestModeHelpNote={chipTestModeHelpNote}
         chipDate={chipDate}
         showLifecycleHelp={showLifecycleHelp}
         onToggleLifecycleHelp={() => setShowLifecycleHelp((isOpen) => !isOpen)}

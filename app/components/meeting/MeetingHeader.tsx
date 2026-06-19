@@ -164,6 +164,7 @@ type LifecycleProps = {
   lifecycleStatusDescription: string;
   chipLabel: ChipLabel;
   chipTestModeStatus: "Open" | "Closed" | null;
+  chipTestModeHelpNote: string | null;
   chipDate: string | null;
   showLifecycleHelp: boolean;
   onToggleLifecycleHelp: () => void;
@@ -235,6 +236,7 @@ export function MeetingHeader({
   lifecycleStatusDescription,
   chipLabel,
   chipTestModeStatus,
+  chipTestModeHelpNote,
   chipDate,
   showLifecycleHelp,
   onToggleLifecycleHelp,
@@ -336,6 +338,11 @@ export function MeetingHeader({
                       {lifecycleStatusDescription}
                     </p>
                     <p className="mt-1">{meetingActionHelpText}</p>
+                    {chipTestModeHelpNote ? (
+                      <p className="mt-2 border-t border-amber-100 pt-2 text-amber-800">
+                        {chipTestModeHelpNote}
+                      </p>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
