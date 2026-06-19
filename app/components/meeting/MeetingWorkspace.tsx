@@ -1412,7 +1412,7 @@ export default function MeetingWorkspace() {
 
   // Pre-computed props for MeetingHeader — display logic lives here, not in the header
   const primaryActionLabel: "Start Meeting" | "Edit Meeting" | "End Meeting" | "View Meeting" =
-    isCurrentCloudRouteWorkspace && canEndMeeting
+    isCurrentCloudRouteWorkspace && canEndMeeting && Boolean(actionDateMeeting)
       ? "End Meeting"
       : !actionDateMeeting
         ? "Start Meeting"
@@ -2034,7 +2034,12 @@ export default function MeetingWorkspace() {
   const handlePrimaryAction =
     primaryActionLabel === "End Meeting"
       ? () => setShowEndMeetingConfirm(true)
-      : handleMeetingAction;
+      : primaryActionLabel === "View Meeting"
+        ? () => {
+            setActiveMeetingId(activeMeeting.id);
+            scrollToMeetingNotes();
+          }
+        : handleMeetingAction;
 
   const deleteCurrentMeetingNotes = () => {
     if (isMeetingNotesReadOnly) return;
