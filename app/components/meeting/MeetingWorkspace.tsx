@@ -2815,26 +2815,36 @@ export default function MeetingWorkspace() {
         retainedClientItemIds: topicRows.map((t) => t.client_item_id),
       });
 
-      if (savedTopics.length === 0) return currentMeetings;
-
       const savedIdsByClientId = new Map(
         savedTopics.map((t) => [String(t.client_item_id), t.id]),
       );
-      setStrategicTopicItems((current) =>
-        current.map((item) => {
-          const cloudId = savedIdsByClientId.get(String(item.id));
-          return cloudId ? { ...item, strategicTopicId: cloudId } : item;
-        }),
-      );
+      const validTopicUuids = new Set(savedTopics.map((t) => t.id));
+
+      if (savedTopics.length > 0) {
+        setStrategicTopicItems((current) =>
+          current.map((item) => {
+            const cloudId = savedIdsByClientId.get(String(item.id));
+            return cloudId ? { ...item, strategicTopicId: cloudId } : item;
+          }),
+        );
+      }
+
+      // Always run: resolve numeric client IDs to UUIDs, and clear any
+      // promotedStrategicTopicId that references a topic deleted from Supabase.
       const updatedMeetings = currentMeetings.map((meeting) => ({
         ...meeting,
         agendaItems: meeting.agendaItems.map((agendaItem) => {
-          const resolvedId = agendaItem.promotedStrategicTopicId
-            ? savedIdsByClientId.get(agendaItem.promotedStrategicTopicId)
-            : undefined;
-          return resolvedId
-            ? { ...agendaItem, promotedStrategicTopicId: resolvedId }
-            : agendaItem;
+          if (!agendaItem.promotedStrategicTopicId) return agendaItem;
+          const resolvedId = savedIdsByClientId.get(
+            agendaItem.promotedStrategicTopicId,
+          );
+          if (resolvedId) {
+            return { ...agendaItem, promotedStrategicTopicId: resolvedId };
+          }
+          if (!validTopicUuids.has(agendaItem.promotedStrategicTopicId)) {
+            return { ...agendaItem, promotedStrategicTopicId: undefined };
+          }
+          return agendaItem;
         }),
       }));
       setMeetings(updatedMeetings);
