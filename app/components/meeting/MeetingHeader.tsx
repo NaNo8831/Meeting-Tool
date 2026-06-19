@@ -43,12 +43,7 @@ export type ObjectivesAutosaveStatus =
   | "saved"
   | "error";
 
-export type ChipLabel =
-  | "Open Meeting"
-  | "Last Meeting"
-  | "Closed"
-  | "Test Mode"
-  | null;
+export type ChipLabel = "Open" | "Closed" | "Test Mode" | null;
 
 export type ManualSaveLabel =
   | "Save"
@@ -57,11 +52,7 @@ export type ManualSaveLabel =
   | "Up to date"
   | "Save failed";
 
-export type PrimaryActionLabel =
-  | "Start Meeting"
-  | "Edit Meeting"
-  | "End Meeting"
-  | "View Meeting";
+export type PrimaryActionLabel = "Start Meeting" | "End Meeting" | "View";
 
 // ─── Static label / class maps ────────────────────────────────────────────────
 
@@ -135,9 +126,8 @@ const chipLabelClassName: Record<NonNullable<ChipLabel>, string> = {
   // Test Mode keeps its amber warning tint; all other lifecycle chips read as
   // muted secondary information so they do not compete with the title.
   "Test Mode": "border-amber-200 bg-amber-50 text-amber-800",
+  Open: "border-slate-200 bg-slate-100 text-slate-400",
   Closed: "border-slate-200 bg-slate-100 text-slate-400",
-  "Open Meeting": "border-slate-200 bg-slate-100 text-slate-400",
-  "Last Meeting": "border-slate-200 bg-slate-100 text-slate-400",
 };
 
 const manualSaveLabelClassName: Record<ManualSaveLabel, string> = {
@@ -289,7 +279,7 @@ export function MeetingHeader({
   onSignIn,
 }: MeetingHeaderProps) {
   const primaryActionClassName =
-    primaryActionLabel === "View Meeting"
+    primaryActionLabel === "View"
       ? "rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
       : "rounded-xl bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60";
 

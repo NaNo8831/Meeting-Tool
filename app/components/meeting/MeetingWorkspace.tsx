@@ -946,6 +946,14 @@ const getPreferredActiveMeetingId = (
 
 const getInitialMeetings = (): MeetingRecord[] => [createBlankMeeting()];
 
+// A meeting has content once the user adds anything to it. Used to tell a
+// real meeting apart from the seeded blank placeholder.
+const meetingHasContent = (meeting: MeetingRecord): boolean =>
+  meeting.agendaItems.length > 0 ||
+  meeting.topicItems.length > 0 ||
+  meeting.decisionItems.length > 0 ||
+  meeting.cascadeItems.length > 0;
+
 const normalizeStrategicTopic = (
   item: MeetingItem,
   fallbackMeeting: Pick<MeetingRecord, "id" | "date">,
@@ -1261,6 +1269,12 @@ export default function MeetingWorkspace() {
   const [showTacticalHistory, setShowTacticalHistory] = useState(false);
 
   const [showEndMeetingConfirm, setShowEndMeetingConfirm] = useState(false);
+  // Tracks meetings the user explicitly started this session. Lets the
+  // derivation treat a freshly started but still-empty meeting as a real
+  // open meeting, distinct from the seeded blank placeholder.
+  const [userStartedMeetingIds, setUserStartedMeetingIds] = useState<
+    Set<number>
+  >(() => new Set());
   const [isTestingModeActive, setIsTestingModeActive] = useState(false);
   const [testingMeetingDate, setTestingMeetingDate] = useState(getTodayDate);
   const [showDeleteMeetingNotesConfirm, setShowDeleteMeetingNotesConfirm] =
@@ -1374,83 +1388,79 @@ export default function MeetingWorkspace() {
     ? testingMeetingDate
     : todayDate;
   const hasMeetingActionDate = Boolean(meetingActionDate);
-  const actionDateMeeting = meetings.find(
-    (meeting) => meeting.date === meetingActionDate,
-  );
+
+  // A real meeting is one that has been ended, has content, was explicitly
+  // started this session, or is a test meeting. The seeded blank placeholder
+  // matches none of these, so it never counts as a real (open) meeting.
+  const isRealMeeting = (meeting: MeetingRecord): boolean =>
+    historicalMeetingIds.has(meeting.id) ||
+    meeting.isTestMeeting === true ||
+    meetingHasContent(meeting) ||
+    userStartedMeetingIds.has(meeting.id);
+
   const isActiveMeetingHistorical = historicalMeetingIds.has(activeMeeting.id);
   const isViewingTodayMeeting = activeMeeting.date === todayDate;
   const isViewingEditableTestMeeting =
     isTestingDateOverrideActive && activeMeeting.isTestMeeting === true;
-  const isMeetingNotesReadOnly =
-    isActiveMeetingHistorical ||
-    (!isViewingTodayMeeting && !isViewingEditableTestMeeting);
-  const meetingNotesReadOnlyMessage = isActiveMeetingHistorical
-    ? "This meeting has been ended and captured in Tactical History. Dated meeting notes are read-only."
-    : "This is not the current meeting date. Dated meeting notes are read-only unless this is an enabled Test Mode record.";
+
+  // The placeholder is a meeting we should treat as "no meeting yet".
+  const isActiveMeetingPlaceholder = !isRealMeeting(activeMeeting);
+  // The active meeting is open when it is real and has not been ended.
+  const isActiveMeetingOpenReal =
+    isRealMeeting(activeMeeting) && !isActiveMeetingHistorical;
+
+  // Open meetings anywhere in the workspace (excluding test meetings, which
+  // have their own context). There should only ever be one.
+  const openMeetings = meetings.filter(
+    (meeting) =>
+      meeting.isTestMeeting !== true &&
+      !historicalMeetingIds.has(meeting.id) &&
+      isRealMeeting(meeting),
+  );
+  const hasOpenMeeting = openMeetings.length > 0;
+
+  // Open meetings are editable across days; closed (ended) meetings are
+  // read-only. The placeholder is editable so typing into it starts a meeting.
+  const isMeetingNotesReadOnly = isActiveMeetingHistorical;
+  const meetingNotesReadOnlyMessage =
+    "This meeting has been ended and captured in Tactical History. Meeting notes are read-only.";
   const lifecycleStatusDescription = isActiveMeetingHistorical
-    ? "Past meeting record. Review-only unless reopened through an approved workflow."
+    ? "Closed meeting. Captured in Tactical History and read-only."
     : isViewingEditableTestMeeting
       ? "Test meeting. Safe for practice and validation."
-      : isViewingTodayMeeting
-        ? "Current meeting record."
-        : "Past meeting record. Review-only unless reopened through an approved workflow.";
-  const isActionDateMeetingHistorical = actionDateMeeting
-    ? historicalMeetingIds.has(actionDateMeeting.id)
-    : false;
-  const meetingActionHelpText = !actionDateMeeting
-    ? isTestingDateOverrideActive
-      ? "Start creates a test dated meeting for the selected Test Mode date."
-      : "Start creates today’s current meeting record."
-    : isActionDateMeetingHistorical
-      ? "View opens the ended dated record as read-only; Tactical History keeps the captured snapshot."
-      : isTestingDateOverrideActive
-        ? "Edit opens the existing test dated meeting while Test Mode is enabled."
-        : "Edit opens today’s current meeting record for continued work.";
-  const canEndMeeting =
-    (isViewingTodayMeeting || isViewingEditableTestMeeting) &&
-    !isMeetingNotesReadOnly;
+      : isActiveMeetingPlaceholder
+        ? "No meeting started yet. Use Start Meeting to begin."
+        : "Open meeting. Editable until you end it.";
+  const meetingActionHelpText = isActiveMeetingHistorical
+    ? "This meeting is closed. View opens its read-only record."
+    : isActiveMeetingOpenReal
+      ? "End Meeting captures this meeting in Tactical History and closes it."
+      : "Start Meeting begins a new meeting.";
+  const canEndMeeting = isActiveMeetingOpenReal;
 
   // Pre-computed props for MeetingHeader — display logic lives here, not in the header
-  const primaryActionLabel: "Start Meeting" | "Edit Meeting" | "End Meeting" | "View Meeting" =
-    isCurrentCloudRouteWorkspace && canEndMeeting && Boolean(actionDateMeeting)
+  const primaryActionLabel: "Start Meeting" | "End Meeting" | "View" =
+    isActiveMeetingOpenReal
       ? "End Meeting"
-      : !actionDateMeeting
-        ? "Start Meeting"
-        : isActionDateMeetingHistorical
-          ? "View Meeting"
-          : "Edit Meeting";
+      : isActiveMeetingHistorical && hasOpenMeeting
+        ? "View"
+        : "Start Meeting";
 
   const primaryActionDisabled =
     primaryActionLabel === "Start Meeting" && !hasMeetingActionDate;
 
-  // handlePrimaryAction is defined below, after handleMeetingAction
+  // handlePrimaryAction is defined below, after the start/end handlers
 
-  // The single most recent past meeting (latest date among non-test,
-  // non-today, non-historical meetings) earns the "Last Meeting" label;
-  // every other past or ended meeting reads as "Closed".
-  const lastMeetingId: number | null = (() => {
-    const pastOpenMeetings = meetings.filter(
-      (meeting) =>
-        meeting.isTestMeeting !== true &&
-        meeting.date < todayDate &&
-        !historicalMeetingIds.has(meeting.id),
-    );
-    if (pastOpenMeetings.length === 0) return null;
-    const newestFirst = [...pastOpenMeetings].sort(
-      (firstMeeting, secondMeeting) =>
-        secondMeeting.date.localeCompare(firstMeeting.date) ||
-        secondMeeting.id - firstMeeting.id,
-    );
-    return newestFirst[0].id;
-  })();
-
-  const chipLabel: "Open Meeting" | "Last Meeting" | "Closed" | "Test Mode" | null = (() => {
-    if (meetings.length === 0) return null;
-    if (isViewingEditableTestMeeting) return "Test Mode";
-    if (isActiveMeetingHistorical) return "Closed";
-    if (isViewingTodayMeeting) return "Open Meeting";
-    return activeMeeting.id === lastMeetingId ? "Last Meeting" : "Closed";
-  })();
+  const chipLabel: "Open" | "Closed" | "Test Mode" | null =
+    meetings.length === 0
+      ? null
+      : isActiveMeetingPlaceholder
+        ? null
+        : isViewingEditableTestMeeting
+          ? "Test Mode"
+          : isActiveMeetingHistorical
+            ? "Closed"
+            : "Open";
 
   const chipDate: string | null = chipLabel !== null ? activeMeeting.date : null;
 
@@ -2026,21 +2036,36 @@ export default function MeetingWorkspace() {
     });
   };
 
-  const handleMeetingAction = () => {
-    if (!hasMeetingActionDate) return;
+  // Start a new meeting for the action date, replacing any blank placeholder
+  // for that date and preserving the one-meeting-per-date constraint.
+  const startNewMeetingForActionDate = () => {
+    const startDate = meetingActionDate;
 
-    const existingMeeting = meetings.find(
-      (meeting) => meeting.date === meetingActionDate,
+    const existingRealMeeting = meetings.find(
+      (meeting) =>
+        meeting.date === startDate &&
+        isRealMeeting(meeting) &&
+        !historicalMeetingIds.has(meeting.id),
     );
 
-    if (existingMeeting) {
-      setActiveMeetingId(existingMeeting.id);
+    if (existingRealMeeting) {
+      setActiveMeetingId(existingRealMeeting.id);
     } else {
       const newMeeting = createBlankMeeting(
-        meetingActionDate,
+        startDate,
         isTestingDateOverrideActive,
       );
-      setMeetings([...meetings, newMeeting]);
+      setMeetings((currentMeetings) => [
+        ...currentMeetings.filter(
+          (meeting) => !(meeting.date === startDate && !isRealMeeting(meeting)),
+        ),
+        newMeeting,
+      ]);
+      setUserStartedMeetingIds((current) => {
+        const next = new Set(current);
+        next.add(newMeeting.id);
+        return next;
+      });
       setActiveMeetingId(newMeeting.id);
     }
 
@@ -2050,15 +2075,34 @@ export default function MeetingWorkspace() {
     scrollToMeetingNotes();
   };
 
+  const handleStartMeeting = () => {
+    if (!hasMeetingActionDate) return;
+
+    // Close-and-start gate: if an open meeting exists but is not the one in
+    // view, bring it into view and prompt to end it before starting a new one.
+    const openMeeting = openMeetings[0];
+    if (openMeeting && openMeeting.id !== activeMeeting.id) {
+      const confirmed = window.confirm(
+        `End your ${openMeeting.date} meeting and start a new one?`,
+      );
+      if (!confirmed) return;
+      setActiveMeetingId(openMeeting.id);
+      setShowEndMeetingConfirm(true);
+      return;
+    }
+
+    startNewMeetingForActionDate();
+  };
+
   const handlePrimaryAction =
     primaryActionLabel === "End Meeting"
       ? () => setShowEndMeetingConfirm(true)
-      : primaryActionLabel === "View Meeting"
+      : primaryActionLabel === "View"
         ? () => {
             setActiveMeetingId(activeMeeting.id);
             scrollToMeetingNotes();
           }
-        : handleMeetingAction;
+        : handleStartMeeting;
 
   const deleteCurrentMeetingNotes = () => {
     if (isMeetingNotesReadOnly) return;
