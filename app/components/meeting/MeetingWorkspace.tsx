@@ -3310,10 +3310,17 @@ export default function MeetingWorkspace() {
 
   const meetingNotesAutosavePayload = useMemo(
     () =>
-      meetings.map((meeting) =>
-        mapMeetingRecordToSupabase(meeting, selectedMeetingId),
-      ),
-    [meetings, selectedMeetingId],
+      meetings
+        .filter(
+          (meeting) =>
+            meeting.agendaItems.length > 0 ||
+            meeting.topicItems.length > 0 ||
+            meeting.decisionItems.length > 0 ||
+            meeting.cascadeItems.length > 0 ||
+            historicalMeetingIds.has(meeting.id),
+        )
+        .map((meeting) => mapMeetingRecordToSupabase(meeting, selectedMeetingId)),
+    [historicalMeetingIds, meetings, selectedMeetingId],
   );
 
   const agendaItemsAutosavePayload = useMemo(
