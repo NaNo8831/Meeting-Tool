@@ -1439,12 +1439,22 @@ export default function MeetingWorkspace() {
   const canEndMeeting = isActiveMeetingOpenReal;
 
   // Pre-computed props for MeetingHeader — display logic lives here, not in the header
+
+  // A real (non-test) meeting that already exists for today's date — enforces one-per-date
+  const todayDateMeeting = meetings.find(
+    (meeting) =>
+      meeting.date === todayDate &&
+      meeting.isTestMeeting !== true &&
+      isRealMeeting(meeting),
+  );
+  const todayHasMeeting = Boolean(todayDateMeeting);
+
   const primaryActionLabel: "Start Meeting" | "End Meeting" | "View" =
-    isActiveMeetingOpenReal
+    isActiveMeetingOpenReal && !isViewingEditableTestMeeting
       ? "End Meeting"
-      : isActiveMeetingHistorical && hasOpenMeeting
-        ? "View"
-        : "Start Meeting";
+      : !hasOpenMeeting && !todayHasMeeting
+        ? "Start Meeting"
+        : "View";
 
   const primaryActionDisabled =
     primaryActionLabel === "Start Meeting" && !hasMeetingActionDate;
@@ -1461,6 +1471,13 @@ export default function MeetingWorkspace() {
           : isActiveMeetingHistorical
             ? "Closed"
             : "Open";
+
+  // For Test Mode meetings, expose open/closed so the chip can show "Test Mode · Open" or "Test Mode · Closed"
+  const chipTestModeStatus: "Open" | "Closed" | null = isViewingEditableTestMeeting
+    ? isActiveMeetingHistorical
+      ? "Closed"
+      : "Open"
+    : null;
 
   const chipDate: string | null = chipLabel !== null ? activeMeeting.date : null;
 
@@ -3566,6 +3583,7 @@ export default function MeetingWorkspace() {
         lifecycleHelpRef={lifecycleHelpRef}
         lifecycleStatusDescription={lifecycleStatusDescription}
         chipLabel={chipLabel}
+        chipTestModeStatus={chipTestModeStatus}
         chipDate={chipDate}
         showLifecycleHelp={showLifecycleHelp}
         onToggleLifecycleHelp={() => setShowLifecycleHelp((isOpen) => !isOpen)}

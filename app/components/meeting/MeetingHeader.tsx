@@ -163,6 +163,7 @@ type LifecycleProps = {
   lifecycleHelpRef: RefObject<HTMLDivElement | null>;
   lifecycleStatusDescription: string;
   chipLabel: ChipLabel;
+  chipTestModeStatus: "Open" | "Closed" | null;
   chipDate: string | null;
   showLifecycleHelp: boolean;
   onToggleLifecycleHelp: () => void;
@@ -233,6 +234,7 @@ export function MeetingHeader({
   lifecycleHelpRef,
   lifecycleStatusDescription,
   chipLabel,
+  chipTestModeStatus,
   chipDate,
   showLifecycleHelp,
   onToggleLifecycleHelp,
@@ -313,6 +315,7 @@ export function MeetingHeader({
                     className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${chipLabelClassName[chipLabel]}`}
                   >
                     {chipLabel}
+                    {chipTestModeStatus ? ` · ${chipTestModeStatus}` : ""}
                     {chipDate ? ` · ${formatMeetingDate(chipDate)}` : ""}
                   </span>
                 ) : null}
