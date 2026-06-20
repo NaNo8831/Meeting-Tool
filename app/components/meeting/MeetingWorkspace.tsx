@@ -1446,12 +1446,27 @@ export default function MeetingWorkspace() {
   );
   const todayHasMeeting = Boolean(meetingActionDate) && actionDateMeetingExists;
 
+  // The most recent closed meeting is the one with the highest date among all historical real meetings.
+  // "Start Meeting" only appears when viewing this specific meeting — it's the logical "next step" after ending.
+  // Viewing any older closed meeting shows "View" instead, avoiding a confusing offer to start while reviewing history.
+  const mostRecentClosedMeetingDate = meetings
+    .filter((meeting) => historicalMeetingIds.has(meeting.id) && meeting.isTestMeeting !== true)
+    .map((meeting) => meeting.date)
+    .sort()
+    .at(-1) ?? null;
+  const isViewingMostRecentClosedMeeting =
+    isActiveMeetingHistorical &&
+    activeMeeting.isTestMeeting !== true &&
+    activeMeeting.date === mostRecentClosedMeetingDate;
+
   const primaryActionLabel: "Start Meeting" | "End Meeting" | "View" =
     isActiveMeetingOpenReal && !isViewingEditableTestMeeting
       ? "End Meeting"
-      : !hasOpenMeeting && !todayHasMeeting
+      : !hasOpenMeeting && !todayHasMeeting && isViewingMostRecentClosedMeeting
         ? "Start Meeting"
-        : "View";
+        : !hasOpenMeeting && !todayHasMeeting && isActiveMeetingPlaceholder
+          ? "Start Meeting"
+          : "View";
 
   const primaryActionDisabled =
     primaryActionLabel === "Start Meeting" && !hasMeetingActionDate;
@@ -1476,10 +1491,12 @@ export default function MeetingWorkspace() {
       : "Open"
     : null;
 
-  // Known limitation note shown in the lifecycle help popover when viewing a Test Mode meeting
-  const chipTestModeHelpNote: string | null = isViewingEditableTestMeeting
-    ? "Test Mode lets you set any date as the current date. Unlike normal use, Test Mode may allow more than one open meeting at a time across different test dates. This is expected and only occurs in Test Mode."
-    : null;
+  // Known limitation note shown in the lifecycle help popover when viewing a Test Mode meeting.
+  // Only rendered in preview/dev builds where testingToolsEnabled is true — never in production.
+  const chipTestModeHelpNote: string | null =
+    testingToolsEnabled && isViewingEditableTestMeeting
+      ? "Test Mode lets you set any date as the current date. Unlike normal use, Test Mode may allow more than one open meeting at a time across different test dates. This is expected and only occurs in Test Mode."
+      : null;
 
   const chipDate: string | null = chipLabel !== null ? activeMeeting.date : null;
 
@@ -3860,7 +3877,7 @@ export default function MeetingWorkspace() {
       </div>
 
       {showWorkspaceHelp ? (
-        <HelpPanel onClose={() => setShowWorkspaceHelp(false)} mode="workspace" />
+        <HelpPanel onClose={() => setShowWorkspaceHelp(false)} mode="workspace" testingToolsEnabled={testingToolsEnabled} />
       ) : null}
 
       <button

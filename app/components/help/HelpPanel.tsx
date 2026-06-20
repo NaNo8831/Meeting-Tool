@@ -5,9 +5,10 @@ import { useBodyScrollLock } from "@/app/hooks/useBodyScrollLock";
 type HelpPanelProps = {
   onClose: () => void;
   mode?: "dashboard" | "workspace";
+  testingToolsEnabled?: boolean;
 };
 
-export function HelpPanel({ onClose, mode = "dashboard" }: HelpPanelProps) {
+export function HelpPanel({ onClose, mode = "dashboard", testingToolsEnabled = false }: HelpPanelProps) {
   useBodyScrollLock(true);
 
   return (
@@ -117,7 +118,7 @@ export function HelpPanel({ onClose, mode = "dashboard" }: HelpPanelProps) {
                     { label: "Manual Save", detail: "forces an immediate full workspace save" },
                     { label: "Settings menu (☰)", detail: "Edit Playbook, Export Backup, Tactical History, Change Password" },
                     { label: "Agenda Items", detail: "promote to Strategic Topic to track longer term" },
-                    { label: "Test Mode", detail: "simulate a meeting on a different date" },
+                    ...(testingToolsEnabled ? [{ label: "Test Mode", detail: "simulate a meeting on a different date" }] : []),
                   ].map(({ label, detail }) => (
                     <li key={label} className="text-sm text-slate-700">
                       <span className="font-semibold text-slate-900">{label}:</span>{" "}
