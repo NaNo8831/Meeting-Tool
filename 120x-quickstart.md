@@ -35,3 +35,18 @@ A prompt to Code is not a design brief.
 A list of changes is not a design brief.
 A design brief is a complete picture of the target state
 before any implementation begins.
+
+---
+
+## Docs Update With Every Merge to Dev
+
+Any PR that changes behavior, data model, architecture,
+or user-facing functionality must update the relevant
+docs in the same PR. The definition of done includes:
+- STATE.md reflects current status
+- DECISIONS.md records any decisions made
+- ARCHITECTURE.md and DATA_MODEL.md reflect structural
+  or schema changes
+
+A PR that changes how the app works but leaves docs
+stale is not complete.

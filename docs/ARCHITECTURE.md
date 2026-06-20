@@ -212,16 +212,33 @@ See `docs/PERMISSIONS.md` for the full role matrix and table-level policy summar
 
 ## Meeting Lifecycle
 
-| State | Description |
-|-------|-------------|
-| Open | A dated meeting record for today exists and has not been ended. Editable. |
-| Closed | A dated meeting record was ended. The record is read-only. |
-| Past | A dated record from a prior date. Always read-only. |
-| Test Mode | A test date override is active (preview/development only, requires `NEXT_PUBLIC_ENABLE_TESTING_TOOLS=true`). |
+| Chip | Description |
+|------|-------------|
+| Open | A real dated meeting that has not been ended. Editable. |
+| Closed | A meeting that was explicitly ended. Read-only. Captured in Tactical History. |
+| Test Mode | A test-dated meeting (preview/development only, `NEXT_PUBLIC_ENABLE_TESTING_TOOLS=true`). Shows open/closed sub-state. |
 
-**End Meeting:** Creates a `tactical_sessions` archival snapshot (`snapshot_json`). Does not reset or advance the workspace. Autosave and Manual Save continue to work after End Meeting.
+**End Meeting:** Creates a `tactical_sessions` archival snapshot (`snapshot_json`). Does not reset, advance, or change the date. Autosave and Manual Save continue to work after End Meeting.
 
-**Cloud refresh preference:** The workspace prefers today's open dated record, then the newest real dated record, then falls back to legacy data when no dated records exist.
+**One-meeting-per-date:** Only one real meeting may exist per date. The reference date is the real system date in normal use, or the Test Mode selected date when Test Mode is active. Test Mode may allow multiple open meetings across different test dates — this is a known limitation documented in the lifecycle help popover.
+
+**Cloud refresh preference:** The workspace prefers the current open dated record, then the newest real dated record, then falls back to legacy data.
+
+---
+
+## MeetingHeader — Five-Zone Structure
+
+`MeetingHeader.tsx` is a pure renderer. All display logic is pre-computed in `MeetingWorkspace.tsx` and passed as props.
+
+| Zone | Contents |
+|------|----------|
+| Zone 1 — Identity | Meeting title (`stickyMeetingTitle`) |
+| Zone 2 — Primary Action | Primary action button (End Meeting / View / Start Meeting) + lifecycle chip (Open / Closed / Test Mode) + `?` help popover |
+| Zone 3 — Autosave | Autosave status pill (expandable detail panel) |
+| Zone 4 — Manual Save | Manual Save button with inline status (Save / Saving... / Saved / Up to date / Save failed) |
+| Zone 5 — Settings | Settings/menu trigger |
+
+**Pre-computed props pattern:** `MeetingWorkspace` derives `primaryActionLabel`, `chipLabel`, `chipTestModeStatus`, `chipTestModeHelpNote`, `primaryActionDisabled`, `computedManualSaveLabel`, and related values before rendering. `MeetingHeader` renders them without re-deriving meeting state. This ensures a single source of truth for all lifecycle display decisions.
 
 ---
 
@@ -237,13 +254,13 @@ See `docs/PERMISSIONS.md` for the full role matrix and table-level policy summar
 
 ## File Size Note — MeetingWorkspace.tsx
 
-`MeetingWorkspace.tsx` is approximately 6200 lines and contains workspace layout, all autosave logic, all cloud API calls, all modal state, backup/restore handlers, members management, playbook modal trigger, and meeting lifecycle handlers. This file is scheduled for a Sprint 3 refactor. Planned extractions:
+`MeetingWorkspace.tsx` is approximately 4000+ lines and contains workspace layout, all autosave logic, all cloud API calls, all modal state, backup/restore handlers, members management, playbook modal trigger, and meeting lifecycle handlers. Partial extractions completed:
 
-- `MeetingHeader.tsx` — sticky header, autosave chip, menu trigger
-- `useWorkspacePersistence.ts` — all autosave effects and cloud API calls
-- `useWorkspaceMembers.ts` — member loading, invitations, ownership checks
+- `MeetingHeader.tsx` — **extracted**. Sticky header, five-zone structure, renders pre-computed props only.
+- `useWorkspacePersistence.ts` — **extracted**. All autosave effects and cloud API calls.
+- `useWorkspaceMembers.ts` — deferred to a future sprint.
 
-Until the split is complete, be cautious about adjacent changes — the file is large enough that edits in one area can inadvertently affect another.
+Until further splitting is complete, be cautious about adjacent changes — the file is large enough that edits in one area can inadvertently affect another.
 
 ---
 

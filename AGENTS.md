@@ -63,6 +63,17 @@ Before changing implementation, read:
 
 ---
 
+## Docs Update With Every Merge to Dev
+
+Any PR that changes behavior, data model, architecture, or user-facing functionality must update the relevant docs in the same PR. The definition of done includes:
+- `STATE.md` reflects current status
+- `DECISIONS.md` records any decisions made
+- `ARCHITECTURE.md` and `DATA_MODEL.md` reflect structural or schema changes
+
+A PR that changes how the app works but leaves docs stale is not complete.
+
+---
+
 ## Working Process
 
 Use this process for meaningful product, architecture, persistence, permission, or UX work:
