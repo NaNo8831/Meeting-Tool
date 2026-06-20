@@ -133,7 +133,6 @@ export function ObjectiveCard({
                   placeholder="Objective title"
                   ariaLabel="Objective title"
                   className="text-xl font-semibold text-slate-900"
-                  activationMode="doubleClick"
                 />
               </div>
               <div

@@ -145,7 +145,7 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
         <div className="min-w-0 flex-1">
           {isReadOnly
             ? <p className="whitespace-pre-wrap text-base font-bold text-slate-900">{item.text || <span className="italic font-normal text-slate-400">Agenda item</span>}</p>
-            : <EditableField value={item.text} onSave={(value) => section.updateItem(item.id, value)} placeholder="Agenda item" ariaLabel="Agenda item title" className="text-base font-bold text-slate-900" activationMode="doubleClick" />
+            : <EditableField value={item.text} onSave={(value) => section.updateItem(item.id, value)} placeholder="Agenda item" ariaLabel="Agenda item title" className="text-base font-bold text-slate-900" />
           }
         </div>
       </div>
@@ -311,7 +311,7 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
                 <div className={section.id === 'topic' ? 'flex gap-2' : 'flex gap-3'}>
                   <div className="flex-1">
                     <div className={`flex flex-col sm:flex-row sm:items-start sm:justify-between ${section.id === 'topic' ? 'gap-1.5' : 'gap-2'}`}>
-                      <div className="flex-1">{isReadOnly ? <p className="whitespace-pre-wrap rounded-lg p-2 text-slate-800">{item.text || section.editPlaceholder}</p> : <EditableField value={item.text} onSave={(value) => section.updateItem(item.id, value)} placeholder={section.editPlaceholder} ariaLabel={`${section.title} item`} className="text-slate-800" activationMode="doubleClick" />}</div>
+                      <div className="flex-1">{isReadOnly ? <p className="whitespace-pre-wrap rounded-lg p-2 text-slate-800">{item.text || section.editPlaceholder}</p> : <EditableField value={item.text} onSave={(value) => section.updateItem(item.id, value)} placeholder={section.editPlaceholder} ariaLabel={`${section.title} item`} className="text-slate-800" />}</div>
                       {section.id === 'topic' ? <span className="flex shrink-0 items-center gap-2 text-xs font-semibold"><span className="text-slate-500">Date added</span><span className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-700">{formatDisplayDate(item.capturedDate)}</span></span> : null}
                     </div>
                     <StrategicTopicControls item={item} section={section} />

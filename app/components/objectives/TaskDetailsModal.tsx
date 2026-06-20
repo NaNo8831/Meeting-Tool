@@ -377,18 +377,14 @@ export function TaskDetailsModal({ task, objectiveTitle, onClose, onDelete, onUp
                 </label>
               ) : (
                 <div
-                  className="group rounded-2xl px-1 py-2 text-3xl font-bold text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                  onDoubleClick={startTitleEditing}
+                  className="cursor-text rounded-2xl px-1 py-2 text-3xl font-bold text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  onClick={startTitleEditing}
                   onKeyDown={handleTitleViewerKeyDown}
                   tabIndex={0}
                   role="button"
-                  aria-label="Task title. Double-click to edit."
-                  title="Double-click to edit"
+                  aria-label="Task title. Click to edit."
                 >
                   {draftTitle || <span className="text-slate-400 italic">Task title</span>}
-                  <p className="mt-1 text-xs font-medium text-slate-400 opacity-0 transition group-hover:opacity-100 group-focus:opacity-100">
-                    Double-click to edit
-                  </p>
                 </div>
               )}
             </div>
