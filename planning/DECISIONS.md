@@ -165,6 +165,17 @@
 - Cloud Meeting load/refresh should select the current open dated meeting first, then the newest real dated meeting, and should not restore the oldest meeting or rely on stale legacy active pointers when dated records exist.
 - End Meeting remains a Tactical History snapshot action. It does not advance the active dated meeting, reset workspace data, or replace Manual Save as the full-workspace backup refresh.
 
+## Sprint 5 — Editable Surface Standardization (2026-06-22)
+
+- **Single-click inline editing on all edit-existing-content surfaces.** All editable fields activate on a single click. Double-click-to-edit is fully removed from the product. Create/add inputs are intentionally unchanged.
+- **Blur-save, change-guarded.** All editable surfaces save on blur. No Save/Cancel buttons. A change guard ensures the parent `onChange`/`onSave` is only called when the value has actually changed from the original.
+- **Two shared editing components standardized:** `EditableField.tsx` (plain text, single or multi-line) and `RichTextEditor.tsx` (rich text with toolbar). All editable surfaces use one of these two components.
+- **Rich text toolbar visibility split into two buckets:**
+  - *Always-visible toolbar* (`editingMode="always"`): Playbook definitions, Defining Objective description, Task description, SOO description, Setup modal fields. These are dedicated editing contexts where the toolbar should always be present.
+  - *Discoverable toolbar* (`activationMode="click"`, `manualPresentation="inline"`): Agenda item discussion notes, Strategic Topic notes. These are dense workspace fields where the toolbar appears on activation.
+- **Yellow hover highlight (`hover:bg-yellow-50`) signals editability** on all click-to-edit surfaces — both plain text (`EditableField`) and discoverable rich text. Always-editing surfaces and create inputs do not get the hover highlight.
+- **RichTextEditor toolbar active-state scoped to the focused editor instance.** When multiple `editingMode="always"` toolbars are visible simultaneously, each toolbar shows formatting state only for its own editor. Fixed by checking `anchorNode` containment in the instance's editor refs before calling `document.queryCommandState`.
+
 ## Sprint 2 — Simplification and UX Fixes (2026-06-11)
 
 ### Import/Export split — Restore on dashboard, Export in workspace
