@@ -399,7 +399,7 @@ export function TaskDetailsModal({ task, objectiveTitle, onClose, onDelete, onUp
                 placeholder="Add context, goals, links, or acceptance criteria for this task."
                 minHeightClassName="min-h-[220px]"
                 ariaLabel="Task description"
-                activationMode="doubleClick"
+                editingMode="always"
               />
             </section>
 

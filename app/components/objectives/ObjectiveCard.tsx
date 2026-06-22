@@ -146,7 +146,7 @@ export function ObjectiveCard({
                   className="text-slate-700"
                   minHeightClassName="min-h-[96px]"
                   ariaLabel="Objective description"
-                  activationMode="doubleClick"
+                  editingMode="always"
                 />
               </div>
             </div>
