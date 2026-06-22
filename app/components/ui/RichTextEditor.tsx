@@ -610,6 +610,16 @@ export function RichTextEditor({
   const updateFormattingState = useCallback(() => {
     if (!isEditing) return;
 
+    const anchorNode = document.getSelection()?.anchorNode;
+    const isSelectionInThisEditor = editorRefs.current.some(
+      (ref) => ref && anchorNode && ref.contains(anchorNode),
+    );
+
+    if (!isSelectionInThisEditor) {
+      setFormattingState(emptyFormattingState);
+      return;
+    }
+
     setFormattingState({
       bold: queryCommandState("bold"),
       italic: queryCommandState("italic"),
