@@ -780,7 +780,7 @@ export function RichTextEditor({
   if (!isEditing && !isAlwaysEditing) {
     return (
       <div
-        className={`group rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-200 cursor-text ${className}`}
+        className={`group rounded-2xl border border-slate-200 bg-white/80 transition-colors hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-blue-200 cursor-text ${className}`}
         onClick={activationMode !== "doubleClick" ? startEditing : undefined}
         onDoubleClick={activationMode === "doubleClick" ? startEditing : undefined}
         onKeyDown={handleViewerKeyDown}
