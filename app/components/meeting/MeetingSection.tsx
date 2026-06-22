@@ -217,7 +217,7 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
               onChange={(value) => updateAgendaItem?.(item.id, { discussionNotes: value })}
               placeholder="Discussion notes…"
               minHeightClassName="min-h-[5rem]"
-              activationMode="doubleClick"
+              activationMode="click"
               manualPresentation="inline"
             />
         }
