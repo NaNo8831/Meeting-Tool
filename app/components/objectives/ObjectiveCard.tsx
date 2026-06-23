@@ -122,11 +122,12 @@ export function ObjectiveCard({
               </div>
             </div>
 
-            <div className="mb-6 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-6 space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div
                 onMouseDown={(event) => event.stopPropagation()}
                 onDragStart={preventObjectiveDragFromEditRegion}
               >
+                <p className="mb-1.5 text-sm font-semibold text-slate-700">Title</p>
                 <EditableField
                   value={objective.title}
                   onSave={(value) => onUpdateTitle(objective.id, value)}
@@ -139,6 +140,7 @@ export function ObjectiveCard({
                 onMouseDown={(event) => event.stopPropagation()}
                 onDragStart={preventObjectiveDragFromEditRegion}
               >
+                <p className="mb-1.5 text-sm font-semibold text-slate-700">Description</p>
                 <RichTextEditor
                   value={objective.description}
                   onChange={(value) => onUpdateDescription(objective.id, value)}

@@ -23,6 +23,7 @@ import { MeetingSection } from "@/app/components/meeting/MeetingSection";
 import { ObjectiveCard } from "@/app/components/objectives/ObjectiveCard";
 import { TaskDetailsModal } from "@/app/components/objectives/TaskDetailsModal";
 import { ColorSquareSelect } from "@/app/components/ui/ColorSquareSelect";
+import { EditableField } from "@/app/components/ui/EditableField";
 import {
   RichTextEditor,
   RichTextRenderer,
@@ -4158,28 +4159,26 @@ export default function MeetingWorkspace() {
             </div>
 
             <div className="space-y-5">
-              <label className="block">
-                <span className="mb-2 block text-lg font-semibold text-slate-900">
-                  Title
-                </span>
-                <input
-                  type="text"
+              <div>
+                <p className="mb-1.5 text-sm font-semibold text-slate-700">Title</p>
+                <EditableField
                   value={standardObjectiveDraft.title}
-                  onChange={(event) =>
+                  onSave={(value) =>
                     setStandardObjectiveDraft((draft) => ({
                       ...draft,
-                      title: event.target.value,
+                      title: value,
                     }))
                   }
-                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-xl font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
                   placeholder="New Standard Objective"
+                  ariaLabel="Standard operating objective title"
+                  className="text-xl font-semibold text-slate-900"
                 />
-              </label>
+              </div>
 
               <div>
-                <span className="mb-2 block text-lg font-semibold text-slate-900">
+                <p className="mb-1.5 text-sm font-semibold text-slate-700">
                   Description
-                </span>
+                </p>
                 <RichTextEditor
                   key={selectedStandardObjectiveId}
                   value={standardObjectiveDraft.description}
