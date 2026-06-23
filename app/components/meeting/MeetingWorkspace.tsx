@@ -1241,11 +1241,6 @@ export default function MeetingWorkspace() {
   );
   const [selectedStandardObjectiveId, setSelectedStandardObjectiveId] =
     useState<number | null>(null);
-  const [standardObjectiveDraft, setStandardObjectiveDraft] = useState({
-    title: "",
-    description: "" as RichTextValue,
-    color: defaultObjectiveColor as ObjectiveColor,
-  });
   const [newAgendaItem, setNewAgendaItem] = useState("");
   const [newTopicItem, setNewTopicItem] = useState("");
   const [newDecisionItem, setNewDecisionItem] = useState("");
@@ -2194,20 +2189,10 @@ export default function MeetingWorkspace() {
 
   const openStandardObjectiveEditor = (item: StandardOperatingObjective) => {
     setSelectedStandardObjectiveId(item.id);
-    setStandardObjectiveDraft({
-      title: item.title,
-      description: item.description,
-      color: getStandardObjectiveColor(item),
-    });
   };
 
   const closeStandardObjectiveEditor = () => {
     setSelectedStandardObjectiveId(null);
-    setStandardObjectiveDraft({
-      title: "",
-      description: "",
-      color: defaultObjectiveColor,
-    });
   };
 
   const addStandardObjective = () => {
@@ -2225,23 +2210,20 @@ export default function MeetingWorkspace() {
     openStandardObjectiveEditor(newStandardObjective);
   };
 
-  const saveStandardObjective = () => {
-    if (selectedStandardObjectiveId === null) return;
-
-    const nextTitle = standardObjectiveDraft.title.trim();
-    setStandardOperatingObjectives(
-      standardOperatingObjectives.map((item) =>
-        item.id === selectedStandardObjectiveId
-          ? {
-              ...item,
-              title: nextTitle || "New Standard Objective",
-              description: standardObjectiveDraft.description,
-              color: standardObjectiveDraft.color,
-            }
+  const updateSOOTitle = (id: number, title: string) => {
+    setStandardOperatingObjectives((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? { ...item, title: title.trim() || "New Standard Objective" }
           : item,
       ),
     );
-    closeStandardObjectiveEditor();
+  };
+
+  const updateSOODescription = (id: number, description: RichTextValue) => {
+    setStandardOperatingObjectives((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, description } : item)),
+    );
   };
 
   const deleteStandardObjective = () => {
@@ -4127,105 +4109,91 @@ export default function MeetingWorkspace() {
         }}
       />
 
-      {selectedStandardObjectiveId !== null ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl md:p-8">
-            <div className="relative z-[80] mb-6 flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
-                  Standard Operating Objective
-                </p>
+      {selectedStandardObjectiveId !== null ? (() => {
+        const selectedSOO = standardOperatingObjectives.find(
+          (item) => item.id === selectedStandardObjectiveId,
+        );
+        if (!selectedSOO) return null;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
+            <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl md:p-8">
+              <div className="relative z-[80] mb-6 flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
+                    Standard Operating Objective
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <ColorSquareSelect
+                    value={getStandardObjectiveColor(selectedSOO)}
+                    onChange={(color) =>
+                      updateStandardObjectiveColor(selectedStandardObjectiveId, color)
+                    }
+                    ariaLabel="Standard operating objective modal color"
+                  />
+                  <button
+                    type="button"
+                    onClick={closeStandardObjectiveEditor}
+                    className="rounded-full px-3 py-1 text-2xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                    aria-label="Close standard operating objective editor"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <ColorSquareSelect
-                  value={standardObjectiveDraft.color}
-                  onChange={(color) =>
-                    setStandardObjectiveDraft((draft) => ({
-                      ...draft,
-                      color,
-                    }))
-                  }
-                  ariaLabel="Standard operating objective modal color"
-                />
+
+              <div className="space-y-5">
+                <div>
+                  <p className="mb-1.5 text-sm font-semibold text-slate-700">Title</p>
+                  <EditableField
+                    value={selectedSOO.title}
+                    onSave={(value) => updateSOOTitle(selectedStandardObjectiveId, value)}
+                    placeholder="New Standard Objective"
+                    ariaLabel="Standard operating objective title"
+                    className="text-xl font-semibold text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <p className="mb-1.5 text-sm font-semibold text-slate-700">
+                    Description
+                  </p>
+                  <RichTextEditor
+                    key={selectedStandardObjectiveId}
+                    value={selectedSOO.description}
+                    onChange={(description) =>
+                      updateSOODescription(selectedStandardObjectiveId, description)
+                    }
+                    placeholder="Add standard operating objective details..."
+                    className="bg-blue-50/50"
+                    editorClassName="text-base leading-relaxed"
+                    minHeightClassName="min-h-[180px]"
+                    ariaLabel="Standard operating objective description"
+                    editingMode="always"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-8 flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={closeStandardObjectiveEditor}
-                  className="rounded-full px-3 py-1 text-2xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                  aria-label="Close standard operating objective editor"
+                  onClick={deleteStandardObjective}
+                  className="rounded-xl border border-red-200 bg-red-50 px-5 py-2 font-semibold text-red-700 hover:bg-red-100"
                 >
-                  ×
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-5">
-              <div>
-                <p className="mb-1.5 text-sm font-semibold text-slate-700">Title</p>
-                <EditableField
-                  value={standardObjectiveDraft.title}
-                  onSave={(value) =>
-                    setStandardObjectiveDraft((draft) => ({
-                      ...draft,
-                      title: value,
-                    }))
-                  }
-                  placeholder="New Standard Objective"
-                  ariaLabel="Standard operating objective title"
-                  className="text-xl font-semibold text-slate-900"
-                />
-              </div>
-
-              <div>
-                <p className="mb-1.5 text-sm font-semibold text-slate-700">
-                  Description
-                </p>
-                <RichTextEditor
-                  key={selectedStandardObjectiveId}
-                  value={standardObjectiveDraft.description}
-                  onChange={(description) =>
-                    setStandardObjectiveDraft((draft) => ({
-                      ...draft,
-                      description,
-                    }))
-                  }
-                  placeholder="Add standard operating objective details..."
-                  className="bg-blue-50/50"
-                  editorClassName="text-base leading-relaxed"
-                  minHeightClassName="min-h-[180px]"
-                  ariaLabel="Standard operating objective description"
-                  editingMode="always"
-                />
-              </div>
-            </div>
-
-            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <button
-                type="button"
-                onClick={deleteStandardObjective}
-                className="rounded-xl border border-red-200 bg-red-50 px-5 py-2 font-semibold text-red-700 hover:bg-red-100"
-              >
-                Delete
-              </button>
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={closeStandardObjectiveEditor}
-                  className="rounded-xl bg-slate-500 px-5 py-2 font-semibold text-white hover:bg-slate-600"
-                >
-                  Cancel
+                  Delete
                 </button>
                 <button
                   type="button"
-                  onClick={saveStandardObjective}
+                  onClick={closeStandardObjectiveEditor}
                   className="rounded-xl bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700"
                 >
-                  Save
+                  Close
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      ) : null}
+        );
+      })() : null}
 
       {historyNotesTopic ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
