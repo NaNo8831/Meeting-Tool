@@ -165,6 +165,13 @@
 - Cloud Meeting load/refresh should select the current open dated meeting first, then the newest real dated meeting, and should not restore the oldest meeting or rely on stale legacy active pointers when dated records exist.
 - End Meeting remains a Tactical History snapshot action. It does not advance the active dated meeting, reset workspace data, or replace Manual Save as the full-workspace backup refresh.
 
+## Sprint 5 — Layout Uniformity (2026-06-23)
+
+- **DO, SOO, and Task detail surfaces standardized to identical structure.** All three modals now share: blue uppercase eyebrow (`text-sm font-semibold uppercase tracking-wide text-blue-600`), `Title` label (`text-sm font-semibold text-slate-700`) above the title field, `Description` label (`text-sm font-semibold text-slate-700`) above the description field, `EditableField` for the title (single-click inline, blur-save), and `RichTextEditor` with `editingMode="always"` for the description.
+- **SOO converted from draft-modal to blur-save.** SOO previously used an explicit Save/Cancel button pattern with a `standardObjectiveDraft` local copy. Converted to direct writes to `standardOperatingObjectives` state on blur (same pattern as DO's `updateObjectiveTitle`/`updateObjectiveDescription`). The same debounced autosave effect in `useWorkspacePersistence` that covered SOOs before continues to cover them — trigger timing changed (blur instead of Save button) but the persistence path is unchanged.
+- **Task title reduced from `text-3xl font-bold` to `text-xl font-semibold`.** Tasks live inside Defining Objectives; the task title must not visually outweigh its parent objective. Both now use the same title size.
+- **Three previously independent title implementations consolidated onto `EditableField`.** DO used `EditableField`, SOO used a plain `<input>`, Task used a bespoke inline editor with its own `isEditingTitle`/`draftTitle` state. All three now use the shared `EditableField` component.
+
 ## Sprint 5 — Editable Surface Standardization (2026-06-22)
 
 - **Single-click inline editing on all edit-existing-content surfaces.** All editable fields activate on a single click. Double-click-to-edit is fully removed from the product. Create/add inputs are intentionally unchanged.
