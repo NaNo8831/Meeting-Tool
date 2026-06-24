@@ -3778,7 +3778,9 @@ export default function MeetingWorkspace() {
                   onClick={() => openStandardObjectiveEditor(item)}
                   className="min-w-0 flex-1 rounded-lg text-left text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-300"
                 >
-                  <span className="line-clamp-2 leading-snug">{item.title}</span>
+                  <span className={`line-clamp-2 leading-snug ${item.title ? "" : "text-slate-400"}`}>
+                    {item.title || "Add Standard Operating Objective"}
+                  </span>
                 </button>
                 <ColorSquareSelect
                   value={getStandardObjectiveColor(item)}
@@ -4206,17 +4208,10 @@ export default function MeetingWorkspace() {
             className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="mb-3">
               <h3 className="text-lg font-semibold text-slate-900">
                 {historyNotesTopic.text}
               </h3>
-              <button
-                type="button"
-                onClick={() => void handleSaveStrategicTopicHistoryNotes()}
-                className="rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-700 hover:bg-slate-100"
-              >
-                Close
-              </button>
             </div>
             <p className="mb-2 text-sm text-slate-600">
               Strategic Topic Notes
