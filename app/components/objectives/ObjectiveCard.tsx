@@ -99,7 +99,7 @@ export function ObjectiveCard({
       {isDetailOpen ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/50 p-4">
           <div className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl md:p-7">
-            <div className="mb-6 flex items-start justify-between gap-4">
+            <div className="relative z-10 mb-6 flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
                   Defining Objective Review

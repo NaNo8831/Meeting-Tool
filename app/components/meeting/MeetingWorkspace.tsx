@@ -2504,6 +2504,7 @@ export default function MeetingWorkspace() {
     },
     topic: {
       id: "topic",
+      isFixed: true,
       title: "Strategic Topics",
       description: "Capture high-level topics that carry across meetings.",
       items: visibleStrategicTopicItems,
@@ -2543,6 +2544,7 @@ export default function MeetingWorkspace() {
     },
     cascade: {
       id: "cascade",
+      isFixed: true,
       title: "Cascading Communication",
       description: "Staff communication — items from agenda marked as Cascade Needed appear here automatically. Add additional communication notes below.",
       items: activeMeeting.cascadeItems,
@@ -4196,15 +4198,21 @@ export default function MeetingWorkspace() {
       })() : null}
 
       {historyNotesTopic ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4"
+          onClick={() => void handleSaveStrategicTopicHistoryNotes()}
+        >
+          <div
+            className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="mb-3 flex items-center justify-between gap-3">
               <h3 className="text-lg font-semibold text-slate-900">
                 {historyNotesTopic.text}
               </h3>
               <button
                 type="button"
-                onClick={() => setHistoryNotesTopic(null)}
+                onClick={() => void handleSaveStrategicTopicHistoryNotes()}
                 className="rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-700 hover:bg-slate-100"
               >
                 Close
@@ -4233,14 +4241,14 @@ export default function MeetingWorkspace() {
             {historyNotesStatus ? (
               <p className="mt-2 text-sm text-slate-700">{historyNotesStatus}</p>
             ) : null}
-            <div className="mt-4 flex justify-end gap-2">
+            <div className="mt-4 flex justify-end">
               <button
                 type="button"
                 onClick={() => void handleSaveStrategicTopicHistoryNotes()}
                 disabled={isSavingHistoryNotes || isLoadingHistoryNotes || !authSession || !selectedMeetingId}
                 className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
               >
-                {isSavingHistoryNotes ? "Saving…" : "Save Notes"}
+                {isSavingHistoryNotes ? "Saving…" : "Done"}
               </button>
             </div>
           </div>
