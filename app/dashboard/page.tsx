@@ -1639,7 +1639,7 @@ useBodyScrollLock(
                             </span>
                           )}
                         </div>
-                        {member.role === "editor" && meetingPendingAccess.canManageMeetingLifecycle ? (
+                        {member.role !== "owner" && meetingPendingAccess.canManageMeetingLifecycle ? (
                           <button
                             type="button"
                             onClick={() => void handleRemoveMember(member)}
