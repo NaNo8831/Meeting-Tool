@@ -9,7 +9,7 @@
 - Deployment: Vercel (main branch).
 - Persistence: Local Workspace uses browser `localStorage`; Cloud Meetings have structured autosave for `meeting_settings`, Strategic Topics, Topic Notes, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, Standard Operating Objectives, and Agenda Items, with `meetings.meeting_data` full-workspace Manual Save as the safety net and fallback hydration source.
 - Backup: JSON export/import. Export available in workspace only. Restore from Backup available on dashboard only (creates a new cloud meeting from backup file).
-- Current Project Status: **Sprint 2 complete. PR #119 (`ux/sprint-2-simplification`) is ready to merge to main pending any final review. Sprint 3 scope is documented in `planning/POST_MAIN_ROADMAP.md`. `planning/POST_MAIN_ROADMAP.md` is the backlog source of truth.**
+- Current Project Status: **Pre-beta polish sprint complete on `sprint-pre-beta-polish`. Merged to `dev`. Next: apply Supabase migration `20260624100000_fix_remove_member_allow_viewers.sql`, final smoke test on dev, then `dev` → `main` for beta launch.**
 
 ## Sprint 2 — Simplification and UX Fixes
 
