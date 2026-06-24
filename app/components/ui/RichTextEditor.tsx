@@ -681,6 +681,12 @@ export function RichTextEditor({
     setFormattingState(emptyFormattingState);
     setIsEditing(true);
     onEditingChange?.(true);
+    requestAnimationFrame(() => {
+      const editor =
+        editorRefs.current[activeEditorIndexRef.current] ??
+        editorRefs.current[0];
+      editor?.focus();
+    });
   };
 
   const handleViewerKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {

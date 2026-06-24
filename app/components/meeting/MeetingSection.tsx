@@ -84,15 +84,15 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
   // Collapsed card — same border/shadow as expanded so both states feel like one object
   if (!isExpanded) {
     return (
-      <div className={`flex items-center gap-2 rounded-2xl border p-3 shadow-sm ${(isCovered || item.promotedStrategicTopicId) ? 'border-slate-200 bg-slate-50' : 'border-slate-200 bg-white'}`}>
-        <button
-          type="button"
-          onClick={() => setIsExpanded(true)}
-          className="shrink-0 text-slate-400 hover:text-slate-600"
-          aria-label="Expand agenda item"
-        >
-          ▶
-        </button>
+      <div
+        className={`flex cursor-pointer items-center gap-2 rounded-2xl border p-3 shadow-sm hover:bg-slate-100 ${(isCovered || item.promotedStrategicTopicId) ? 'border-slate-200 bg-slate-50' : 'border-slate-200 bg-white'}`}
+        onClick={() => setIsExpanded(true)}
+        role="button"
+        aria-label="Expand agenda item"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsExpanded(true); } }}
+      >
+        <span className="shrink-0 text-slate-400" aria-hidden="true">▶</span>
         <span className={`min-w-0 flex-1 truncate text-sm font-bold ${(isCovered || item.promotedStrategicTopicId) ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
           {item.text || <span className="font-normal italic text-slate-400">Agenda item</span>}
         </span>
@@ -115,7 +115,7 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
         {!isReadOnly ? (
           <button
             type="button"
-            onClick={() => section.deleteItem(item.id)}
+            onClick={(e) => { e.stopPropagation(); section.deleteItem(item.id); }}
             className="shrink-0 text-red-400 hover:text-red-600"
             aria-label="Delete agenda item"
           >
