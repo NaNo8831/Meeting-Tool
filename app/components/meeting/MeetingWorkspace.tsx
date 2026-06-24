@@ -2597,7 +2597,9 @@ export default function MeetingWorkspace() {
     ],
   );
 
-  getCurrentWorkspaceStorageRef.current = getCurrentWorkspaceStorage;
+  useEffect(() => {
+    getCurrentWorkspaceStorageRef.current = getCurrentWorkspaceStorage;
+  });
 
   const normalizeStrategicTopicNotesBackup = useCallback(
     (value: unknown): Record<number, StrategicTopicNoteBackupEntry> => {
