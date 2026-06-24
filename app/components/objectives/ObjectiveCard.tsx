@@ -81,8 +81,8 @@ export function ObjectiveCard({
           className="block w-full rounded-xl text-left focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-4"
           aria-label={`Open review details for ${objective.title || 'untitled defining objective'}`}
         >
-          <h3 className="line-clamp-3 min-h-[3.5rem] pr-11 text-lg font-semibold leading-snug text-slate-900">
-            {objective.title || 'Untitled defining objective'}
+          <h3 className={`line-clamp-3 min-h-[3.5rem] pr-11 text-lg font-semibold leading-snug ${objective.title ? 'text-slate-900' : 'text-slate-400'}`}>
+            {objective.title || 'Add Defining Objective'}
           </h3>
 
           <span className="mt-3 flex items-center justify-between gap-2">
