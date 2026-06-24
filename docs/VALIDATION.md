@@ -1,6 +1,6 @@
 # Validation
 
-This document covers the current validation approach, pre-merge checklist, Forgot Password checklist, and Main Readiness Review checklist for Meeting Tool. It reflects the state of `phase-3-shared-access` after the Documentation Refresh sprint.
+This document covers the current validation approach, pre-merge checklist, and Main Readiness Review checklist for Meeting Tool. Last updated 2026-06-24 (pre-beta polish).
 
 ---
 
@@ -30,36 +30,9 @@ Before merging any PR:
 
 ---
 
-## Forgot Password / Auth Email Validation Checklist
-
-Use this checklist to complete validation of PR #110 (`codex/add-forgot-password-implementation`) before merging it to `phase-3-shared-access`. The implementation is structurally complete (includes `/reset-password` route, `ForgotPassword` component, recovery token session-exchange fix, and password-reset helpers in `supabaseClient.ts` and `useSupabaseAuth.ts`). Final email-link validation is pending Resend/DNS setup (IT request submitted). Confirm Supabase Auth URL Configuration and Resend are in place before running the steps below.
-
-**Pre-conditions:**
-- [ ] Supabase Auth Site URL is set to the production Vercel/custom domain (not localhost).
-- [ ] Redirect URLs include production domain, `https://*.vercel.app/**`, and `http://localhost:3000/**`.
-- [ ] Changes are saved in the Supabase dashboard before sending test emails.
-- [ ] Fresh reset/confirmation emails are generated after any URL configuration change; old emails may contain stale redirect targets.
-- [ ] Custom SMTP (recommended: Resend) is configured if the Supabase default email limit has been reached.
-
-**Validation steps:**
-1. [ ] Navigate to the login page and find the Forgot Password link.
-2. [ ] Enter a valid account email and submit.
-3. [ ] Confirm the UI shows a generic success message that does not reveal whether the account exists.
-4. [ ] Receive the reset email at the submitted address.
-5. [ ] Confirm the reset link opens the deployed `/reset-password` route, not localhost.
-6. [ ] Enter a new password and confirmation. Submit.
-7. [ ] Confirm login succeeds with the new password.
-8. [ ] Confirm login fails with the old password.
-9. [ ] Repeat step 2–3 with an unknown (non-account) email. Confirm the same generic success message appears.
-10. [ ] Confirm signup confirmation links also use the deployed domain, not localhost.
-
-**If blocked by rate limits:** Stop sending default-provider auth emails. Wait for the rate limit window to reset, or configure custom SMTP (Resend) first. Do not consume the rate limit on repeated testing. See `docs/AUTH_EMAIL_SETUP.md`.
-
----
-
 ## Main Readiness Review Checklist
 
-This is the final gate before merging `phase-3-shared-access` to `main`. Run on an integrated Vercel/Supabase preview with dedicated test accounts.
+Run on an integrated Vercel/Supabase preview with dedicated test accounts before merging `dev` to `main`.
 
 **Recommended test accounts:**
 - `test1@example.test` — primary owner account.
@@ -70,7 +43,7 @@ This is the final gate before merging `phase-3-shared-access` to `main`. Run on 
 - [ ] Sign up creates a new account and signs in.
 - [ ] Sign in works for an existing account.
 - [ ] Sign out clears the session and returns to `/`.
-- [ ] Forgot Password request flow works (pending PR #110 implementation).
+- [ ] Forgot Password request flow works.
 - [ ] Reset email opens `/reset-password`, not localhost.
 - [ ] Password update and re-login work.
 - [ ] Unknown email shows generic success (no account enumeration).
@@ -126,9 +99,6 @@ This is the final gate before merging `phase-3-shared-access` to `main`. Run on 
 - [ ] `test3` cannot list members or view invitations.
 - [ ] `test3` cannot write meeting content.
 
-**Known before-main merge concern (do not fix in readiness pass — document the outcome):**
-- PR #112 hotfix migration (`20260609000000_add_create_owned_meeting_rpc.sql`) exists on `main` but not on `phase-3-shared-access`. At merge time, the hotfix migration must be removed from the merge because `phase-3-shared-access` already has a more robust equivalent (`20260604150000_add_owned_meeting_create_rpc.sql`). Running both would silently downgrade the database function. Resolve the `supabaseClient.ts` conflict in favor of the phase-3 version.
-
 ---
 
 ## Shared Access Validation (Reference)
@@ -138,7 +108,7 @@ Quick reference for owner/editor/non-member regression after any permissions-rel
 | Check | Expected |
 |-------|---------|
 | Owner can create, open, archive, restore, delete, duplicate | Pass |
-| Owner can invite, revoke, list members, remove editors | Pass |
+| Owner can invite, revoke, list members, remove editors and viewers | Pass |
 | Editor can open shared meeting, edit content, Manual Save | Pass |
 | Editor cannot archive, rename, or remove members | Blocked |
 | Editor removed — loses access after refresh | Pass |

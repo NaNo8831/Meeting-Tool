@@ -6,7 +6,6 @@ Meeting Tool by LyArk is a lightweight operational leadership meeting tool for s
 
 - **Cloud Meeting dashboard** with Owned by Me and Shared with Me sections.
 - **Supabase email/password authentication**: sign up, sign in, sign out, profile display names, and Forgot Password / password reset.
-  - Forgot Password implementation is complete on PR #110 (`codex/add-forgot-password-implementation`). PR #110 is merge-ready and pending final email-link validation (Resend/DNS setup in progress). It has not yet been merged to `phase-3-shared-access`.
 - **Owner/editor collaboration model** for Team Beta: owners manage meeting lifecycle; owners and editors edit meeting content.
 - **Meeting Setup and Playbook Definitions**: dashboard title, organization info, section order, setup state.
 - **Top Priority / Thematic Goal** with rich text support.
@@ -53,9 +52,9 @@ In practice:
 
 | Role | Create meetings | Edit content | Lifecycle actions | Manage members |
 |------|----------------|-------------|------------------|----------------|
-| Owner | Yes | Yes | Yes (archive, rename, delete, duplicate) | Yes (invite, remove editors) |
+| Owner | Yes | Yes | Yes (archive, rename, delete, duplicate) | Yes (invite, remove editors and viewers) |
 | Editor | No | Yes | No | No |
-| Viewer | No | No (read-only; UI enforcement deferred for post-main) | No | No |
+| Viewer | No | No (read-only; full enforcement upcoming) | No | No |
 
 Authorization is enforced at the database level through Supabase RLS. See `docs/PERMISSIONS.md`.
 
@@ -109,17 +108,6 @@ Before validating auth emails (password reset, signup confirmation) in any non-d
 - Set **Site URL** to the production domain (not localhost).
 - Add **Redirect URLs** for production, Vercel previews (`https://*.vercel.app/**`), and local development (`http://localhost:3000/**`).
 
-See `docs/AUTH_EMAIL_SETUP.md` for the full checklist.
-
-### Supabase Auth URL Configuration
-
-Forgot Password and signup email confirmation links depend on Supabase Auth URL Configuration:
-
-- Set the Supabase Auth **Site URL** to the production Vercel/custom domain for the deployed app, not localhost.
-- Add the deployed reset route to Supabase Redirect URLs, for example `https://<production-domain>/reset-password`.
-- Add the local development reset route to Supabase Redirect URLs, for example `http://localhost:3000/reset-password`.
-- If production Supabase Auth URL Configuration points to localhost, signup confirmation emails can redirect users to localhost even when account creation succeeds.
-
 ## Validation Commands
 
 ```bash
@@ -148,8 +136,3 @@ Before making implementation changes, read:
 - `docs/DATA_MODEL.md` — Supabase tables, columns, relationships, RLS approach.
 - `docs/PERMISSIONS.md` — owner/editor/viewer roles, RLS helpers, what each role can/cannot do.
 - `docs/VALIDATION.md` — validation checklists and pre-merge process.
-- `docs/AUTH_EMAIL_SETUP.md` — Supabase Auth URL, custom SMTP/Resend guidance.
-- `docs/CURRENT_PROJECT_STATUS.md` — current status, completed systems, before-main roadmap.
-- `docs/HANDOFF_TO_CLAUDE_CODE.md` — transition review and detailed handoff package.
-- `docs/AI_AGENT_WORKFLOW.md` — AI-agent workflow, PR types, red flags.
-- `docs/CLAUDE_CODE_START_HERE.md` — Claude Code direct start guide.

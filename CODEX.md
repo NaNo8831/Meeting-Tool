@@ -10,4 +10,4 @@ Before implementation, also read:
 - `planning/QUESTIONS.md`
 - Active sprint files under `planning/sprints/`
 
-Branch-context warning: confirm whether the work belongs on `main` for production/UX stabilization or `phase-2-cloud` for future cloud/auth/storage work. Meeting Setup is part of the current `main` baseline after PR #23, but older branches may not contain it.
+Branch-context warning: all feature work should be on a branch cut from `dev` and merged back to `dev` via PR. `main` is production — do not push feature work directly to `main`.

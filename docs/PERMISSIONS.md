@@ -1,6 +1,6 @@
 # Permissions
 
-This document covers owner/editor/viewer roles, RLS policies, Shared Access member management, and what each role can and cannot do. It reflects the state of `phase-3-shared-access` as of the Documentation Refresh sprint.
+This document covers owner/editor/viewer roles, RLS policies, Shared Access member management, and what each role can and cannot do. Last updated 2026-06-24 (pre-beta polish).
 
 ---
 
@@ -13,7 +13,7 @@ Meeting Tool uses three roles, enforced at the database level through Supabase R
 - The meeting administrator. Every cloud meeting has exactly one owner, identified by `meetings.owner_id`.
 - Can perform all operations: read, edit, lifecycle management, and access management.
 - Lifecycle actions (archive, restore, soft-delete, rename, duplicate) are owner-only and gated by owner-only RPCs.
-- Can invite editors, revoke pending invitations, and remove active editors.
+- Can invite editors, revoke pending invitations, and remove active editors and viewers.
 
 ### Editor
 
@@ -41,7 +41,7 @@ Meeting Tool uses three roles, enforced at the database level through Supabase R
 | Edit meeting content | Yes | Yes | No | `user_can_edit_meeting` |
 | Manual Save full-workspace backup | Yes | Yes | No | `meetings` update allows owners/editors |
 | Invite / revoke invitations | Yes | No | No | `user_can_manage_meeting_access` |
-| Remove active editors | Yes | No | No | `remove_meeting_editor` RPC (owner-only) |
+| Remove active non-owner members (editors and viewers) | Yes | No | No | `remove_meeting_editor` RPC (owner-only) |
 | Archive / restore meeting | Yes | No | No | Owner-only RPCs |
 | Soft-delete archived meeting | Yes | No | No | `soft_delete_owned_archived_meeting` RPC |
 | Duplicate meeting | Yes | No | No | Owner-only dashboard action |
@@ -105,7 +105,7 @@ These RPCs require `meetings.owner_id = auth.uid()` and run as SECURITY DEFINER 
 | `create_meeting_invitation(target_meeting_id, invite_email)` | Creates a pending invitation (owner only). |
 | `list_meeting_pending_invitations(target_meeting_id)` | Lists pending invitations (owner only). |
 | `revoke_meeting_invitation(target_invitation_id)` | Revokes a pending invitation (owner only). |
-| `remove_meeting_editor(target_meeting_id, target_user_id)` | Soft-removes an active editor (sets `removed_at`). Owner only. |
+| `remove_meeting_editor(target_meeting_id, target_user_id)` | Soft-removes any active non-owner member — editor or viewer — (sets `removed_at`). Owner only. |
 
 ---
 
@@ -115,7 +115,7 @@ Available to owners and active editors:
 
 | RPC | What it does |
 |-----|-------------|
-| `list_meeting_members(target_meeting_id)` | Lists active owner and editor rows with display names. |
+| `list_meeting_members(target_meeting_id)` | Lists all active member rows (owner, editors, and viewers) with display names. |
 | `get_accessible_meeting_member_counts()` | Returns `(meeting_id, member_count)` for meetings the user can access. |
 
 ---
@@ -156,11 +156,11 @@ Owner lifecycle actions (archive, restore, soft-delete, rename, duplicate) use n
 
 ## Removed Member Behavior
 
-- `remove_meeting_editor(meeting_id, user_id)` sets `meeting_members.removed_at` to the current timestamp.
-- All RLS helpers exclude removed members (`removed_at is null` condition). A removed editor loses access after their next dashboard refresh or page load.
+- `remove_meeting_editor(meeting_id, user_id)` sets `meeting_members.removed_at` to the current timestamp for any active non-owner member (editor or viewer).
+- All RLS helpers exclude removed members (`removed_at is null` condition). A removed member loses access after their next dashboard refresh or page load.
 - The invite/accept history row is preserved for audit.
-- Removed editors are excluded from the dashboard member count.
-- Re-invitation is the only path back to access: owner creates a new pending invite, the removed editor accepts it.
+- Removed members are excluded from the dashboard member count.
+- Re-invitation is the only path back to access: owner creates a new pending invite, the removed member accepts it.
 
 ---
 

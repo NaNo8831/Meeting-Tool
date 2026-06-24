@@ -1,6 +1,6 @@
 # Data Model
 
-This document describes all Supabase tables, key columns, relationships, RLS approach, and structured autosave tables as of Sprint 3A. Migrations are in `supabase/migrations/` and must be applied in timestamp order.
+This document describes all Supabase tables, key columns, relationships, RLS approach, and structured autosave tables. Last updated 2026-06-24 (pre-beta polish). Migrations are in `supabase/migrations/` and must be applied in timestamp order.
 
 ---
 
@@ -134,7 +134,7 @@ One row per cloud meeting storing playbook/settings fields.
 | `meeting_section_order` | JSONB array of section ordering. |
 | `setup_completed` | Boolean. |
 
-**Edit Playbook note (Sprint 2):** The Edit Playbook modal reads/writes the runtime `organizationInfo` state, which is persisted to the scoped `localStorage` key `leadership-organization-info` via `getWorkspaceScopedStorageKey`. This data is currently **not cloud-persisted** — `meeting_settings.organization_info` exists in the schema but is not yet written by the Edit Playbook flow. Sprint 3 will wire the Edit Playbook save path through `meeting_settings.organization_info` for cross-device, cross-session persistence. Until then, Edit Playbook data is per-browser and will be lost if localStorage is cleared.
+**Edit Playbook:** The Edit Playbook modal reads/writes the runtime `organizationInfo` state, which is persisted to `meeting_settings.organization_info` via structured autosave for cross-device, cross-session consistency.
 
 ---
 
@@ -304,7 +304,7 @@ These tables store read-only historical records and are not used for active auto
 
 ## Migration Inventory
 
-All 22 migration files in `supabase/migrations/`, in chronological order.
+All 24 migration files in `supabase/migrations/`, in chronological order.
 
 | Filename | What it does | Tables / Objects affected | Status |
 |----------|-------------|--------------------------|--------|
@@ -330,6 +330,8 @@ All 22 migration files in `supabase/migrations/`, in chronological order.
 | `20260605160000_add_meeting_notes_autosave.sql` | Creates `meeting_notes` table for dated meeting records with notes and cascade items. | `meeting_notes` | active |
 | `20260605170000_add_objectives_tasks_soos_autosave.sql` | Adds client ID mapping and structured fields to `objectives`, `tasks`, and `standard_operating_objectives`. | `objectives`, `tasks`, `standard_operating_objectives` | active |
 | `20260608100000_add_agenda_items_autosave.sql` | Creates `agenda_items` table as first-class autosave for agenda discussion notes, decisions, actions, and promote linkage. | `agenda_items` | active |
+| `20260618120000_fix_list_meeting_members_viewers.sql` | Updates `list_meeting_members` RPC to include viewer rows (previously returned only owner and editor rows). | `list_meeting_members()` | active |
+| `20260624100000_fix_remove_member_allow_viewers.sql` | Updates `remove_meeting_editor` RPC to remove the `mm.role = 'editor'` filter, allowing the owner to soft-remove any active non-owner member (editor or viewer). | `remove_meeting_editor()` | active |
 
 ---
 

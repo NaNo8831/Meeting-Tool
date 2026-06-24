@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the current system architecture for Meeting Tool as of Sprint 2 (`ux/sprint-2-simplification`). It is the canonical reference for developers and AI agents entering the project cold.
+This document describes the current system architecture for Meeting Tool. Last updated 2026-06-24 (pre-beta polish). It is the canonical reference for developers and AI agents entering the project cold.
 
 ---
 
@@ -95,7 +95,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 - **Sign-in:** `POST /auth/v1/token?grant_type=password` — returns access and refresh tokens.
 - **Sign-out:** `POST /auth/v1/logout` — invalidates the session.
 - **Session storage:** Sessions persist in `localStorage` under `meeting-tool-supabase-auth-session` and are refreshed automatically (60-second expiry buffer).
-- **Forgot Password:** Implemented on PR #110 (`codex/add-forgot-password-implementation`). Includes the `/reset-password` route, `ForgotPassword` component, and password-reset helpers in `supabaseClient.ts` and `useSupabaseAuth.ts`. A recovery token session-exchange bug was found and fixed. PR #110 is merge-ready and pending final email-link validation (Resend/DNS in progress); it has not yet been merged to `phase-3-shared-access`. See `docs/AUTH_EMAIL_SETUP.md`.
+- **Forgot Password:** Shipped. Includes the `/reset-password` route, `ForgotPassword` component, and password-reset helpers in `supabaseClient.ts` and `useSupabaseAuth.ts`.
 
 ### Meeting creation
 
@@ -147,7 +147,7 @@ Manual Save writes the complete workspace backup JSON to `meetings.meeting_data`
 6. Navigates directly into the new meeting workspace.
 7. Does not overwrite existing meetings.
 
-Import/Restore code (`handleImportWorkspaceBackup`) is preserved in `MeetingWorkspace.tsx` but intentionally removed from the workspace UI pending Sprint 3 decision (keep and re-expose, or delete).
+Import/Restore code (`handleImportWorkspaceBackup`) is preserved in `MeetingWorkspace.tsx` but intentionally removed from the workspace UI. A future decision is needed on whether to re-expose or delete it.
 
 **`BackupRestoreModal`** accepts a `mode` prop (`'both' | 'export-only' | 'import-only'`) that controls which actions and copy are rendered. Dashboard uses `'import-only'`; workspace uses `'export-only'`.
 
@@ -270,9 +270,9 @@ Until further splitting is complete, be cautious about adjacent changes — the 
 
 ---
 
-## Edit Playbook — Scoping Note (Sprint 2)
+## Edit Playbook — Scoping Note
 
-Edit Playbook is owner-only in the workspace settings menu. It reads/writes the `leadership-organization-info` localStorage key, which is scoped per cloud workspace via `getWorkspaceScopedStorageKey`. However, this data is not yet persisted to `meeting_settings` in Supabase — it lives only in `localStorage` and is not cross-device or cross-session consistent. Sprint 3 will migrate Edit Playbook data to `meeting_settings.organization_info` for cloud persistence.
+Edit Playbook is owner-only in the workspace settings menu. It reads/writes the `leadership-organization-info` localStorage key, which is scoped per cloud workspace via `getWorkspaceScopedStorageKey`. This data is persisted to `meeting_settings.organization_info` for cross-device, cross-session persistence via structured autosave.
 
 ---
 
@@ -299,11 +299,10 @@ Rich text editor with a formatting toolbar (bold, italic, underline, bullet list
 
 ---
 
-## Deferred (Post-Sprint-2)
+## Deferred (Post-Beta)
 
-- `MeetingWorkspace.tsx` split into smaller files (Sprint 3)
-- Edit Playbook cloud persistence migration to `meeting_settings` (Sprint 3)
-- Workspace import re-enable or deletion (Sprint 3)
+- `MeetingWorkspace.tsx` split into smaller files.
+- Workspace import re-enable or deletion.
 - Realtime collaboration, presence, locks, CRDTs, conflict resolution.
 - Ownership transfer.
 - Full Viewer read-only UX enforcement.
