@@ -84,15 +84,15 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
   // Collapsed card — same border/shadow as expanded so both states feel like one object
   if (!isExpanded) {
     return (
-      <div className={`flex items-center gap-2 rounded-2xl border p-3 shadow-sm ${(isCovered || item.promotedStrategicTopicId) ? 'border-slate-200 bg-slate-50' : 'border-slate-200 bg-white'}`}>
-        <button
-          type="button"
-          onClick={() => setIsExpanded(true)}
-          className="shrink-0 text-slate-400 hover:text-slate-600"
-          aria-label="Expand agenda item"
-        >
-          ▶
-        </button>
+      <div
+        className={`flex cursor-pointer items-center gap-2 rounded-2xl border p-3 shadow-sm hover:bg-slate-100 ${(isCovered || item.promotedStrategicTopicId) ? 'border-slate-200 bg-slate-50' : 'border-slate-200 bg-white'}`}
+        onClick={() => setIsExpanded(true)}
+        role="button"
+        aria-label="Expand agenda item"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsExpanded(true); } }}
+      >
+        <span className="shrink-0 text-slate-400" aria-hidden="true">▶</span>
         <span className={`min-w-0 flex-1 truncate text-sm font-bold ${(isCovered || item.promotedStrategicTopicId) ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
           {item.text || <span className="font-normal italic text-slate-400">Agenda item</span>}
         </span>
@@ -115,7 +115,7 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
         {!isReadOnly ? (
           <button
             type="button"
-            onClick={() => section.deleteItem(item.id)}
+            onClick={(e) => { e.stopPropagation(); section.deleteItem(item.id); }}
             className="shrink-0 text-red-400 hover:text-red-600"
             aria-label="Delete agenda item"
           >
@@ -145,7 +145,7 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
         <div className="min-w-0 flex-1">
           {isReadOnly
             ? <p className="whitespace-pre-wrap text-base font-bold text-slate-900">{item.text || <span className="italic font-normal text-slate-400">Agenda item</span>}</p>
-            : <EditableField value={item.text} onSave={(value) => section.updateItem(item.id, value)} placeholder="Agenda item" ariaLabel="Agenda item title" className="text-base font-bold text-slate-900" activationMode="doubleClick" />
+            : <EditableField value={item.text} onSave={(value) => section.updateItem(item.id, value)} placeholder="Agenda item" ariaLabel="Agenda item title" className="text-base font-bold text-slate-900" />
           }
         </div>
       </div>
@@ -217,7 +217,7 @@ function AgendaItemCard({ item, section, isReadOnly }: { item: MeetingItem; sect
               onChange={(value) => updateAgendaItem?.(item.id, { discussionNotes: value })}
               placeholder="Discussion notes…"
               minHeightClassName="min-h-[5rem]"
-              activationMode="doubleClick"
+              activationMode="click"
               manualPresentation="inline"
             />
         }
@@ -311,7 +311,7 @@ export function MeetingSection({ section, onDragStart, onDragOver, onDrop }: Mee
                 <div className={section.id === 'topic' ? 'flex gap-2' : 'flex gap-3'}>
                   <div className="flex-1">
                     <div className={`flex flex-col sm:flex-row sm:items-start sm:justify-between ${section.id === 'topic' ? 'gap-1.5' : 'gap-2'}`}>
-                      <div className="flex-1">{isReadOnly ? <p className="whitespace-pre-wrap rounded-lg p-2 text-slate-800">{item.text || section.editPlaceholder}</p> : <EditableField value={item.text} onSave={(value) => section.updateItem(item.id, value)} placeholder={section.editPlaceholder} ariaLabel={`${section.title} item`} className="text-slate-800" activationMode="doubleClick" />}</div>
+                      <div className="flex-1">{isReadOnly ? <p className="whitespace-pre-wrap rounded-lg p-2 text-slate-800">{item.text || section.editPlaceholder}</p> : <EditableField value={item.text} onSave={(value) => section.updateItem(item.id, value)} placeholder={section.editPlaceholder} ariaLabel={`${section.title} item`} className="text-slate-800" />}</div>
                       {section.id === 'topic' ? <span className="flex shrink-0 items-center gap-2 text-xs font-semibold"><span className="text-slate-500">Date added</span><span className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-700">{formatDisplayDate(item.capturedDate)}</span></span> : null}
                     </div>
                     <StrategicTopicControls item={item} section={section} />

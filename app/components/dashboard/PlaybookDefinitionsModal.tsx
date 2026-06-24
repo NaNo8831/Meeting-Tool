@@ -94,6 +94,7 @@ export function PlaybookDefinitionsModal({
                 editorClassName={editorClasses}
                 minHeightClassName="min-h-[120px]"
                 ariaLabel="How do we behave?"
+                editingMode="always"
               />
             </div>
 
@@ -107,6 +108,7 @@ export function PlaybookDefinitionsModal({
                 editorClassName={editorClasses}
                 minHeightClassName="min-h-[120px]"
                 ariaLabel="What do we do?"
+                editingMode="always"
               />
             </div>
 
@@ -120,6 +122,7 @@ export function PlaybookDefinitionsModal({
                 editorClassName={editorClasses}
                 minHeightClassName="min-h-[120px]"
                 ariaLabel="How will we succeed?"
+                editingMode="always"
               />
             </div>
           </div>

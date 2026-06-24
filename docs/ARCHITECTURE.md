@@ -53,8 +53,8 @@ app/
       TaskList.tsx                — Task list within an objective
     ui/
       ColorSquareSelect.tsx       — Color picker
-      EditableField.tsx           — Double-click-to-edit field
-      RichTextEditor.tsx          — Rich text editor and display
+      EditableField.tsx           — Single-click inline plain-text editor (blur-save, change-guarded)
+      RichTextEditor.tsx          — Rich text editor with toolbar (blur-save; always-visible or discoverable toolbar mode)
     feedback/
       FeedbackWidget.tsx          — Tester feedback collection
   hooks/
@@ -273,6 +273,29 @@ Until further splitting is complete, be cautious about adjacent changes — the 
 ## Edit Playbook — Scoping Note (Sprint 2)
 
 Edit Playbook is owner-only in the workspace settings menu. It reads/writes the `leadership-organization-info` localStorage key, which is scoped per cloud workspace via `getWorkspaceScopedStorageKey`. However, this data is not yet persisted to `meeting_settings` in Supabase — it lives only in `localStorage` and is not cross-device or cross-session consistent. Sprint 3 will migrate Edit Playbook data to `meeting_settings.organization_info` for cloud persistence.
+
+---
+
+## Shared Editing Components (Sprint 5)
+
+All editable content in the workspace uses one of two shared components. Create/add inputs are outside this system.
+
+### `EditableField.tsx`
+
+Plain-text inline editor (single-line or multi-line textarea). Behaviour:
+- Activates on single click. No double-click-to-edit anywhere in the product.
+- Saves on blur, change-guarded (parent `onSave` is only called when the value has changed).
+- Keyboard: `Enter` saves (single-line), `Ctrl/Cmd+Enter` saves (multi-line), `Escape` cancels without saving.
+- Viewer element shows `hover:bg-yellow-50` to signal editability.
+
+### `RichTextEditor.tsx`
+
+Rich text editor with a formatting toolbar (bold, italic, underline, bullet list, numbered list). Behaviour:
+- Saves on blur, change-guarded.
+- Toolbar active-state is scoped to the focused editor instance — checked via `anchorNode` containment in the instance's editor refs before calling `document.queryCommandState`. This prevents shared active-state bleed when multiple toolbars are visible at once.
+- Two visibility modes:
+  - **Always-visible** (`editingMode="always"`): toolbar is always rendered. Used in dedicated editing contexts — Playbook definitions, Defining Objective description, Task description, SOO description, Setup modal fields.
+  - **Discoverable** (`activationMode="click"`, `manualPresentation="inline"`): viewer shows `hover:bg-yellow-50`; toolbar appears on click activation. Used in dense workspace fields — agenda item discussion notes, Strategic Topic notes.
 
 ---
 

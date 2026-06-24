@@ -122,24 +122,25 @@ export function ObjectiveCard({
               </div>
             </div>
 
-            <div className="mb-6 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-6 space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div
                 onMouseDown={(event) => event.stopPropagation()}
                 onDragStart={preventObjectiveDragFromEditRegion}
               >
+                <p className="mb-1.5 text-sm font-semibold text-slate-700">Title</p>
                 <EditableField
                   value={objective.title}
                   onSave={(value) => onUpdateTitle(objective.id, value)}
                   placeholder="Objective title"
                   ariaLabel="Objective title"
                   className="text-xl font-semibold text-slate-900"
-                  activationMode="doubleClick"
                 />
               </div>
               <div
                 onMouseDown={(event) => event.stopPropagation()}
                 onDragStart={preventObjectiveDragFromEditRegion}
               >
+                <p className="mb-1.5 text-sm font-semibold text-slate-700">Description</p>
                 <RichTextEditor
                   value={objective.description}
                   onChange={(value) => onUpdateDescription(objective.id, value)}
@@ -147,7 +148,7 @@ export function ObjectiveCard({
                   className="text-slate-700"
                   minHeightClassName="min-h-[96px]"
                   ariaLabel="Objective description"
-                  activationMode="doubleClick"
+                  editingMode="always"
                 />
               </div>
             </div>
