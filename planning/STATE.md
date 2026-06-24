@@ -219,7 +219,7 @@ See `planning/POST_MAIN_ROADMAP.md` Sprint 3 section for full scope. High-priori
 - Manual Save demotion/removal remains deferred; it is still the required full-workspace cloud safety snapshot.
 - Ownership transfer, multiple owners, organizations, full Viewer UX, role editing, owner self-removal, realtime collaboration, presence, locks, cursors, websockets, CRDTs, conflict resolution, and merge UI remain post-main unless final validation identifies a blocker.
 - Transactional Promote to Strategic Topic RPC, legacy decision migration tooling, and multiple outcomes/actions per Agenda Item remain future follow-up candidates.
-- Deferred ideas are tracked in `planning/FUTURE_PHASES.md` to prevent scope creep in active delivery work.
+- Deferred ideas are tracked in `planning/POST_MAIN_ROADMAP.md` (Deferred / Future Phases section) to prevent scope creep in active delivery work.
 
 ## Next Actions
 

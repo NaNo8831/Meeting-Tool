@@ -1,12 +1,13 @@
 # Risks
 
+Last updated: 2026-06-24 (pre-beta polish). Entries reflect the current cloud-first, Team Beta state.
+
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
-| `localStorage` is browser/device-specific. | Local Workspace users may not see the same workspace on another browser or device. | Keep backup/export visible and keep Cloud Meeting migration explicit. |
-| Shared Team Beta uses Last Save Wins without live conflict resolution. | Concurrent edits can overwrite each other. | Keep the Team Beta small, communicate Last Save Wins behavior, preserve Manual Save/Backup Restore, and defer realtime/presence/cursors/websockets/CRDTs until separately prioritized. |
-| Data loss without regular exports. | Browser reset or device loss can remove workspace data. | Encourage JSON backup exports and retain import/export after cloud launch. |
-| Cloud migration could overwrite or duplicate local data. | Users may lose or duplicate workspace records. | Do not auto-migrate; prompt only when signed in with a selected Cloud Meeting and meaningful Local Workspace data, warn before cloud overwrite, recommend JSON export first, leave localStorage intact, and record migration signatures to reduce duplicate prompts. |
-| Multiple Codex PRs can drift. | Work may target the wrong branch or stale assumptions. | Confirm branch context and update planning state/decisions. |
-| Rich text editing can be fragile. | Formatting or editing may break meeting flow. | Keep formatting lightweight and regression-test editor flows. |
-| Drag/drop can conflict with editing/selecting text. | Users may accidentally move items while editing. | Test pointer/selection behavior around draggable content. |
-| Permission model is only owner-based for now, and current schema roles are `owner`/`admin`/`member` rather than planned `owner`/`editor`/`viewer`. | Shared-access expansion could expose or restrict data incorrectly if schema and policies move together too quickly. | Align schema explicitly in PR 1A, preserve the owner path, then add membership RLS separately in PR 1B. |
+| Last Save Wins — no conflict resolution. | Concurrent editors can silently overwrite each other's changes. | Keep Team Beta small, communicate Last Save Wins behavior explicitly, preserve Manual Save / JSON Backup-Restore as recovery paths. Realtime conflict handling is deferred. |
+| Manual Save is still the primary rollback path while structured autosave stabilizes. | A user who never uses Manual Save has no cloud rollback point beyond the last autosave write. | Keep Manual Save visible and accessible to owners and editors. Do not remove it until autosave coverage is proven and validated across all surfaces. |
+| Supabase migrations must be applied manually per environment. | A missed migration causes silent feature failure or RLS errors in production or preview. | Apply all migrations in `supabase/migrations/` in timestamp order on every environment. New migrations should be noted in `planning/STATE.md`. |
+| Viewer read-only UX enforcement is incomplete. | Viewers can currently reach edit surfaces in the workspace UI even though RLS blocks their writes at the DB layer. | Polished Viewer UI enforcement is deferred. Until implemented, viewers should be aware of the current state. Do not grant viewer access to users who need true read-only isolation. |
+| Rich text editing can be fragile. | Formatting or editing may break meeting flow. | Keep formatting lightweight and regression-test editor flows after any RichTextEditor or autosave changes. |
+| Drag-and-drop can conflict with text editing and selection. | Users may accidentally move items while editing. | Test pointer/selection behavior around draggable content after any section or drag affordance changes. |
+| Feature branches can drift from `dev` during parallel work. | Work may target stale assumptions or cause merge conflicts. | Confirm branch context, keep branches short-lived, merge to `dev` promptly, and update `planning/STATE.md` on every merge. |
