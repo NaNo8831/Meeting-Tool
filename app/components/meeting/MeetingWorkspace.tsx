@@ -2198,7 +2198,7 @@ export default function MeetingWorkspace() {
   const addStandardObjective = () => {
     const newStandardObjective: StandardOperatingObjective = {
       id: Date.now(),
-      title: "New Standard Objective",
+      title: "",
       description: "",
       color: defaultObjectiveColor,
     };
@@ -2214,7 +2214,7 @@ export default function MeetingWorkspace() {
     setStandardOperatingObjectives((prev) =>
       prev.map((item) =>
         item.id === id
-          ? { ...item, title: title.trim() || "New Standard Objective" }
+          ? { ...item, title: title.trim() }
           : item,
       ),
     );
@@ -4154,7 +4154,7 @@ export default function MeetingWorkspace() {
                   <EditableField
                     value={selectedSOO.title}
                     onSave={(value) => updateSOOTitle(selectedStandardObjectiveId, value)}
-                    placeholder="New Standard Objective"
+                    placeholder="Add Standard Operating Objective"
                     ariaLabel="Standard operating objective title"
                     className="text-xl font-semibold text-slate-900"
                   />
