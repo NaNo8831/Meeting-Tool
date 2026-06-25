@@ -3781,7 +3781,7 @@ export default function MeetingWorkspace() {
                   className="min-w-0 flex-1 rounded-lg text-left text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-300"
                 >
                   <span className={`line-clamp-2 leading-snug ${item.title ? "" : "text-slate-400"}`}>
-                    {item.title || "Add Standard Operating Objective"}
+                    {item.title || "New Standard Operating Objective"}
                   </span>
                 </button>
                 <ColorSquareSelect
@@ -4154,7 +4154,7 @@ export default function MeetingWorkspace() {
                   <EditableField
                     value={selectedSOO.title}
                     onSave={(value) => updateSOOTitle(selectedStandardObjectiveId, value)}
-                    placeholder="Add Standard Operating Objective"
+                    placeholder="Standard Operating Objective"
                     ariaLabel="Standard operating objective title"
                     className="text-xl font-semibold text-slate-900"
                   />

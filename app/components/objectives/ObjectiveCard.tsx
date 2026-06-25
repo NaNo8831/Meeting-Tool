@@ -131,7 +131,7 @@ export function ObjectiveCard({
                 <EditableField
                   value={objective.title}
                   onSave={(value) => onUpdateTitle(objective.id, value)}
-                  placeholder="Objective title"
+                  placeholder="New Defining Objective"
                   ariaLabel="Objective title"
                   className="text-xl font-semibold text-slate-900"
                 />
