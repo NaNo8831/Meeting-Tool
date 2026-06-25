@@ -61,7 +61,7 @@ export function PlaybookDefinitionsModal({
               type="text"
               value={dashboardTitle}
               onChange={(e) => onDashboardTitleChange(e.target.value)}
-              className="w-full px-5 py-4 border border-slate-300 rounded-xl text-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              className="w-full px-5 py-4 border border-slate-300 rounded-xl text-xl text-slate-900 transition-colors hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
               placeholder="Name your team or meeting"
             />
             <p className="text-lg text-slate-500 mt-3">
@@ -94,6 +94,7 @@ export function PlaybookDefinitionsModal({
                 editorClassName={editorClasses}
                 minHeightClassName="min-h-[120px]"
                 ariaLabel="How do we behave?"
+                editingMode="always"
               />
             </div>
 
@@ -107,6 +108,7 @@ export function PlaybookDefinitionsModal({
                 editorClassName={editorClasses}
                 minHeightClassName="min-h-[120px]"
                 ariaLabel="What do we do?"
+                editingMode="always"
               />
             </div>
 
@@ -120,6 +122,7 @@ export function PlaybookDefinitionsModal({
                 editorClassName={editorClasses}
                 minHeightClassName="min-h-[120px]"
                 ariaLabel="How will we succeed?"
+                editingMode="always"
               />
             </div>
           </div>

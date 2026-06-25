@@ -3,11 +3,13 @@
 ## Current Snapshot
 
 - Product: Meeting Tool by LyArk in the `Meeting-Tool` repo.
-- Status: **post-main Team Beta — Sprint 2 complete on `ux/sprint-2-simplification` (PR #119), ready to merge to main. Sprint 3 is next.**
+- Status: **Header redesign v2 complete on `sprint-pre-beta-header-v2`. Simplified lifecycle model live. Next: merge to `dev`, then beta launch.**
+- Branch model: `dev` is the integration branch. `main` is production. Feature branches merge to `dev`; `dev` merges to `main` for releases.
+- Roles model with viewer invites complete (Sprint 3B-4). Feedback review system in place.
 - Deployment: Vercel (main branch).
 - Persistence: Local Workspace uses browser `localStorage`; Cloud Meetings have structured autosave for `meeting_settings`, Strategic Topics, Topic Notes, Meeting Notes, Cascading Communications, Defining Objectives, embedded Tasks, Standard Operating Objectives, and Agenda Items, with `meetings.meeting_data` full-workspace Manual Save as the safety net and fallback hydration source.
 - Backup: JSON export/import. Export available in workspace only. Restore from Backup available on dashboard only (creates a new cloud meeting from backup file).
-- Current Project Status: **Sprint 2 complete. PR #119 (`ux/sprint-2-simplification`) is ready to merge to main pending any final review. Sprint 3 scope is documented in `planning/POST_MAIN_ROADMAP.md`. `planning/POST_MAIN_ROADMAP.md` is the backlog source of truth.**
+- Current Project Status: **Pre-beta polish sprint complete on `sprint-pre-beta-polish`. Merged to `dev`. Next: apply Supabase migration `20260624100000_fix_remove_member_allow_viewers.sql`, final smoke test on dev, then `dev` → `main` for beta launch.**
 
 ## Sprint 2 — Simplification and UX Fixes
 
@@ -163,11 +165,10 @@ See `planning/POST_MAIN_ROADMAP.md` Sprint 3 section for full scope. High-priori
 
 ## Active Work
 
-- Phase 3 Shared Access is effectively complete for the Team Beta owner/editor model.
-- Current transition status is documentation and handoff readiness, not runtime implementation.
-- Before-main work should stay narrow and prioritized: Meeting State Review, Forgot Password, Documentation Refresh, then Main Readiness Review.
-- Preserve the current transition architecture while those reviews happen: structured surface autosave, Manual Save full-workspace backup, JSON export/import, membership-aware RLS, owner-only lifecycle/container actions, and browser-only Local Mode.
-- Do not add schema, RLS, auth, persistence, or UI changes as part of transition-review documentation work.
+- **Sprint 5 — Editable Surface Standardization + Layout Uniformity (`sprint-5-editable-surfaces`):** All edit-existing-content surfaces converted to single-click inline, blur-save, change-guarded. `EditableField` and `RichTextEditor` standardized. Rich text toolbar visibility split into always-visible (Playbook, DO/Task/SOO, Setup) and discoverable (agenda notes) buckets. Yellow hover highlight applied to all click-to-edit surfaces. RichTextEditor toolbar active-state scoped to focused editor instance. DO, SOO, and Task detail modals unified to identical structure (eyebrow, labels, `EditableField` title, always-editing description). SOO converted from draft-modal/Save-button to blur-save. Build passing. **Ready to merge to `dev`. After merge: final smoke test, then `dev` → `main`, beta launch.**
+- **Header sprint (`sprint-pre-beta-header-v2`):** MeetingHeader redesigned into five zones. Simplified three-button lifecycle model (End Meeting / View / Start Meeting). Two-chip model (Open / Closed / Test Mode). One-meeting-per-date enforcement restored and updated to respect Test Mode date override. Test Mode chip shows open/closed sub-state and known limitation note in the help popover. Phantom meeting fix, agenda items FK fix, and Manual Save inline status complete. Ready to merge to `dev`.
+- Phase 3 Shared Access complete for the Team Beta owner/editor model.
+- Structured autosave covers: Settings, Strategic Topics, Topic Notes, Meeting Notes, Cascading Communications, Defining Objectives, Tasks, SOOs, and Agenda Items. Manual Save remains the full-workspace backup safety net.
 
 ## Phase 3 PR 3D lifecycle mutation hardening implementation
 
@@ -218,19 +219,16 @@ See `planning/POST_MAIN_ROADMAP.md` Sprint 3 section for full scope. High-priori
 - Manual Save demotion/removal remains deferred; it is still the required full-workspace cloud safety snapshot.
 - Ownership transfer, multiple owners, organizations, full Viewer UX, role editing, owner self-removal, realtime collaboration, presence, locks, cursors, websockets, CRDTs, conflict resolution, and merge UI remain post-main unless final validation identifies a blocker.
 - Transactional Promote to Strategic Topic RPC, legacy decision migration tooling, and multiple outcomes/actions per Agenda Item remain future follow-up candidates.
-- Deferred ideas are tracked in `planning/FUTURE_PHASES.md` to prevent scope creep in active delivery work.
+- Deferred ideas are tracked in `planning/POST_MAIN_ROADMAP.md` (Deferred / Future Phases section) to prevent scope creep in active delivery work.
 
 ## Next Actions
 
-1. ~~**Merge Forgot Password (PR #110)**~~ — complete. Merged to `phase-3-shared-access`.
-2. ~~**Fix/confirm Supabase Auth URL Configuration**~~ — confirmed correct.
-3. ~~**Set up custom SMTP (Resend)**~~ — complete.
-4. ~~**Run Main Readiness Review**~~ — complete. All gates passed. See Main Readiness Review session notes.
-5. ~~**Merge phase-3-shared-access to main**~~ — **complete on 2026-06-10.** Duplicate migration `20260609000000_add_create_owned_meeting_rpc.sql` removed from main before merge; `supabaseClient.ts` conflict resolved in favor of phase-3 version. Lint, TypeScript, and build all pass.
-6. ~~**Sprint 1 — UX Polish**~~ — complete on `ux/polish-sprint-1`.
-7. ~~**Sprint 2 — Simplification and UX Fixes**~~ — complete on `ux/sprint-2-simplification`. PR #119 build passing, ready to merge.
-8. **Merge PR #119 (`ux/sprint-2-simplification`) to main** — final review and merge.
-9. **Sprint 3** — see `planning/POST_MAIN_ROADMAP.md` Sprint 3 section for scope.
+1. ~~**Merge Forgot Password (PR #110)**~~ — complete.
+2. ~~**Merge phase-3-shared-access to main**~~ — complete on 2026-06-10.
+3. ~~**Sprint 1 — UX Polish**~~ — complete on `ux/polish-sprint-1`.
+4. ~~**Sprint 2 — Simplification and UX Fixes**~~ — complete.
+5. **Merge `sprint-pre-beta-header-v2` to `dev`** — header redesign v2 ready.
+6. **Beta launch** — merge `dev` to `main` after header sprint validation.
 
 ## PR 3A — User Profile Foundation
 

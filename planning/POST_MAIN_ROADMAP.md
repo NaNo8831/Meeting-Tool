@@ -4,7 +4,7 @@ This document tracks all known post-main work organized by priority and sprint.
 It is the source of truth for backlog sequencing. Update it as sprints complete
 and new items are identified.
 
-Last updated: 2026-06-11
+Last updated: 2026-06-24
 
 ---
 
@@ -216,20 +216,49 @@ Informed by: `planning/reviews/architecture-sprint-2-review.md` and
 ## Deferred / Future Phases
 
 These items are acknowledged and intentionally deferred until beta
-feedback justifies prioritization:
+feedback justifies prioritization. Do not pull into active sprints
+without a scoped requirement and explicit prioritization.
 
-- Viewer UI enforcement (RLS supports viewer reads; polished read-only
-  UI not yet implemented)
-- Last Save Wins concurrency / conflict UI
-- Local Mode full decommission (currently labeled legacy)
+**Permissions and access:**
+- Viewer UI enforcement (RLS supports viewer reads; polished read-only UI not yet implemented)
+- Fine-grained per-surface Viewer permissions (define before Viewer is broadly exposed)
+- Behavior when permissions change while a user is active in the workspace
+- Auditable role change events before broad rollout
 - Ownership transfer
+- Organizations / workspace administration model (org container above meetings, org-level settings, org-scoped invitations)
+
+**Collaboration and concurrency:**
+- Last Save Wins concurrency / conflict UI
 - Realtime collaboration, presence, locks, CRDTs
-- Multiple outcomes/actions per Agenda Item
-- Legacy decisionItems one-time migration tooling
-- Transactional Promote to Strategic Topic RPC
-- Organizations / workspace administration model
-- Mobile-first responsive pass
+- Session concurrency: two sessions open simultaneously — warning or force-close
 - Strategic topic note conflict resolution (local vs. cloud timestamp divergence)
+
+**Invitations:**
+- Invitation expiration (pending/accepted/revoked lifecycle is stable; expiry is post-beta)
+- Auditable invitation events if Team Beta usage shows a need
+
+**Autosave and persistence:**
+- Remove Manual Save only after structured autosave coverage is complete and validated
+- Refresh hydration to prefer the currently open/active meeting record
+- Local Mode full decommission (currently labeled legacy)
+
+**Agenda and meeting model:**
+- Multiple outcomes/actions per Agenda Item
+- Transactional Promote to Strategic Topic RPC (client-side sequential write is acceptable through beta)
+- Legacy decisionItems one-time migration tooling
+
+**UX and product:**
+- Refine dense screens for faster in-meeting scanning (task and meeting sections)
+- Improve microcopy consistency across setup, tasks, and cloud meeting actions
+- Revisit drag/drop affordances and empty states after additional user testing
+- Non-invasive keyboard/accessibility polish for live meeting speed
+- Investigate and address dashboard/action button INP warnings
+- Investigate Manual Save INP warnings (performance/autosave hardening pass)
+- Meeting recap email summaries (decisions/actions and cascading communication; post-beta)
+- Reusable workspace templates (recurring meeting structures and playbooks)
+
+**Mobile:**
+- Mobile-first responsive pass (navigation, editing, dense list patterns, touch ergonomics)
 
 ---
 

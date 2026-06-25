@@ -1,6 +1,6 @@
 "use client";
 
-import {
+import React, {
   useCallback,
   useEffect,
   useMemo,
@@ -610,6 +610,16 @@ export function RichTextEditor({
   const updateFormattingState = useCallback(() => {
     if (!isEditing) return;
 
+    const anchorNode = document.getSelection()?.anchorNode;
+    const isSelectionInThisEditor = editorRefs.current.some(
+      (ref) => ref && anchorNode && ref.contains(anchorNode),
+    );
+
+    if (!isSelectionInThisEditor) {
+      setFormattingState(emptyFormattingState);
+      return;
+    }
+
     setFormattingState({
       bold: queryCommandState("bold"),
       italic: queryCommandState("italic"),
@@ -671,6 +681,12 @@ export function RichTextEditor({
     setFormattingState(emptyFormattingState);
     setIsEditing(true);
     onEditingChange?.(true);
+    requestAnimationFrame(() => {
+      const editor =
+        editorRefs.current[activeEditorIndexRef.current] ??
+        editorRefs.current[0];
+      editor?.focus();
+    });
   };
 
   const handleViewerKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -706,12 +722,10 @@ export function RichTextEditor({
     onChange(nextDocument);
   };
 
-  const cancelEditing = () => {
-    setDraftDocument(documentValue);
-    setHasDraftContent(getRichTextPlainText(documentValue).length > 0);
-    setIsEditing(false);
-    setFormattingState(emptyFormattingState);
-    onEditingChange?.(false);
+  const handleEditorBlur = (event: React.FocusEvent<HTMLDivElement>) => {
+    if (isAlwaysEditing) return;
+    if (event.currentTarget.contains(event.relatedTarget as Node)) return;
+    saveEditing();
   };
 
   const focusActiveEditor = () => {
@@ -772,13 +786,14 @@ export function RichTextEditor({
   if (!isEditing && !isAlwaysEditing) {
     return (
       <div
-        className={`group rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-200 ${activationMode === "doubleClick" ? "cursor-text" : ""} ${className}`}
+        className={`group rounded-2xl border border-slate-200 bg-white/80 transition-colors hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-blue-200 cursor-text ${className}`}
+        onClick={activationMode !== "doubleClick" ? startEditing : undefined}
         onDoubleClick={activationMode === "doubleClick" ? startEditing : undefined}
-        onKeyDown={activationMode === "doubleClick" ? handleViewerKeyDown : undefined}
-        tabIndex={activationMode === "doubleClick" ? 0 : undefined}
-        role={activationMode === "doubleClick" ? "button" : undefined}
-        aria-label={activationMode === "doubleClick" ? `${ariaLabel}. Double-click to edit.` : undefined}
-        title={activationMode === "doubleClick" ? "Double-click to edit" : undefined}
+        onKeyDown={handleViewerKeyDown}
+        tabIndex={0}
+        role="button"
+        aria-label={activationMode === "doubleClick" ? `${ariaLabel}. Double-click to edit.` : `${ariaLabel}. Click to edit.`}
+        title={activationMode === "doubleClick" ? "Double-click to edit" : "Click to edit"}
       >
         <div className="flex items-start justify-between gap-3 p-3">
           <div className="min-w-0 flex-1">
@@ -847,6 +862,7 @@ export function RichTextEditor({
         aria-label={!isAlwaysEditing && !isInlineManualEditing ? `Editing ${ariaLabel}` : undefined}
         onMouseDown={(event) => event.stopPropagation()}
         onDragStart={(event) => event.stopPropagation()}
+        onBlur={handleEditorBlur}
       >
         <div className="relative">
           {!hasDraftContent ? (
@@ -966,25 +982,6 @@ export function RichTextEditor({
           </div>
         </div>
 
-        {!isAlwaysEditing ? (
-          <div className="flex justify-end gap-2 border-t border-slate-200 px-3 py-2">
-            <button
-              type="button"
-              onClick={saveEditing}
-              disabled={disabled}
-              className="rounded-lg bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700"
-            >
-              Save
-            </button>
-            <button
-              type="button"
-              onClick={cancelEditing}
-              className="rounded-lg bg-slate-500 px-3 py-1 text-sm font-medium text-white hover:bg-slate-600"
-            >
-              Cancel
-            </button>
-          </div>
-        ) : null}
       </div>
     </>
   );

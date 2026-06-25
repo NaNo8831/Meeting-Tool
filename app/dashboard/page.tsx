@@ -30,6 +30,9 @@ import {
 import { defaultOrganizationInfo } from "@/app/lib/objectiveOptions";
 import { BackupRestoreModal } from "@/app/components/dashboard/BackupRestoreModal";
 import { PlaybookDefinitionsModal } from "@/app/components/dashboard/PlaybookDefinitionsModal";
+import { ProfileSetupModal } from "@/app/components/auth/ProfileSetupModal";
+import { HelpPanel } from "@/app/components/help/HelpPanel";
+import { FeedbackWidget } from "@/app/components/feedback/FeedbackWidget";
 import { useLocalStorage } from "@/app/hooks/useLocalStorage";
 
 const sortMeetingsByName = (meetings: DashboardMeeting[]) =>
@@ -106,6 +109,7 @@ export default function DashboardPage() {
     [],
   );
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"editor" | "viewer">("editor");
   const [isLoadingInvitations, setIsLoadingInvitations] = useState(false);
   const [isAcceptingInvitation, setIsAcceptingInvitation] = useState<
     string | null
@@ -142,11 +146,13 @@ export default function DashboardPage() {
   const [profileMessage, setProfileMessage] = useState("");
   const [message, setMessage] = useState("");
   const [createMeetingError, setCreateMeetingError] = useState("");
+  const [showHelp, setShowHelp] = useState(false);
   const [meetingOverflowMenuId, setMeetingOverflowMenuId] = useState<
     string | null
   >(null);
   const dashboardMenuRef = useRef<HTMLDivElement>(null);
   const meetingOverflowMenuRef = useRef<HTMLDivElement>(null);
+  const newMeetingInputRef = useRef<HTMLInputElement>(null);
 useBodyScrollLock(
     showDashboardMenu ||
       meetingPendingDuplicate !== null ||
@@ -736,13 +742,15 @@ useBodyScrollLock(
         accessToken: session.accessToken,
         meetingId: meetingPendingAccess.id,
         email: trimmedEmail,
+        role: inviteRole,
       });
       setOwnedMeetingInvitations((currentInvitations) => [
         invitation,
         ...currentInvitations,
       ]);
       setInviteEmail("");
-      setAccessMessage(`Invited ${invitation.email} as an editor.`);
+      setInviteRole("editor");
+      setAccessMessage(`Invited ${invitation.email} as ${invitation.role === "viewer" ? "a viewer" : "an editor"}.`);
     } catch (error) {
       setAccessMessage(
         error instanceof Error
@@ -902,9 +910,9 @@ useBodyScrollLock(
     const showOverflowMenu = meetingOverflowMenuId === meeting.id;
     const hasOverflowActions =
       !meeting.archived_at && meeting.canManageMeetingLifecycle;
-    const hasArchivedOverflowActions =
-      Boolean(meeting.archived_at) && meeting.canManageMeetingLifecycle;
     const showMembersAccess = !meeting.archived_at;
+    const showArchivedActions =
+      Boolean(meeting.archived_at) && meeting.canManageMeetingLifecycle;
 
     return (
       <article
@@ -942,19 +950,36 @@ useBodyScrollLock(
                 type="button"
                 onClick={() => void handleOpenAccess(meeting)}
                 className={`rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 ${
-                  hasOverflowActions || hasArchivedOverflowActions
-                    ? ""
-                    : "col-span-2"
+                  hasOverflowActions ? "" : "col-span-2"
                 }`}
                 disabled={isLoadingOwnedInvitations || isLoadingMeetingMembers}
               >
                 Members
               </button>
+            ) : showArchivedActions ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void handleRestoreArchivedMeeting(meeting)}
+                  disabled={Boolean(isRestoringArchived)}
+                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isRestoringArchived === meeting.id ? "Restoring…" : "Restore"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMeetingPendingDelete(meeting)}
+                  disabled={Boolean(isDeletingArchived)}
+                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isDeletingArchived === meeting.id ? "Deleting…" : "Delete"}
+                </button>
+              </>
             ) : (
               <span className="hidden sm:block sm:w-[7.5rem]" aria-hidden="true" />
             )}
 
-            {hasOverflowActions || hasArchivedOverflowActions ? (
+            {hasOverflowActions ? (
               <div
                 ref={showOverflowMenu ? meetingOverflowMenuRef : undefined}
                 className="relative"
@@ -1024,39 +1049,6 @@ useBodyScrollLock(
                         </button>
                       </>
                     ) : null}
-                    {meeting.archived_at && meeting.canManageMeetingLifecycle ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMeetingOverflowMenuId(null);
-                            void handleRestoreArchivedMeeting(meeting);
-                          }}
-                          className="block w-full px-4 py-2.5 text-left text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
-                          role="menuitem"
-                          disabled={Boolean(isRestoringArchived)}
-                        >
-                          {isRestoringArchived === meeting.id
-                            ? "Restoring…"
-                            : "Restore"}
-                        </button>
-                        <div className="my-1 border-t border-slate-100" />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMeetingOverflowMenuId(null);
-                            setMeetingPendingDelete(meeting);
-                          }}
-                          className="block w-full px-4 py-2.5 text-left text-sm font-semibold text-red-700 hover:bg-red-50"
-                          role="menuitem"
-                          disabled={Boolean(isDeletingArchived)}
-                        >
-                          {isDeletingArchived === meeting.id
-                            ? "Deleting…"
-                            : "Delete"}
-                        </button>
-                      </>
-                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -1066,6 +1058,38 @@ useBodyScrollLock(
       </article>
     );
   };
+
+  const needsProfileSetup =
+    session !== null &&
+    !isLoadingProfile &&
+    profile !== null &&
+    !profile.first_name?.trim();
+
+  if (needsProfileSetup) {
+    return (
+      <ProfileSetupModal
+        accessToken={session.accessToken}
+        userId={session.user.id}
+        onSave={async (firstName, lastName) => {
+          await supabaseProfileClient.updateOwnProfile({
+            accessToken: session.accessToken,
+            userId: session.user.id,
+            profile: { first_name: firstName, last_name: lastName },
+          });
+          setProfile((current) =>
+            current
+              ? { ...current, first_name: firstName, last_name: lastName }
+              : current,
+          );
+        }}
+        onComplete={() => {
+          setProfile((current) =>
+            current ? { ...current } : current,
+          );
+        }}
+      />
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
@@ -1166,6 +1190,7 @@ useBodyScrollLock(
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <input
+                ref={newMeetingInputRef}
                 type="text"
                 value={newMeetingName}
                 onChange={(event) => {
@@ -1249,7 +1274,7 @@ useBodyScrollLock(
                         {invitation.meeting_name}
                       </h3>
                       <p className="mt-1 text-sm text-slate-600">
-                        Invited by {invitation.owner_display_name} as an editor.
+                        Invited by {invitation.owner_display_name} as {invitation.role === "viewer" ? "a viewer" : "an editor"}.
                       </p>
                     </div>
                     <button
@@ -1299,6 +1324,49 @@ useBodyScrollLock(
                 </h2>
                 {ownedMeetings.length > 0 ? (
                   ownedMeetings.map(renderMeetingCard)
+                ) : ownedMeetingCount === 0 ? (
+                  <div className="rounded-2xl border border-slate-200 bg-white px-6 py-8 shadow-sm">
+                    <h3 className="text-xl font-bold text-slate-900">
+                      Welcome to Meeting Tool
+                    </h3>
+                    <p className="mt-2 text-sm text-slate-600">
+                      Run focused leadership meetings, track strategic topics,
+                      and follow up on outcomes — all in one place.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        newMeetingInputRef.current?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "center",
+                        });
+                        newMeetingInputRef.current?.focus();
+                      }}
+                      className="mt-5 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+                    >
+                      Create your first meeting
+                    </button>
+                    <ol className="mt-6 space-y-2 text-sm text-slate-600">
+                      <li className="flex items-start gap-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                          1
+                        </span>
+                        Create a meeting
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                          2
+                        </span>
+                        Run it with your team
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                          3
+                        </span>
+                        Review outcomes and follow up
+                      </li>
+                    </ol>
+                  </div>
                 ) : (
                   <p className="rounded-2xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-600 shadow-sm">
                     {getOwnedMeetingsEmptyMessage()}
@@ -1504,9 +1572,9 @@ useBodyScrollLock(
               ) : null}
 
               {meetingPendingAccess.canManageMeetingLifecycle ? (
-                <section className="space-y-2" aria-label="Invite editor">
+                <section className="space-y-2" aria-label="Invite member">
                   <h3 className="text-sm font-semibold text-slate-900">
-                    Invite editor
+                    Invite member
                   </h3>
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <input
@@ -1517,6 +1585,15 @@ useBodyScrollLock(
                       disabled={isCreatingInvitation}
                       className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
                     />
+                    <select
+                      value={inviteRole}
+                      onChange={(event) => setInviteRole(event.target.value as "editor" | "viewer")}
+                      disabled={isCreatingInvitation}
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <option value="editor">Editor</option>
+                      <option value="viewer">Viewer</option>
+                    </select>
                     <button
                       type="button"
                       onClick={() => void handleCreateInvitation()}
@@ -1529,52 +1606,40 @@ useBodyScrollLock(
                 </section>
               ) : null}
 
-              <section className="space-y-2" aria-label="Owner">
-                <h3 className="text-sm font-semibold text-slate-900">Owner</h3>
+              <section className="space-y-2" aria-label="Members">
+                <h3 className="text-sm font-semibold text-slate-900">Members</h3>
                 {isLoadingMeetingMembers ? (
                   <p className="text-sm text-slate-500">Loading members…</p>
-                ) : meetingMembers.some((member) => member.role === "owner") ? (
-                  meetingMembers
-                    .filter((member) => member.role === "owner")
-                    .map((member) => (
-                      <div
-                        key={member.user_id}
-                        className="rounded-xl border border-slate-200 px-3 py-2"
-                      >
-                        <p className="text-sm font-semibold text-slate-800">
-                          {getMemberDisplayName(member)}
-                        </p>
-                      </div>
-                    ))
-                ) : (
-                  <p className="rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-600">
-                    Owner information is not available.
-                  </p>
-                )}
-              </section>
-
-              <section className="space-y-2" aria-label="Editors">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Editors
-                </h3>
-                {isLoadingMeetingMembers ? (
-                  <p className="text-sm text-slate-500">Loading members…</p>
-                ) : meetingMembers.some(
-                    (member) => member.role === "editor",
-                  ) ? (
-                  meetingMembers
-                    .filter((member) => member.role === "editor")
+                ) : meetingMembers.length > 0 ? (
+                  [...meetingMembers]
+                    .sort((a, b) => {
+                      const order = { owner: 0, editor: 1, viewer: 2 } as Record<string, number>;
+                      return (order[a.role] ?? 3) - (order[b.role] ?? 3);
+                    })
                     .map((member) => (
                       <div
                         key={member.user_id}
                         className="flex flex-col gap-2 rounded-xl border border-slate-200 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
                       >
-                        <div>
+                        <div className="flex items-center gap-2">
                           <p className="text-sm font-semibold text-slate-800">
                             {getMemberDisplayName(member)}
                           </p>
+                          {member.role === "owner" ? (
+                            <span className="rounded-full border border-green-200 bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                              Owner
+                            </span>
+                          ) : member.role === "editor" ? (
+                            <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                              Editor
+                            </span>
+                          ) : (
+                            <span className="rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                              Viewer
+                            </span>
+                          )}
                         </div>
-                        {meetingPendingAccess.canManageMeetingLifecycle ? (
+                        {member.role !== "owner" && meetingPendingAccess.canManageMeetingLifecycle ? (
                           <button
                             type="button"
                             onClick={() => void handleRemoveMember(member)}
@@ -1590,7 +1655,7 @@ useBodyScrollLock(
                     ))
                 ) : (
                   <p className="rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-600">
-                    No active editors for this meeting.
+                    No members found for this meeting.
                   </p>
                 )}
               </section>
@@ -1615,6 +1680,9 @@ useBodyScrollLock(
                           <div>
                             <p className="text-sm font-semibold text-slate-800">
                               {invitation.email}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {invitation.role === "viewer" ? "Viewer" : "Editor"}
                             </p>
                           </div>
                           <button
@@ -1742,6 +1810,24 @@ useBodyScrollLock(
         onImportWorkspaceBackup={(file, name) => void handleDashboardImportBackup(file, name)}
         backupFeedback={dashboardBackupFeedback}
         mode="import-only"
+      />
+
+      {showHelp ? (
+        <HelpPanel onClose={() => setShowHelp(false)} mode="dashboard" />
+      ) : null}
+
+      <button
+        type="button"
+        onClick={() => setShowHelp(true)}
+        className="fixed bottom-20 right-5 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-bold text-slate-600 shadow-lg transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
+        aria-label="Open help panel"
+      >
+        ?
+      </button>
+
+      <FeedbackWidget
+        session={session}
+        onCollectWorkspaceSnapshot={() => ({})}
       />
     </main>
   );

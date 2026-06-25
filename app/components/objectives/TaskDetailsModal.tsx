@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { EditableField } from '@/app/components/ui/EditableField';
 import { RichTextEditor } from '@/app/components/ui/RichTextEditor';
 import { useBodyScrollLock } from '@/app/hooks/useBodyScrollLock';
 import { taskStatusOptions } from '@/app/lib/objectiveOptions';
@@ -30,8 +31,6 @@ export function TaskDetailsModal({ task, objectiveTitle, onClose, onDelete, onUp
   useBodyScrollLock(true);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [newCommentText, setNewCommentText] = useState('');
-  const [draftTitle, setDraftTitle] = useState(task.title);
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [draftAssignedTo, setDraftAssignedTo] = useState(task.assignedTo ?? '');
   const [draftDueDate, setDraftDueDate] = useState(task.dueDate ?? '');
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
@@ -51,8 +50,6 @@ export function TaskDetailsModal({ task, objectiveTitle, onClose, onDelete, onUp
 
   useEffect(() => {
     if (lastActivityValuesRef.current.taskId !== task.id) {
-      setDraftTitle(task.title);
-      setIsEditingTitle(false);
       setDraftAssignedTo(task.assignedTo ?? '');
       setDraftDueDate(task.dueDate ?? '');
       lastActivityValuesRef.current = {
@@ -246,23 +243,9 @@ export function TaskDetailsModal({ task, objectiveTitle, onClose, onDelete, onUp
     updateComments(comments.filter((comment) => comment.id !== commentId));
   };
 
-  const commitTitleActivity = () => {
-    setIsEditingTitle(false);
-    if (draftTitle === lastActivityValuesRef.current.title) return;
-
-    lastActivityValuesRef.current.title = draftTitle;
-    handleUpdate({ title: draftTitle }, { message: `Title changed to ${draftTitle || 'Untitled task'}` });
-  };
-
-  const startTitleEditing = () => {
-    setIsEditingTitle(true);
-  };
-
-  const handleTitleViewerKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'Enter' && event.key !== 'F2') return;
-
-    event.preventDefault();
-    startTitleEditing();
+  const commitTitleSave = (newTitle: string) => {
+    lastActivityValuesRef.current.title = newTitle;
+    handleUpdate({ title: newTitle }, { message: `Title changed to ${newTitle || 'Untitled task'}` });
   };
 
   const commitAssignedToActivity = () => {
@@ -329,7 +312,7 @@ export function TaskDetailsModal({ task, objectiveTitle, onClose, onDelete, onUp
       >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/95 px-6 py-4 backdrop-blur">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Task details</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Task details</p>
             <p className="text-sm text-slate-500">{objectiveTitle}</p>
           </div>
           <div className="flex items-center gap-3">
@@ -354,47 +337,18 @@ export function TaskDetailsModal({ task, objectiveTitle, onClose, onDelete, onUp
         <div className="grid gap-6 p-6 lg:grid-cols-[1fr_280px]">
           <section className="space-y-6">
             <div id="task-details-title">
-              {isEditingTitle ? (
-                <label className="block">
-                  <span className="sr-only">Task title</span>
-                  <input
-                    value={draftTitle}
-                    autoFocus
-                    onChange={(event) => {
-                      setDraftTitle(event.target.value);
-                      handleUpdate({ title: event.target.value });
-                    }}
-                    onBlur={commitTitleActivity}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Escape') {
-                        event.preventDefault();
-                        commitTitleActivity();
-                      }
-                    }}
-                    placeholder="Task title"
-                    className="w-full rounded-2xl border border-transparent px-1 py-2 text-3xl font-bold text-slate-950 outline-none hover:border-slate-200 focus:border-blue-400 focus:bg-blue-50/40"
-                  />
-                </label>
-              ) : (
-                <div
-                  className="group rounded-2xl px-1 py-2 text-3xl font-bold text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                  onDoubleClick={startTitleEditing}
-                  onKeyDown={handleTitleViewerKeyDown}
-                  tabIndex={0}
-                  role="button"
-                  aria-label="Task title. Double-click to edit."
-                  title="Double-click to edit"
-                >
-                  {draftTitle || <span className="text-slate-400 italic">Task title</span>}
-                  <p className="mt-1 text-xs font-medium text-slate-400 opacity-0 transition group-hover:opacity-100 group-focus:opacity-100">
-                    Double-click to edit
-                  </p>
-                </div>
-              )}
+              <p className="mb-1.5 text-sm font-semibold text-slate-700">Title</p>
+              <EditableField
+                value={task.title}
+                onSave={commitTitleSave}
+                placeholder="Task title"
+                ariaLabel="Task title"
+                className="text-xl font-semibold text-slate-950"
+              />
             </div>
 
             <section className="block" aria-labelledby="task-description-heading">
-              <h3 id="task-description-heading" className="mb-2 text-sm font-semibold text-slate-700">
+              <h3 id="task-description-heading" className="mb-1.5 text-sm font-semibold text-slate-700">
                 Description
               </h3>
               <RichTextEditor
@@ -403,7 +357,7 @@ export function TaskDetailsModal({ task, objectiveTitle, onClose, onDelete, onUp
                 placeholder="Add context, goals, links, or acceptance criteria for this task."
                 minHeightClassName="min-h-[220px]"
                 ariaLabel="Task description"
-                activationMode="doubleClick"
+                editingMode="always"
               />
             </section>
 

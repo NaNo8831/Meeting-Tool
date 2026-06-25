@@ -3,8 +3,8 @@ import type { Objective } from "@/app/types/objective";
 export const objectivesData: Objective[] = [
   {
     id: 1,
-    title: "Add Defining Objective",
-    description: "Add Description for Defining Objective",
+    title: "",
+    description: "",
     status: "planning",
     priority: "medium",
     dueDate: "",

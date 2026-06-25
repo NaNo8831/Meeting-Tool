@@ -16,27 +16,9 @@ export const defaultMeetingSectionOrder: MeetingSectionKey[] = ['agenda', 'topic
 export const defaultStandardOperatingObjectives: StandardOperatingObjective[] = [
   {
     id: 1,
-    title: 'Identify',
-    description: 'Name the recurring work or gap tied to the top priority.',
+    title: '',
+    description: '',
     color: 'green'
-  },
-  {
-    id: 2,
-    title: 'Document',
-    description: 'Capture the simplest repeatable standard for the team.',
-    color: 'yellow'
-  },
-  {
-    id: 3,
-    title: 'Assign',
-    description: 'Clarify the owner and where follow-up actions live.',
-    color: 'orange'
-  },
-  {
-    id: 4,
-    title: 'Review',
-    description: 'Inspect adoption and update the SOP when reality changes.',
-    color: 'dark-green'
   }
 ];
 

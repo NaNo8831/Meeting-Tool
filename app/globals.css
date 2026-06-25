@@ -94,8 +94,14 @@ body {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .rich-text-column-grid-2 > .rich-text-column-pane:not(:last-child),
+  .rich-text-column-grid-3 > .rich-text-column-pane:not(:last-child) {
+    padding-right: 0.75rem;
+  }
+
   .rich-text-column-grid-2 > .rich-text-column-pane + .rich-text-column-pane,
   .rich-text-column-grid-3 > .rich-text-column-pane + .rich-text-column-pane {
     border-left: 1px solid #e2e8f0;
+    padding-left: 0.75rem;
   }
 }

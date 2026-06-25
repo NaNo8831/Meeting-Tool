@@ -6,8 +6,7 @@
 - Purpose: lightweight operational leadership meeting tool for structured weekly leadership meetings.
 - Primary use: help leadership teams track the current top priority, defining objectives, tasks, standard operating objectives, strategic topics, meeting items, decisions/actions, and cascading communication.
 - Status: live/deployed operational beta on Vercel.
-- Current persistence: browser `localStorage` with JSON export/import workspace backup.
-- Phase 2 direction: Supabase is the likely cloud/auth/persistence platform, but schema and migration details are unresolved.
+- Current persistence: Supabase cloud — structured autosave per surface (settings, topics, notes, objectives, tasks, SOOs, agenda items), Manual Save full-workspace backup, and JSON export/import.
 
 ## First Files to Read
 Before changing implementation, read:
@@ -30,20 +29,16 @@ Before changing implementation, read:
 
 ## Branch Strategy
 - `main` is production/stable and deploys to Vercel.
-- `main` is the base for production UX stabilization and operational fixes.
-- `phase-2-cloud` is the long-running branch for future cloud/auth/storage work.
-- UX fixes should branch from `main`.
-- Cloud/auth/storage work should branch from `phase-2-cloud`.
-- Periodically merge `main` into `phase-2-cloud` to reduce drift.
-- Confirm branch context before implementing; multiple Codex PRs can drift if branch purpose is unclear.
+- `dev` is the integration branch. All feature branches merge to `dev`; `dev` merges to `main` for releases.
+- Feature branches are cut from `dev` and merged back to `dev` via PR.
+- Confirm branch context before implementing; merge to `dev`, not `main`.
 
 ## Current Architecture
 - Next.js app using TypeScript and Tailwind CSS.
-- Vercel deployment.
-- Browser `localStorage` persistence through app hooks and workspace backup utilities.
-- JSON export/import backs up workspace data and should remain available.
+- Vercel deployment from `main`.
+- Supabase for auth (email/password), cloud meeting storage, structured autosave (per-surface debounced writes), and RLS authorization.
+- Browser `localStorage` as scoped workspace cache per cloud meeting; JSON export/import for backup/restore.
 - Major product areas include Meeting Setup, Playbook Definitions, Top Priority, Defining Objectives, Tasks, task details, comments, activity history, subtasks, Standard Operating Objectives, Strategic Topics, meeting sections, agenda items, decisions/actions, cascading communication, Backup/Restore, and lightweight RichTextEditor formatting.
-- Supabase cloud/auth/persistence is planned for Phase 2; do not implement it unless the task explicitly targets Phase 2 cloud work on the correct branch.
 
 ## Testing Expectations
 - For documentation-only changes, confirm the diff is docs/planning only; lint, typecheck, and build are not required unless implementation files changed.
@@ -60,6 +55,17 @@ Before changing implementation, read:
 - Protect existing local workspace data.
 - Flag assumptions rather than encoding uncertain Phase 2 behavior.
 - Do not add production code, new frameworks, database schema, auth, or migrations as part of planning-only work.
+
+---
+
+## Docs Update With Every Merge to Dev
+
+Any PR that changes behavior, data model, architecture, or user-facing functionality must update the relevant docs in the same PR. The definition of done includes:
+- `STATE.md` reflects current status
+- `DECISIONS.md` records any decisions made
+- `ARCHITECTURE.md` and `DATA_MODEL.md` reflect structural or schema changes
+
+A PR that changes how the app works but leaves docs stale is not complete.
 
 ---
 
@@ -90,6 +96,27 @@ Do not bundle architecture changes, schema changes, RLS changes, persistence cha
 - **Hardening PR** — tightens an existing feature (permission boundaries, error states, lifecycle edge cases, recovery paths).
 - **Documentation PR** — updates handoff, state, architecture, validation, README, or planning docs without app-code changes.
 - **Readiness Review PR** — evaluates whether a branch or feature set is ready for main, preview validation, or a broader merge.
+
+## UI/UX Changes — Design Brief Required
+
+Before implementing any change to layout, visual hierarchy,
+or user interaction patterns:
+
+1. Do not write any code
+2. Read the design brief in the sprint artifacts
+3. If no design brief exists, stop and ask the Architect
+   to produce one before proceeding
+4. A design brief must answer:
+   - Every visual state the component can be in
+   - What each element's single responsibility is
+   - What is removed vs added vs changed
+   - Responsive behavior on small screens
+5. Implementation begins only after the Project Lead
+   has approved the design brief
+
+This rule exists because patching UI without a complete
+picture produces compounding regressions. See the
+sprint-pre-beta-header branch as the reference case.
 
 ## Red Flags
 

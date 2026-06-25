@@ -422,31 +422,37 @@ export function useWorkspacePersistence(
         });
         lastStrategicTopicsAutosaveSignatureRef.current = pendingSignature;
 
+        const savedTopicIdsByClientId = new Map(
+          savedTopics.map((topic) => [String(topic.client_item_id), topic.id]),
+        );
+        const validTopicUuids = new Set(savedTopics.map((topic) => topic.id));
+
         if (savedTopics.length > 0) {
           setStrategicTopicItems((currentItems) =>
             mergeSavedStrategicTopicIds(currentItems, savedTopics),
           );
-          const savedTopicIdsByClientId = new Map(
-            savedTopics.map((topic) => [String(topic.client_item_id), topic.id]),
-          );
-          setMeetings((currentMeetings) =>
-            currentMeetings.map((meeting) => ({
-              ...meeting,
-              agendaItems: meeting.agendaItems.map((agendaItem) => {
-                const promotedStrategicTopicId =
-                  agendaItem.promotedStrategicTopicId
-                    ? savedTopicIdsByClientId.get(
-                        agendaItem.promotedStrategicTopicId,
-                      )
-                    : undefined;
-
-                return promotedStrategicTopicId
-                  ? { ...agendaItem, promotedStrategicTopicId }
-                  : agendaItem;
-              }),
-            })),
-          );
         }
+
+        // Always run: resolve numeric client IDs to UUIDs, and clear any
+        // promotedStrategicTopicId that references a topic deleted from Supabase.
+        setMeetings((currentMeetings) =>
+          currentMeetings.map((meeting) => ({
+            ...meeting,
+            agendaItems: meeting.agendaItems.map((agendaItem) => {
+              if (!agendaItem.promotedStrategicTopicId) return agendaItem;
+              const resolvedId = savedTopicIdsByClientId.get(
+                agendaItem.promotedStrategicTopicId,
+              );
+              if (resolvedId) {
+                return { ...agendaItem, promotedStrategicTopicId: resolvedId };
+              }
+              if (!validTopicUuids.has(agendaItem.promotedStrategicTopicId)) {
+                return { ...agendaItem, promotedStrategicTopicId: undefined };
+              }
+              return agendaItem;
+            }),
+          })),
+        );
 
         if (
           !isCancelled &&

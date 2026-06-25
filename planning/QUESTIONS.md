@@ -1,36 +1,6 @@
 # Open Questions
 
-This file tracks open questions that are genuinely unresolved. Questions that have been answered or deferred to post-main have been removed or closed. Updated during the Documentation Refresh sprint.
-
----
-
-## Remaining Open Questions Before Main
-
-### Auth Email / Forgot Password
-
-- **Has Supabase Auth Site URL been changed from localhost to the production Vercel/custom domain?** This must be confirmed before any auth email validation is trusted.
-- **Are Redirect URLs correct?** Production domain, `https://*.vercel.app/**`, and `http://localhost:3000/**` should all be present.
-- **Custom SMTP provider:** Will the project use Resend before main, or is another provider preferred? Resend is the documented recommendation (`docs/AUTH_EMAIL_SETUP.md`) but no durable decision has been recorded.
-- **Forgot Password merge and email-link validation:** PR #110 (`codex/add-forgot-password-implementation`) is implementation-complete and merge-ready. Final email-link validation is pending Resend/DNS setup (IT request submitted). Once Resend/DNS is confirmed: send a fresh reset email, confirm the link opens the deployed `/reset-password` route (not localhost), complete the password update, confirm re-login. Then merge PR #110 to `phase-3-shared-access`.
-
-### Meeting Lifecycle
-
-- **Continue/Reopen Meeting:** Is an explicit Continue/Reopen action needed before main, or is the current "prefer open record, then newest record" refresh logic sufficient?
-- **End Meeting and Manual Save:** Should End Meeting offer or trigger a full Manual Save backup, or remain Tactical History snapshot-only?
-
-### Post-Main Decisions (Deferred — Do Not Resolve Before Main)
-
-These are recorded here for visibility but should not block main:
-
-- Should shared-editor duplicate ever be allowed? If so, what does it copy and who approves it?
-- What Supabase schema normalization follows full-workspace JSONB if deeper normalization is needed?
-- Should local-to-cloud migration state move from browser-local signatures into cloud metadata?
-- Should Agenda Items support multiple outcomes per item, or is one outcome sufficient for main?
-- Should legacy `decisionItems` receive a one-time migration tool into Agenda Item outcomes after main?
-- Should Promote to Strategic Topic use a transactional RPC for atomicity, or is client-side sequential write acceptable through main?
-- Should Local Mode be labeled `Browser-only fallback` in the UI before main, or after?
-- Should the Decisions/Actions rollup remain inside the Agenda workspace or be removed/collapsed?
-- Which Supabase/Vercel preview environment and test accounts should be the canonical Main Readiness Review environment?
+This file is now a resolved-questions reference. Pre-main open questions were closed at the time of Team Beta launch (2026-06-10). Post-beta open questions are tracked in `planning/POST_MAIN_ROADMAP.md`.
 
 ---
 

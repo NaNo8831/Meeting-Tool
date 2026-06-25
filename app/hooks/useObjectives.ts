@@ -190,8 +190,8 @@ export const useObjectives = (storageKey = 'leadership-objectives') => {
     setObjectives([
       {
         id: nextId,
-        title: 'New Objective',
-        description: 'Enter a detailed objective summary here.',
+        title: '',
+        description: '',
         status: 'planning',
         priority: 'medium',
         dueDate: '',

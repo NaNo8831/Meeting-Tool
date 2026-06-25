@@ -17,11 +17,13 @@ import { BackupRestoreModal } from "@/app/components/dashboard/BackupRestoreModa
 import { MeetingSetupModal } from "@/app/components/dashboard/MeetingSetupModal";
 import { PlaybookDefinitionsModal } from "@/app/components/dashboard/PlaybookDefinitionsModal";
 import { FeedbackWidget } from "@/app/components/feedback/FeedbackWidget";
+import { HelpPanel } from "@/app/components/help/HelpPanel";
 import { MeetingHeader } from "@/app/components/meeting/MeetingHeader";
 import { MeetingSection } from "@/app/components/meeting/MeetingSection";
 import { ObjectiveCard } from "@/app/components/objectives/ObjectiveCard";
 import { TaskDetailsModal } from "@/app/components/objectives/TaskDetailsModal";
 import { ColorSquareSelect } from "@/app/components/ui/ColorSquareSelect";
+import { EditableField } from "@/app/components/ui/EditableField";
 import {
   RichTextEditor,
   RichTextRenderer,
@@ -945,6 +947,14 @@ const getPreferredActiveMeetingId = (
 
 const getInitialMeetings = (): MeetingRecord[] => [createBlankMeeting()];
 
+// A meeting has content once the user adds anything to it. Used to tell a
+// real meeting apart from the seeded blank placeholder.
+const meetingHasContent = (meeting: MeetingRecord): boolean =>
+  meeting.agendaItems.length > 0 ||
+  meeting.topicItems.length > 0 ||
+  meeting.decisionItems.length > 0 ||
+  meeting.cascadeItems.length > 0;
+
 const normalizeStrategicTopic = (
   item: MeetingItem,
   fallbackMeeting: Pick<MeetingRecord, "id" | "date">,
@@ -1231,11 +1241,6 @@ export default function MeetingWorkspace() {
   );
   const [selectedStandardObjectiveId, setSelectedStandardObjectiveId] =
     useState<number | null>(null);
-  const [standardObjectiveDraft, setStandardObjectiveDraft] = useState({
-    title: "",
-    description: "" as RichTextValue,
-    color: defaultObjectiveColor as ObjectiveColor,
-  });
   const [newAgendaItem, setNewAgendaItem] = useState("");
   const [newTopicItem, setNewTopicItem] = useState("");
   const [newDecisionItem, setNewDecisionItem] = useState("");
@@ -1256,9 +1261,16 @@ export default function MeetingWorkspace() {
   const [showMeetingSetup, setShowMeetingSetup] = useState(false);
   const [showPlaybookDefinitions, setShowPlaybookDefinitions] = useState(false);
   const [showBackupRestore, setShowBackupRestore] = useState(false);
+  const [showWorkspaceHelp, setShowWorkspaceHelp] = useState(false);
   const [showTacticalHistory, setShowTacticalHistory] = useState(false);
-  const [showMembersModal, setShowMembersModal] = useState(false);
+
   const [showEndMeetingConfirm, setShowEndMeetingConfirm] = useState(false);
+  // Tracks meetings the user explicitly started this session. Lets the
+  // derivation treat a freshly started but still-empty meeting as a real
+  // open meeting, distinct from the seeded blank placeholder.
+  const [userStartedMeetingIds, setUserStartedMeetingIds] = useState<
+    Set<number>
+  >(() => new Set());
   const [isTestingModeActive, setIsTestingModeActive] = useState(false);
   const [testingMeetingDate, setTestingMeetingDate] = useState(getTodayDate);
   const [showDeleteMeetingNotesConfirm, setShowDeleteMeetingNotesConfirm] =
@@ -1285,6 +1297,7 @@ export default function MeetingWorkspace() {
   const [isLoadingTacticalSessions, setIsLoadingTacticalSessions] =
     useState(false);
   const [isEndingMeeting, setIsEndingMeeting] = useState(false);
+  const [manualSaveJustSucceeded, setManualSaveJustSucceeded] = useState(false);
   const [selectedTacticalSessionId, setSelectedTacticalSessionId] =
     useState("");
   const [historyNotesTopic, setHistoryNotesTopic] = useState<MeetingItem | null>(null);
@@ -1371,62 +1384,120 @@ export default function MeetingWorkspace() {
     ? testingMeetingDate
     : todayDate;
   const hasMeetingActionDate = Boolean(meetingActionDate);
-  const actionDateMeeting = meetings.find(
-    (meeting) => meeting.date === meetingActionDate,
-  );
+
+  // A real meeting is one that has been ended, has content, was explicitly
+  // started this session, or is a test meeting. The seeded blank placeholder
+  // matches none of these, so it never counts as a real (open) meeting.
+  const isRealMeeting = (meeting: MeetingRecord): boolean =>
+    historicalMeetingIds.has(meeting.id) ||
+    meeting.isTestMeeting === true ||
+    meetingHasContent(meeting) ||
+    userStartedMeetingIds.has(meeting.id);
+
   const isActiveMeetingHistorical = historicalMeetingIds.has(activeMeeting.id);
   const isViewingTodayMeeting = activeMeeting.date === todayDate;
   const isViewingEditableTestMeeting =
     isTestingDateOverrideActive && activeMeeting.isTestMeeting === true;
-  const isMeetingNotesReadOnly =
-    isActiveMeetingHistorical ||
-    (!isViewingTodayMeeting && !isViewingEditableTestMeeting);
-  const meetingNotesReadOnlyMessage = isActiveMeetingHistorical
-    ? "This meeting has been ended and captured in Tactical History. Dated meeting notes are read-only."
-    : "This is not the current meeting date. Dated meeting notes are read-only unless this is an enabled Test Mode record.";
-  const lifecycleStatusLabel = isActiveMeetingHistorical
-    ? "Closed Meeting"
-    : isViewingEditableTestMeeting
-      ? "Test Mode"
-      : isViewingTodayMeeting
-        ? "Open Meeting"
-        : "Past Meeting";
+
+  // The placeholder is a meeting we should treat as "no meeting yet".
+  const isActiveMeetingPlaceholder = !isRealMeeting(activeMeeting);
+  // The active meeting is open when it is real and has not been ended.
+  const isActiveMeetingOpenReal =
+    isRealMeeting(activeMeeting) && !isActiveMeetingHistorical;
+
+  // Open meetings anywhere in the workspace (excluding test meetings, which
+  // have their own context). There should only ever be one.
+  const openMeetings = meetings.filter(
+    (meeting) =>
+      meeting.isTestMeeting !== true &&
+      !historicalMeetingIds.has(meeting.id) &&
+      isRealMeeting(meeting),
+  );
+  const hasOpenMeeting = openMeetings.length > 0;
+
+  // Open meetings are editable across days; closed (ended) meetings are
+  // read-only. The placeholder is editable so typing into it starts a meeting.
+  const isMeetingNotesReadOnly = isActiveMeetingHistorical;
+  const meetingNotesReadOnlyMessage =
+    "This meeting has been ended. Content is read-only.";
   const lifecycleStatusDescription = isActiveMeetingHistorical
-    ? "Past meeting record. Review-only unless reopened through an approved workflow."
+    ? "Closed meeting. Captured in Tactical History and read-only."
     : isViewingEditableTestMeeting
       ? "Test meeting. Safe for practice and validation."
-      : isViewingTodayMeeting
-        ? "Current meeting record."
-        : "Past meeting record. Review-only unless reopened through an approved workflow.";
-  const lifecycleStatusClassName = isActiveMeetingHistorical
-    ? "border-slate-300 bg-slate-50 text-slate-700"
-    : isViewingEditableTestMeeting
-      ? "border-amber-200 bg-amber-50 text-amber-900"
-      : isViewingTodayMeeting
-        ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-        : "border-slate-200 bg-white text-slate-700";
-  const isActionDateMeetingHistorical = actionDateMeeting
-    ? historicalMeetingIds.has(actionDateMeeting.id)
-    : false;
-  const meetingActionHelpText = !actionDateMeeting
-    ? isTestingDateOverrideActive
-      ? "Start creates a test dated meeting for the selected Test Mode date."
-      : "Start creates today’s current meeting record."
-    : isActionDateMeetingHistorical
-      ? "View opens the ended dated record as read-only; Tactical History keeps the captured snapshot."
-      : isTestingDateOverrideActive
-        ? "Edit opens the existing test dated meeting while Test Mode is enabled."
-        : "Edit opens today’s current meeting record for continued work.";
-  const isActionDateDifferentFromActiveMeeting =
-    actionDateMeeting !== undefined && actionDateMeeting.id !== activeMeeting.id;
-  const meetingActionLabel = !actionDateMeeting
-    ? "Start Meeting"
-    : isActionDateMeetingHistorical
-      ? "View Meeting"
-      : "Edit Meeting";
-  const canEndMeeting =
-    (isViewingTodayMeeting || isViewingEditableTestMeeting) &&
-    !isMeetingNotesReadOnly;
+      : isActiveMeetingPlaceholder
+        ? "No meeting started yet. Use Start Meeting to begin."
+        : "Open meeting. Editable until you end it.";
+  const meetingActionHelpText = isActiveMeetingHistorical
+    ? "This meeting is closed. View opens its read-only record."
+    : isActiveMeetingOpenReal
+      ? "End Meeting captures this meeting in Tactical History and closes it."
+      : "Start Meeting begins a new meeting.";
+  const canEndMeeting = isActiveMeetingOpenReal;
+
+  // Pre-computed props for MeetingHeader — display logic lives here, not in the header
+
+  // A real meeting that already exists for the action date (real today, or Test Mode date) — enforces one-per-date
+  const actionDateMeetingExists = meetings.some(
+    (meeting) => meeting.date === meetingActionDate && isRealMeeting(meeting),
+  );
+  const todayHasMeeting = Boolean(meetingActionDate) && actionDateMeetingExists;
+
+  // The most recent closed meeting is the one with the highest date among all historical real meetings.
+  // "Start Meeting" only appears when viewing this specific meeting — it's the logical "next step" after ending.
+  // Viewing any older closed meeting shows "View" instead, avoiding a confusing offer to start while reviewing history.
+  const mostRecentClosedMeetingDate = meetings
+    .filter((meeting) => historicalMeetingIds.has(meeting.id) && meeting.isTestMeeting !== true)
+    .map((meeting) => meeting.date)
+    .sort()
+    .at(-1) ?? null;
+  const isViewingMostRecentClosedMeeting =
+    isActiveMeetingHistorical &&
+    activeMeeting.isTestMeeting !== true &&
+    activeMeeting.date === mostRecentClosedMeetingDate;
+
+  const primaryActionLabel: "Start Meeting" | "End Meeting" | "View" =
+    isActiveMeetingOpenReal && !isViewingEditableTestMeeting
+      ? "End Meeting"
+      : !hasOpenMeeting && !todayHasMeeting && isViewingMostRecentClosedMeeting
+        ? "Start Meeting"
+        : !hasOpenMeeting && !todayHasMeeting && isActiveMeetingPlaceholder
+          ? "Start Meeting"
+          : "View";
+
+  const primaryActionDisabled =
+    primaryActionLabel === "Start Meeting" && !hasMeetingActionDate;
+
+  // handlePrimaryAction is defined below, after the start/end handlers
+
+  const chipLabel: "Open" | "Closed" | "Test Mode" | null =
+    meetings.length === 0
+      ? null
+      : isActiveMeetingPlaceholder
+        ? null
+        : isViewingEditableTestMeeting
+          ? "Test Mode"
+          : isActiveMeetingHistorical
+            ? "Closed"
+            : "Open";
+
+  // For Test Mode meetings, expose open/closed so the chip can show "Test Mode · Open" or "Test Mode · Closed"
+  const chipTestModeStatus: "Open" | "Closed" | null = isViewingEditableTestMeeting
+    ? isActiveMeetingHistorical
+      ? "Closed"
+      : "Open"
+    : null;
+
+  // Known limitation note shown in the lifecycle help popover when viewing a Test Mode meeting.
+  // Only rendered in preview/dev builds where testingToolsEnabled is true — never in production.
+  const chipTestModeHelpNote: string | null =
+    testingToolsEnabled && isViewingEditableTestMeeting
+      ? "Test Mode lets you set any date as the current date. Unlike normal use, Test Mode may allow more than one open meeting at a time across different test dates. This is expected and only occurs in Test Mode."
+      : null;
+
+  const chipDate: string | null = chipLabel !== null ? activeMeeting.date : null;
+
+  // computedManualSaveLabel and computedManualSaveDisabled defined below, after isManualSaveInFlight
+
   const hasLoadedDashboardStorage =
     hasLoadedObjectives &&
     hasLoadedMeetings &&
@@ -1561,23 +1632,7 @@ export default function MeetingWorkspace() {
   }, [authSession, isAuthLoading, isCloudRoute, router]);
 
   // Slice C: member state, isMeetingOwner, and invitation handlers extracted to useWorkspaceMembers.
-  const {
-    workspaceMeetingMembers,
-    workspaceMeetingInvitations,
-    isMeetingOwner,
-    isLoadingWorkspaceMembers,
-    isLoadingWorkspaceInvitations,
-    workspaceMembersMessage,
-    workspaceInviteEmail,
-    setWorkspaceInviteEmail,
-    isCreatingWorkspaceInvitation,
-    isRemovingWorkspaceMember,
-    isRevokingWorkspaceInvitation,
-    getWorkspaceMemberDisplayName,
-    handleWorkspaceInviteMember,
-    handleWorkspaceRemoveMember,
-    handleWorkspaceRevokeInvitation,
-  } = useWorkspaceMembers(authSession, selectedMeetingId);
+  const { isMeetingOwner } = useWorkspaceMembers(authSession, selectedMeetingId);
 
   const handleChangePassword = async () => {
     if (!authSession) return;
@@ -2013,21 +2068,36 @@ export default function MeetingWorkspace() {
     });
   };
 
-  const handleMeetingAction = () => {
-    if (!hasMeetingActionDate) return;
+  // Start a new meeting for the action date, replacing any blank placeholder
+  // for that date and preserving the one-meeting-per-date constraint.
+  const startNewMeetingForActionDate = () => {
+    const startDate = meetingActionDate;
 
-    const existingMeeting = meetings.find(
-      (meeting) => meeting.date === meetingActionDate,
+    const existingRealMeeting = meetings.find(
+      (meeting) =>
+        meeting.date === startDate &&
+        isRealMeeting(meeting) &&
+        !historicalMeetingIds.has(meeting.id),
     );
 
-    if (existingMeeting) {
-      setActiveMeetingId(existingMeeting.id);
+    if (existingRealMeeting) {
+      setActiveMeetingId(existingRealMeeting.id);
     } else {
       const newMeeting = createBlankMeeting(
-        meetingActionDate,
+        startDate,
         isTestingDateOverrideActive,
       );
-      setMeetings([...meetings, newMeeting]);
+      setMeetings((currentMeetings) => [
+        ...currentMeetings.filter(
+          (meeting) => !(meeting.date === startDate && !isRealMeeting(meeting)),
+        ),
+        newMeeting,
+      ]);
+      setUserStartedMeetingIds((current) => {
+        const next = new Set(current);
+        next.add(newMeeting.id);
+        return next;
+      });
       setActiveMeetingId(newMeeting.id);
     }
 
@@ -2036,6 +2106,35 @@ export default function MeetingWorkspace() {
     setNewCascadeItem("");
     scrollToMeetingNotes();
   };
+
+  const handleStartMeeting = () => {
+    if (!hasMeetingActionDate) return;
+
+    // Close-and-start gate: if an open meeting exists but is not the one in
+    // view, bring it into view and prompt to end it before starting a new one.
+    const openMeeting = openMeetings[0];
+    if (openMeeting && openMeeting.id !== activeMeeting.id) {
+      const confirmed = window.confirm(
+        `End your ${openMeeting.date} meeting and start a new one?`,
+      );
+      if (!confirmed) return;
+      setActiveMeetingId(openMeeting.id);
+      setShowEndMeetingConfirm(true);
+      return;
+    }
+
+    startNewMeetingForActionDate();
+  };
+
+  const handlePrimaryAction =
+    primaryActionLabel === "End Meeting"
+      ? () => setShowEndMeetingConfirm(true)
+      : primaryActionLabel === "View"
+        ? () => {
+            setActiveMeetingId(activeMeeting.id);
+            scrollToMeetingNotes();
+          }
+        : handleStartMeeting;
 
   const deleteCurrentMeetingNotes = () => {
     if (isMeetingNotesReadOnly) return;
@@ -2090,26 +2189,16 @@ export default function MeetingWorkspace() {
 
   const openStandardObjectiveEditor = (item: StandardOperatingObjective) => {
     setSelectedStandardObjectiveId(item.id);
-    setStandardObjectiveDraft({
-      title: item.title,
-      description: item.description,
-      color: getStandardObjectiveColor(item),
-    });
   };
 
   const closeStandardObjectiveEditor = () => {
     setSelectedStandardObjectiveId(null);
-    setStandardObjectiveDraft({
-      title: "",
-      description: "",
-      color: defaultObjectiveColor,
-    });
   };
 
   const addStandardObjective = () => {
     const newStandardObjective: StandardOperatingObjective = {
       id: Date.now(),
-      title: "New Standard Objective",
+      title: "",
       description: "",
       color: defaultObjectiveColor,
     };
@@ -2121,23 +2210,20 @@ export default function MeetingWorkspace() {
     openStandardObjectiveEditor(newStandardObjective);
   };
 
-  const saveStandardObjective = () => {
-    if (selectedStandardObjectiveId === null) return;
-
-    const nextTitle = standardObjectiveDraft.title.trim();
-    setStandardOperatingObjectives(
-      standardOperatingObjectives.map((item) =>
-        item.id === selectedStandardObjectiveId
-          ? {
-              ...item,
-              title: nextTitle || "New Standard Objective",
-              description: standardObjectiveDraft.description,
-              color: standardObjectiveDraft.color,
-            }
+  const updateSOOTitle = (id: number, title: string) => {
+    setStandardOperatingObjectives((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? { ...item, title: title.trim() }
           : item,
       ),
     );
-    closeStandardObjectiveEditor();
+  };
+
+  const updateSOODescription = (id: number, description: RichTextValue) => {
+    setStandardOperatingObjectives((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, description } : item)),
+    );
   };
 
   const deleteStandardObjective = () => {
@@ -2418,6 +2504,7 @@ export default function MeetingWorkspace() {
     },
     topic: {
       id: "topic",
+      isFixed: true,
       title: "Strategic Topics",
       description: "Capture high-level topics that carry across meetings.",
       items: visibleStrategicTopicItems,
@@ -2457,6 +2544,7 @@ export default function MeetingWorkspace() {
     },
     cascade: {
       id: "cascade",
+      isFixed: true,
       title: "Cascading Communication",
       description: "Staff communication — items from agenda marked as Cascade Needed appear here automatically. Add additional communication notes below.",
       items: activeMeeting.cascadeItems,
@@ -2509,7 +2597,9 @@ export default function MeetingWorkspace() {
     ],
   );
 
-  getCurrentWorkspaceStorageRef.current = getCurrentWorkspaceStorage;
+  useEffect(() => {
+    getCurrentWorkspaceStorageRef.current = getCurrentWorkspaceStorage;
+  });
 
   const normalizeStrategicTopicNotesBackup = useCallback(
     (value: unknown): Record<number, StrategicTopicNoteBackupEntry> => {
@@ -2794,6 +2884,71 @@ export default function MeetingWorkspace() {
       );
     },
     [setMeetings],
+  );
+
+  const saveStrategicTopicsBackupToCloud = useCallback(
+    async (currentMeetings: MeetingRecord[]): Promise<MeetingRecord[]> => {
+      if (!authSession || !selectedMeetingId || !isCurrentCloudRouteWorkspace) {
+        return currentMeetings;
+      }
+
+      const topicRows = strategicTopicItems.map((item, index) =>
+        mapStrategicTopicToSupabase(item, selectedMeetingId, index),
+      );
+      const savedTopics = await supabaseMeetingClient.saveStrategicTopics({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        topics: topicRows,
+      });
+      await supabaseMeetingClient.deleteMissingStrategicTopics({
+        accessToken: authSession.accessToken,
+        workspaceId: selectedMeetingId,
+        retainedClientItemIds: topicRows.map((t) => t.client_item_id),
+      });
+
+      const savedIdsByClientId = new Map(
+        savedTopics.map((t) => [String(t.client_item_id), t.id]),
+      );
+      const validTopicUuids = new Set(savedTopics.map((t) => t.id));
+
+      if (savedTopics.length > 0) {
+        setStrategicTopicItems((current) =>
+          current.map((item) => {
+            const cloudId = savedIdsByClientId.get(String(item.id));
+            return cloudId ? { ...item, strategicTopicId: cloudId } : item;
+          }),
+        );
+      }
+
+      // Always run: resolve numeric client IDs to UUIDs, and clear any
+      // promotedStrategicTopicId that references a topic deleted from Supabase.
+      const updatedMeetings = currentMeetings.map((meeting) => ({
+        ...meeting,
+        agendaItems: meeting.agendaItems.map((agendaItem) => {
+          if (!agendaItem.promotedStrategicTopicId) return agendaItem;
+          const resolvedId = savedIdsByClientId.get(
+            agendaItem.promotedStrategicTopicId,
+          );
+          if (resolvedId) {
+            return { ...agendaItem, promotedStrategicTopicId: resolvedId };
+          }
+          if (!validTopicUuids.has(agendaItem.promotedStrategicTopicId)) {
+            return { ...agendaItem, promotedStrategicTopicId: undefined };
+          }
+          return agendaItem;
+        }),
+      }));
+      setMeetings(updatedMeetings);
+      return updatedMeetings;
+    },
+    [
+      authSession,
+      isCurrentCloudRouteWorkspace,
+      selectedMeetingId,
+      setMeetings,
+      setStrategicTopicItems,
+      strategicTopicItems,
+    ],
   );
 
   const saveAgendaItemsBackupToCloud = useCallback(
@@ -3132,7 +3287,11 @@ export default function MeetingWorkspace() {
         "Full workspace saved to cloud backup.",
       );
       if (wasSaved) {
-        await saveAgendaItemsBackupToCloud(meetings);
+        const meetingsWithResolvedTopicIds =
+          await saveStrategicTopicsBackupToCloud(meetings);
+        await saveAgendaItemsBackupToCloud(meetingsWithResolvedTopicIds);
+        setManualSaveJustSucceeded(true);
+        setTimeout(() => setManualSaveJustSucceeded(false), 2000);
       }
     } catch (error) {
       setCloudSaveStatus("error");
@@ -3148,6 +3307,7 @@ export default function MeetingWorkspace() {
     isCurrentCloudRouteWorkspace,
     meetings,
     saveAgendaItemsBackupToCloud,
+    saveStrategicTopicsBackupToCloud,
     saveWorkspaceBackupToCloud,
     selectedMeetingId,
     selectedMeetingName,
@@ -3217,10 +3377,17 @@ export default function MeetingWorkspace() {
 
   const meetingNotesAutosavePayload = useMemo(
     () =>
-      meetings.map((meeting) =>
-        mapMeetingRecordToSupabase(meeting, selectedMeetingId),
-      ),
-    [meetings, selectedMeetingId],
+      meetings
+        .filter(
+          (meeting) =>
+            meeting.agendaItems.length > 0 ||
+            meeting.topicItems.length > 0 ||
+            meeting.decisionItems.length > 0 ||
+            meeting.cascadeItems.length > 0 ||
+            historicalMeetingIds.has(meeting.id),
+        )
+        .map((meeting) => mapMeetingRecordToSupabase(meeting, selectedMeetingId)),
+    [historicalMeetingIds, meetings, selectedMeetingId],
   );
 
   const agendaItemsAutosavePayload = useMemo(
@@ -3354,6 +3521,19 @@ export default function MeetingWorkspace() {
   const isManualSaveInFlight =
     cloudSaveStatus === "saving" && isCurrentCloudRouteWorkspace;
 
+  const computedManualSaveLabel: "Save" | "Saving..." | "Saved" | "Up to date" | "Save failed" =
+    manualSaveJustSucceeded
+      ? "Saved"
+      : isManualSaveInFlight
+        ? "Saving..."
+        : !hasUnsavedFullWorkspaceChanges
+          ? "Up to date"
+          : cloudSaveStatus === "error"
+            ? "Save failed"
+            : "Save";
+
+  const computedManualSaveDisabled = isManualSaveInFlight;
+
   if (!hasLoadedDashboardStorage) {
     return (
       <main className="min-h-screen bg-slate-100 p-8">
@@ -3405,15 +3585,13 @@ export default function MeetingWorkspace() {
         stickyMeetingTitle={stickyMeetingTitle}
         isCurrentCloudRouteWorkspace={isCurrentCloudRouteWorkspace}
         authSession={authSession}
-        selectedMeetingId={selectedMeetingId}
         isAuthLoading={isAuthLoading}
         lifecycleHelpRef={lifecycleHelpRef}
-        lifecycleStatusClassName={lifecycleStatusClassName}
         lifecycleStatusDescription={lifecycleStatusDescription}
-        lifecycleStatusLabel={lifecycleStatusLabel}
-        activeMeetingDate={activeMeeting.date}
-        isActionDateDifferentFromActiveMeeting={isActionDateDifferentFromActiveMeeting}
-        meetingActionDate={meetingActionDate}
+        chipLabel={chipLabel}
+        chipTestModeStatus={chipTestModeStatus}
+        chipTestModeHelpNote={chipTestModeHelpNote}
+        chipDate={chipDate}
         showLifecycleHelp={showLifecycleHelp}
         onToggleLifecycleHelp={() => setShowLifecycleHelp((isOpen) => !isOpen)}
         onOpenLifecycleHelp={() => setShowLifecycleHelp(true)}
@@ -3428,26 +3606,22 @@ export default function MeetingWorkspace() {
         agendaItemsAutosaveStatus={agendaItemsAutosaveStatus}
         meetingNotesAutosaveStatus={meetingNotesAutosaveStatus}
         objectivesAutosaveStatus={objectivesAutosaveStatus}
-        hasUnsavedFullWorkspaceChanges={hasUnsavedFullWorkspaceChanges}
-        cloudSaveStatus={cloudSaveStatus}
         cloudMeetingMessage={cloudMeetingMessage}
         onReloadCloudBackup={() => {
           setShowAutosaveStatusDetail(false);
           void handleLoadCloudMeeting();
         }}
         meetingActionHelpText={meetingActionHelpText}
-        meetingActionLabel={meetingActionLabel}
-        hasMeetingActionDate={hasMeetingActionDate}
-        onMeetingAction={handleMeetingAction}
-        isEndingMeeting={isEndingMeeting}
-        canEndMeeting={canEndMeeting}
-        onEndMeeting={() => setShowEndMeetingConfirm(true)}
+        primaryActionLabel={primaryActionLabel}
+        primaryActionDisabled={primaryActionDisabled}
+        onPrimaryAction={handlePrimaryAction}
         testingToolsEnabled={testingToolsEnabled}
         isTestingModeActive={isTestingModeActive}
         onToggleTestingMode={(checked) => setIsTestingModeActive(checked)}
         testingMeetingDate={testingMeetingDate}
         onTestingMeetingDateChange={(date) => setTestingMeetingDate(date)}
-        isManualSaveInFlight={isManualSaveInFlight}
+        manualSaveLabel={computedManualSaveLabel}
+        manualSaveDisabled={computedManualSaveDisabled}
         onManualSave={() => void handleSaveCloudMeeting()}
         settingsMenuRef={settingsMenuRef}
         showSettingsMenu={showSettingsMenu}
@@ -3467,7 +3641,7 @@ export default function MeetingWorkspace() {
         {isActiveMeetingHistorical ? (
           <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
             <span className="font-semibold">This meeting has been ended.</span>{" "}
-            Content is read-only. To continue taking notes, start a new meeting for today.
+            Content is read-only.
           </div>
         ) : null}
 
@@ -3606,7 +3780,9 @@ export default function MeetingWorkspace() {
                   onClick={() => openStandardObjectiveEditor(item)}
                   className="min-w-0 flex-1 rounded-lg text-left text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-300"
                 >
-                  <span className="line-clamp-2 leading-snug">{item.title}</span>
+                  <span className={`line-clamp-2 leading-snug ${item.title ? "" : "text-slate-400"}`}>
+                    {item.title || "New Standard Operating Objective"}
+                  </span>
                 </button>
                 <ColorSquareSelect
                   value={getStandardObjectiveColor(item)}
@@ -3688,6 +3864,19 @@ export default function MeetingWorkspace() {
           </div>
         </div>
       </div>
+
+      {showWorkspaceHelp ? (
+        <HelpPanel onClose={() => setShowWorkspaceHelp(false)} mode="workspace" testingToolsEnabled={testingToolsEnabled} />
+      ) : null}
+
+      <button
+        type="button"
+        onClick={() => setShowWorkspaceHelp(true)}
+        className="fixed bottom-20 right-5 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-bold text-slate-600 shadow-lg transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
+        aria-label="Open help panel"
+      >
+        ?
+      </button>
 
       <FeedbackWidget
         session={authSession}
@@ -3776,7 +3965,7 @@ export default function MeetingWorkspace() {
               </p>
               {activeMeeting.isTestMeeting ? (
                 <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 font-semibold text-amber-900">
-                  Testing Mode: this snapshot uses the test date {activeMeeting.date}.
+                  Test Mode: this snapshot uses the test date {activeMeeting.date}.
                 </p>
               ) : null}
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-emerald-950">
@@ -3926,122 +4115,105 @@ export default function MeetingWorkspace() {
         }}
       />
 
-      {selectedStandardObjectiveId !== null ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl md:p-8">
-            <div className="relative z-[80] mb-6 flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
-                  Standard Operating Objective
-                </p>
+      {selectedStandardObjectiveId !== null ? (() => {
+        const selectedSOO = standardOperatingObjectives.find(
+          (item) => item.id === selectedStandardObjectiveId,
+        );
+        if (!selectedSOO) return null;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
+            <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl md:p-8">
+              <div className="relative z-[80] mb-6 flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
+                    Standard Operating Objective
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <ColorSquareSelect
+                    value={getStandardObjectiveColor(selectedSOO)}
+                    onChange={(color) =>
+                      updateStandardObjectiveColor(selectedStandardObjectiveId, color)
+                    }
+                    ariaLabel="Standard operating objective modal color"
+                  />
+                  <button
+                    type="button"
+                    onClick={closeStandardObjectiveEditor}
+                    className="rounded-full px-3 py-1 text-2xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                    aria-label="Close standard operating objective editor"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <ColorSquareSelect
-                  value={standardObjectiveDraft.color}
-                  onChange={(color) =>
-                    setStandardObjectiveDraft((draft) => ({
-                      ...draft,
-                      color,
-                    }))
-                  }
-                  ariaLabel="Standard operating objective modal color"
-                />
+
+              <div className="space-y-5">
+                <div>
+                  <p className="mb-1.5 text-sm font-semibold text-slate-700">Title</p>
+                  <EditableField
+                    value={selectedSOO.title}
+                    onSave={(value) => updateSOOTitle(selectedStandardObjectiveId, value)}
+                    placeholder="Standard Operating Objective"
+                    ariaLabel="Standard operating objective title"
+                    className="text-xl font-semibold text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <p className="mb-1.5 text-sm font-semibold text-slate-700">
+                    Description
+                  </p>
+                  <RichTextEditor
+                    key={selectedStandardObjectiveId}
+                    value={selectedSOO.description}
+                    onChange={(description) =>
+                      updateSOODescription(selectedStandardObjectiveId, description)
+                    }
+                    placeholder="Add standard operating objective details..."
+                    className="bg-blue-50/50"
+                    editorClassName="text-base leading-relaxed"
+                    minHeightClassName="min-h-[180px]"
+                    ariaLabel="Standard operating objective description"
+                    editingMode="always"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-8 flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={closeStandardObjectiveEditor}
-                  className="rounded-full px-3 py-1 text-2xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                  aria-label="Close standard operating objective editor"
+                  onClick={deleteStandardObjective}
+                  className="rounded-xl border border-red-200 bg-red-50 px-5 py-2 font-semibold text-red-700 hover:bg-red-100"
                 >
-                  ×
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-5">
-              <label className="block">
-                <span className="mb-2 block text-lg font-semibold text-slate-900">
-                  Title
-                </span>
-                <input
-                  type="text"
-                  value={standardObjectiveDraft.title}
-                  onChange={(event) =>
-                    setStandardObjectiveDraft((draft) => ({
-                      ...draft,
-                      title: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-xl font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                  placeholder="New Standard Objective"
-                />
-              </label>
-
-              <div>
-                <span className="mb-2 block text-lg font-semibold text-slate-900">
-                  Description
-                </span>
-                <RichTextEditor
-                  key={selectedStandardObjectiveId}
-                  value={standardObjectiveDraft.description}
-                  onChange={(description) =>
-                    setStandardObjectiveDraft((draft) => ({
-                      ...draft,
-                      description,
-                    }))
-                  }
-                  placeholder="Add standard operating objective details..."
-                  className="bg-blue-50/50"
-                  editorClassName="text-base leading-relaxed"
-                  minHeightClassName="min-h-[180px]"
-                  ariaLabel="Standard operating objective description"
-                  editingMode="always"
-                />
-              </div>
-            </div>
-
-            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <button
-                type="button"
-                onClick={deleteStandardObjective}
-                className="rounded-xl border border-red-200 bg-red-50 px-5 py-2 font-semibold text-red-700 hover:bg-red-100"
-              >
-                Delete
-              </button>
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={closeStandardObjectiveEditor}
-                  className="rounded-xl bg-slate-500 px-5 py-2 font-semibold text-white hover:bg-slate-600"
-                >
-                  Cancel
+                  Delete
                 </button>
                 <button
                   type="button"
-                  onClick={saveStandardObjective}
+                  onClick={closeStandardObjectiveEditor}
                   className="rounded-xl bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700"
                 >
-                  Save
+                  Close
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      ) : null}
+        );
+      })() : null}
 
       {historyNotesTopic ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl">
-            <div className="mb-3 flex items-center justify-between gap-3">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4"
+          onClick={() => void handleSaveStrategicTopicHistoryNotes()}
+        >
+          <div
+            className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3">
               <h3 className="text-lg font-semibold text-slate-900">
                 {historyNotesTopic.text}
               </h3>
-              <button
-                type="button"
-                onClick={() => setHistoryNotesTopic(null)}
-                className="rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-700 hover:bg-slate-100"
-              >
-                Close
-              </button>
             </div>
             <p className="mb-2 text-sm text-slate-600">
               Strategic Topic Notes
@@ -4066,14 +4238,14 @@ export default function MeetingWorkspace() {
             {historyNotesStatus ? (
               <p className="mt-2 text-sm text-slate-700">{historyNotesStatus}</p>
             ) : null}
-            <div className="mt-4 flex justify-end gap-2">
+            <div className="mt-4 flex justify-end">
               <button
                 type="button"
                 onClick={() => void handleSaveStrategicTopicHistoryNotes()}
                 disabled={isSavingHistoryNotes || isLoadingHistoryNotes || !authSession || !selectedMeetingId}
                 className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
               >
-                {isSavingHistoryNotes ? "Saving…" : "Save Notes"}
+                {isSavingHistoryNotes ? "Saving…" : "Done"}
               </button>
             </div>
           </div>
@@ -4190,180 +4362,7 @@ export default function MeetingWorkspace() {
         mode="export-only"
       />
 
-      {showMembersModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Members
-              </p>
-              <h2 className="mt-1 text-lg font-semibold text-slate-900">
-                {selectedMeetingName ?? "Meeting"}
-              </h2>
-            </div>
 
-            <div className="mt-5 space-y-5">
-              {workspaceMembersMessage ? (
-                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-                  {workspaceMembersMessage}
-                </p>
-              ) : null}
-
-              {isMeetingOwner ? (
-                <section className="space-y-2" aria-label="Invite editor">
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    Invite editor
-                  </h3>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <input
-                      type="email"
-                      value={workspaceInviteEmail}
-                      onChange={(e) => setWorkspaceInviteEmail(e.target.value)}
-                      placeholder="teammate@example.com"
-                      disabled={isCreatingWorkspaceInvitation}
-                      className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void handleWorkspaceInviteMember()}
-                      disabled={isCreatingWorkspaceInvitation}
-                      className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isCreatingWorkspaceInvitation ? "Inviting…" : "Invite"}
-                    </button>
-                  </div>
-                </section>
-              ) : null}
-
-              <section className="space-y-2" aria-label="Owner">
-                <h3 className="text-sm font-semibold text-slate-900">Owner</h3>
-                {isLoadingWorkspaceMembers ? (
-                  <p className="text-sm text-slate-500">Loading members…</p>
-                ) : workspaceMeetingMembers.some(
-                    (m) => m.role === "owner",
-                  ) ? (
-                  workspaceMeetingMembers
-                    .filter((m) => m.role === "owner")
-                    .map((member) => (
-                      <div
-                        key={member.user_id}
-                        className="rounded-xl border border-slate-200 px-3 py-2"
-                      >
-                        <p className="text-sm font-semibold text-slate-800">
-                          {getWorkspaceMemberDisplayName(member)}
-                        </p>
-                      </div>
-                    ))
-                ) : (
-                  <p className="rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-600">
-                    Owner information is not available.
-                  </p>
-                )}
-              </section>
-
-              <section className="space-y-2" aria-label="Editors">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Editors
-                </h3>
-                {isLoadingWorkspaceMembers ? (
-                  <p className="text-sm text-slate-500">Loading members…</p>
-                ) : workspaceMeetingMembers.some(
-                    (m) => m.role === "editor",
-                  ) ? (
-                  workspaceMeetingMembers
-                    .filter((m) => m.role === "editor")
-                    .map((member) => (
-                      <div
-                        key={member.user_id}
-                        className="flex flex-col gap-2 rounded-xl border border-slate-200 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <p className="text-sm font-semibold text-slate-800">
-                          {getWorkspaceMemberDisplayName(member)}
-                        </p>
-                        {isMeetingOwner ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void handleWorkspaceRemoveMember(member)
-                            }
-                            disabled={Boolean(isRemovingWorkspaceMember)}
-                            className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {isRemovingWorkspaceMember === member.user_id
-                              ? "Removing…"
-                              : "Remove"}
-                          </button>
-                        ) : null}
-                      </div>
-                    ))
-                ) : (
-                  <p className="rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-600">
-                    No active editors for this meeting.
-                  </p>
-                )}
-              </section>
-
-              {isMeetingOwner ? (
-                <section
-                  className="space-y-2"
-                  aria-label="Pending invitations"
-                >
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    Pending invitations
-                  </h3>
-                  {isLoadingWorkspaceInvitations ? (
-                    <p className="text-sm text-slate-500">
-                      Loading invites…
-                    </p>
-                  ) : workspaceMeetingInvitations.length > 0 ? (
-                    workspaceMeetingInvitations.map((invitation) => (
-                      <div
-                        key={invitation.id}
-                        className="flex flex-col gap-2 rounded-xl border border-slate-200 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <p className="text-sm font-semibold text-slate-800">
-                          {invitation.email}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void handleWorkspaceRevokeInvitation(invitation.id)
-                          }
-                          disabled={Boolean(isRevokingWorkspaceInvitation)}
-                          className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {isRevokingWorkspaceInvitation === invitation.id
-                            ? "Revoking…"
-                            : "Revoke"}
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-600">
-                      No pending invitations for this meeting.
-                    </p>
-                  )}
-                </section>
-              ) : null}
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowMembersModal(false)}
-                disabled={
-                  isCreatingWorkspaceInvitation ||
-                  Boolean(isRevokingWorkspaceInvitation) ||
-                  Boolean(isRemovingWorkspaceMember)
-                }
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </main>
   );
 }

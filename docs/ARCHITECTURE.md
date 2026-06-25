@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the current system architecture for Meeting Tool as of Sprint 2 (`ux/sprint-2-simplification`). It is the canonical reference for developers and AI agents entering the project cold.
+This document describes the current system architecture for Meeting Tool. Last updated 2026-06-24 (pre-beta polish). It is the canonical reference for developers and AI agents entering the project cold.
 
 ---
 
@@ -53,8 +53,8 @@ app/
       TaskList.tsx                — Task list within an objective
     ui/
       ColorSquareSelect.tsx       — Color picker
-      EditableField.tsx           — Double-click-to-edit field
-      RichTextEditor.tsx          — Rich text editor and display
+      EditableField.tsx           — Single-click inline plain-text editor (blur-save, change-guarded)
+      RichTextEditor.tsx          — Rich text editor with toolbar (blur-save; always-visible or discoverable toolbar mode)
     feedback/
       FeedbackWidget.tsx          — Tester feedback collection
   hooks/
@@ -95,7 +95,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 - **Sign-in:** `POST /auth/v1/token?grant_type=password` — returns access and refresh tokens.
 - **Sign-out:** `POST /auth/v1/logout` — invalidates the session.
 - **Session storage:** Sessions persist in `localStorage` under `meeting-tool-supabase-auth-session` and are refreshed automatically (60-second expiry buffer).
-- **Forgot Password:** Implemented on PR #110 (`codex/add-forgot-password-implementation`). Includes the `/reset-password` route, `ForgotPassword` component, and password-reset helpers in `supabaseClient.ts` and `useSupabaseAuth.ts`. A recovery token session-exchange bug was found and fixed. PR #110 is merge-ready and pending final email-link validation (Resend/DNS in progress); it has not yet been merged to `phase-3-shared-access`. See `docs/AUTH_EMAIL_SETUP.md`.
+- **Forgot Password:** Shipped. Includes the `/reset-password` route, `ForgotPassword` component, and password-reset helpers in `supabaseClient.ts` and `useSupabaseAuth.ts`.
 
 ### Meeting creation
 
@@ -147,7 +147,7 @@ Manual Save writes the complete workspace backup JSON to `meetings.meeting_data`
 6. Navigates directly into the new meeting workspace.
 7. Does not overwrite existing meetings.
 
-Import/Restore code (`handleImportWorkspaceBackup`) is preserved in `MeetingWorkspace.tsx` but intentionally removed from the workspace UI pending Sprint 3 decision (keep and re-expose, or delete).
+Import/Restore code (`handleImportWorkspaceBackup`) is preserved in `MeetingWorkspace.tsx` but intentionally removed from the workspace UI. A future decision is needed on whether to re-expose or delete it.
 
 **`BackupRestoreModal`** accepts a `mode` prop (`'both' | 'export-only' | 'import-only'`) that controls which actions and copy are rendered. Dashboard uses `'import-only'`; workspace uses `'export-only'`.
 
@@ -212,16 +212,33 @@ See `docs/PERMISSIONS.md` for the full role matrix and table-level policy summar
 
 ## Meeting Lifecycle
 
-| State | Description |
-|-------|-------------|
-| Open | A dated meeting record for today exists and has not been ended. Editable. |
-| Closed | A dated meeting record was ended. The record is read-only. |
-| Past | A dated record from a prior date. Always read-only. |
-| Test Mode | A test date override is active (preview/development only, requires `NEXT_PUBLIC_ENABLE_TESTING_TOOLS=true`). |
+| Chip | Description |
+|------|-------------|
+| Open | A real dated meeting that has not been ended. Editable. |
+| Closed | A meeting that was explicitly ended. Read-only. Captured in Tactical History. |
+| Test Mode | A test-dated meeting (preview/development only, `NEXT_PUBLIC_ENABLE_TESTING_TOOLS=true`). Shows open/closed sub-state. |
 
-**End Meeting:** Creates a `tactical_sessions` archival snapshot (`snapshot_json`). Does not reset or advance the workspace. Autosave and Manual Save continue to work after End Meeting.
+**End Meeting:** Creates a `tactical_sessions` archival snapshot (`snapshot_json`). Does not reset, advance, or change the date. Autosave and Manual Save continue to work after End Meeting.
 
-**Cloud refresh preference:** The workspace prefers today's open dated record, then the newest real dated record, then falls back to legacy data when no dated records exist.
+**One-meeting-per-date:** Only one real meeting may exist per date. The reference date is the real system date in normal use, or the Test Mode selected date when Test Mode is active. Test Mode may allow multiple open meetings across different test dates — this is a known limitation documented in the lifecycle help popover.
+
+**Cloud refresh preference:** The workspace prefers the current open dated record, then the newest real dated record, then falls back to legacy data.
+
+---
+
+## MeetingHeader — Five-Zone Structure
+
+`MeetingHeader.tsx` is a pure renderer. All display logic is pre-computed in `MeetingWorkspace.tsx` and passed as props.
+
+| Zone | Contents |
+|------|----------|
+| Zone 1 — Identity | Meeting title (`stickyMeetingTitle`) |
+| Zone 2 — Primary Action | Primary action button (End Meeting / View / Start Meeting) + lifecycle chip (Open / Closed / Test Mode) + `?` help popover |
+| Zone 3 — Autosave | Autosave status pill (expandable detail panel) |
+| Zone 4 — Manual Save | Manual Save button with inline status (Save / Saving... / Saved / Up to date / Save failed) |
+| Zone 5 — Settings | Settings/menu trigger |
+
+**Pre-computed props pattern:** `MeetingWorkspace` derives `primaryActionLabel`, `chipLabel`, `chipTestModeStatus`, `chipTestModeHelpNote`, `primaryActionDisabled`, `computedManualSaveLabel`, and related values before rendering. `MeetingHeader` renders them without re-deriving meeting state. This ensures a single source of truth for all lifecycle display decisions.
 
 ---
 
@@ -237,13 +254,13 @@ See `docs/PERMISSIONS.md` for the full role matrix and table-level policy summar
 
 ## File Size Note — MeetingWorkspace.tsx
 
-`MeetingWorkspace.tsx` is approximately 6200 lines and contains workspace layout, all autosave logic, all cloud API calls, all modal state, backup/restore handlers, members management, playbook modal trigger, and meeting lifecycle handlers. This file is scheduled for a Sprint 3 refactor. Planned extractions:
+`MeetingWorkspace.tsx` is approximately 4000+ lines and contains workspace layout, all autosave logic, all cloud API calls, all modal state, backup/restore handlers, members management, playbook modal trigger, and meeting lifecycle handlers. Partial extractions completed:
 
-- `MeetingHeader.tsx` — sticky header, autosave chip, menu trigger
-- `useWorkspacePersistence.ts` — all autosave effects and cloud API calls
-- `useWorkspaceMembers.ts` — member loading, invitations, ownership checks
+- `MeetingHeader.tsx` — **extracted**. Sticky header, five-zone structure, renders pre-computed props only.
+- `useWorkspacePersistence.ts` — **extracted**. All autosave effects and cloud API calls.
+- `useWorkspaceMembers.ts` — deferred to a future sprint.
 
-Until the split is complete, be cautious about adjacent changes — the file is large enough that edits in one area can inadvertently affect another.
+Until further splitting is complete, be cautious about adjacent changes — the file is large enough that edits in one area can inadvertently affect another.
 
 ---
 
@@ -253,17 +270,39 @@ Until the split is complete, be cautious about adjacent changes — the file is 
 
 ---
 
-## Edit Playbook — Scoping Note (Sprint 2)
+## Edit Playbook — Scoping Note
 
-Edit Playbook is owner-only in the workspace settings menu. It reads/writes the `leadership-organization-info` localStorage key, which is scoped per cloud workspace via `getWorkspaceScopedStorageKey`. However, this data is not yet persisted to `meeting_settings` in Supabase — it lives only in `localStorage` and is not cross-device or cross-session consistent. Sprint 3 will migrate Edit Playbook data to `meeting_settings.organization_info` for cloud persistence.
+Edit Playbook is owner-only in the workspace settings menu. It reads/writes the `leadership-organization-info` localStorage key, which is scoped per cloud workspace via `getWorkspaceScopedStorageKey`. This data is persisted to `meeting_settings.organization_info` for cross-device, cross-session persistence via structured autosave.
 
 ---
 
-## Deferred (Post-Sprint-2)
+## Shared Editing Components (Sprint 5)
 
-- `MeetingWorkspace.tsx` split into smaller files (Sprint 3)
-- Edit Playbook cloud persistence migration to `meeting_settings` (Sprint 3)
-- Workspace import re-enable or deletion (Sprint 3)
+All editable content in the workspace uses one of two shared components. Create/add inputs are outside this system.
+
+### `EditableField.tsx`
+
+Plain-text inline editor (single-line or multi-line textarea). Behaviour:
+- Activates on single click. No double-click-to-edit anywhere in the product.
+- Saves on blur, change-guarded (parent `onSave` is only called when the value has changed).
+- Keyboard: `Enter` saves (single-line), `Ctrl/Cmd+Enter` saves (multi-line), `Escape` cancels without saving.
+- Viewer element shows `hover:bg-yellow-50` to signal editability.
+
+### `RichTextEditor.tsx`
+
+Rich text editor with a formatting toolbar (bold, italic, underline, bullet list, numbered list). Behaviour:
+- Saves on blur, change-guarded.
+- Toolbar active-state is scoped to the focused editor instance — checked via `anchorNode` containment in the instance's editor refs before calling `document.queryCommandState`. This prevents shared active-state bleed when multiple toolbars are visible at once.
+- Two visibility modes:
+  - **Always-visible** (`editingMode="always"`): toolbar is always rendered. Used in dedicated editing contexts — Playbook definitions, Defining Objective description, Task description, SOO description, Setup modal fields.
+  - **Discoverable** (`activationMode="click"`, `manualPresentation="inline"`): viewer shows `hover:bg-yellow-50`; toolbar appears on click activation. Used in dense workspace fields — agenda item discussion notes, Strategic Topic notes.
+
+---
+
+## Deferred (Post-Beta)
+
+- `MeetingWorkspace.tsx` split into smaller files.
+- Workspace import re-enable or deletion.
 - Realtime collaboration, presence, locks, CRDTs, conflict resolution.
 - Ownership transfer.
 - Full Viewer read-only UX enforcement.

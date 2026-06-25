@@ -61,7 +61,7 @@ export type SupabaseMeetingInvitation = {
 export type SupabaseMeetingMember = {
   meeting_id: string;
   user_id: string;
-  role: "owner" | "editor";
+  role: "owner" | "editor" | "viewer";
   display_name: string | null;
   email: string | null;
   created_at: string;
@@ -683,10 +683,12 @@ export const supabaseInvitationClient = {
     accessToken,
     meetingId,
     email,
+    role = "editor",
   }: {
     accessToken: string;
     meetingId: string;
     email: string;
+    role?: "editor" | "viewer";
   }) {
     const response = await fetch(getRestUrl("rpc/create_meeting_invitation"), {
       method: "POST",
@@ -694,6 +696,7 @@ export const supabaseInvitationClient = {
       body: JSON.stringify({
         target_meeting_id: meetingId,
         invite_email: email,
+        invite_role: role,
       }),
     });
 
