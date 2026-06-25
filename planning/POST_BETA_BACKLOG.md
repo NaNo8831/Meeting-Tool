@@ -46,6 +46,16 @@ prioritize based on beta feedback.
   (getCurrentWorkspaceStorageRef.current accessed during
   render, ~line 2596). Has ridden along as "pre-existing,
   unrelated" through multiple sprints. Schedule a proper fix.
+- Extract the SOO (Standard Operating Objective) editor modal
+  from MeetingWorkspace.tsx into its own component, matching
+  the pattern of ObjectiveCard (DO) and TaskDetailsModal
+  (Task). The SOO modal currently lives inline in
+  MeetingWorkspace.tsx while its DO and Task siblings are
+  dedicated components. This asymmetry made recent SOO fixes
+  land in MeetingWorkspace.tsx rather than a clean dedicated
+  file. Extraction is a behavior-preserving refactor —
+  defer until post-beta, treat with the same care as the
+  Sprint 3A MeetingWorkspace splits.
 
 ## Future / Larger
 - Editing closed meetings — deferred entirely. Immutable
