@@ -1,0 +1,18 @@
+# Normalize all text files to LF in the repository.
+# Git converts on commit; working-tree endings are the platform's business.
+# Added 2026-07-18 to stop CRLF/LF churn between Linux and Windows/WSL
+# development machines. See planning/sprints/sprint-1-line-endings/.
+* text=auto eol=lf
+
+# Explicitly binary — never touch these.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
