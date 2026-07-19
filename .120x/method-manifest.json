@@ -1,0 +1,28 @@
+{
+  "version": 4,
+  "released": "2026-07-18",
+  "mode": "new-project",
+  "source": "https://one20x-project-launcher.onrender.com",
+  "files": {
+    "templates/architect-pack-template.md": "d93a3f766a12508155ea71381f22545afa33ed2e9662134c73347a3e41656311",
+    "templates/method/120x-architect-builder-method-starter.md": "6a9348d551f700eef3e2cdb032defd5b36a76d6d753814d3ef54d8b0b1147753",
+    "templates/method/120x-agent-identity.md": "5ebefa6d51384bd16d0776cd845b28abb302d519f014e6ea14b5cec83307d6e1",
+    "templates/prompts/builder-sprint-completion-review.md": "008afcbcbca2728d1518981c82edae8e54bd6355153014473c6b31bc85cec861",
+    "templates/prompts/builder-sprint-start.md": "8ad45abb5bbb23c5d7bc6f61d4a457ab1257a0bcc3021e541ee58f2328f67abc",
+    "templates/prompts/chatgpt-project-custom-instructions.md": "476798f82043ea90f7471b74e77d6636c3612488eb9376aefe145c263f49568b",
+    "templates/prompts/existing-project-bugfix-architect-starter.md": "4d3756cc35f10fa10fcf2a7cc0d9c8c0a07a1d10e6ce6c3a5e09b0cea6f85e79",
+    "templates/prompts/new-project-architect-starter.md": "6e444f6df762c2aa9132eebccec47d44c0b4e8f2eda797b3a982a8676b05e3b2",
+    "scripts/apply-architect-pack.js": "8b75dcc82408f036f1bef0794bd50f221ed5a3b0862ce7dfc902b66d21941ce5",
+    "scripts/update-method.js": "0b4271443c4dbbf53e0577ae9ea73ddd3d8d47ed2c9ae6ea5eec8c36f34ab49b",
+    ".claude/commands/architect.md": "49c16c6d28941716b4bbc19fdc388d5e5ed5f6582b714cf807f4ee348aff9325",
+    ".claude/commands/build.md": "274661fd7d87e83500b41c7e35e969670aeb18aaed99120bf3106848cf821c8b",
+    ".claude/commands/update.md": "91003427ed0871c1023e5328c27b987a1a90613018bf819f2eaec46509059867",
+    ".claude/commands/onboard.md": "4f7aa820852f6f23918ba979f7a009e61711cd954f216e48aa30c95fed2b0d6c",
+    ".agents/skills/120x-architect/SKILL.md": "45b333bc30928a0c0d9c2b36ed16a97066bb19e2f31b13c6f70b03fa648f6269",
+    ".agents/skills/120x-architect/agents/openai.yaml": "e26827c654c92cbbc8e1ab3aed52f29ca862af04eba1e9ec0df3abe07b79d4e0",
+    ".agents/skills/120x-builder/SKILL.md": "cbfa4a8377fced48b944275c171a4ff5234ff2393456a18554da3ba5a48e60bd",
+    ".agents/skills/120x-builder/agents/openai.yaml": "999c5fbace3ff95985578a4f89a5701292b546055cc5df9f851fab5b6a7ba6a7",
+    ".agents/skills/120x-onboard/SKILL.md": "1859852b49a9061437c7140e86dbbe6ba84e65e60ed941b6bf04272320e8757c",
+    ".agents/skills/120x-onboard/agents/openai.yaml": "2b74a42e6f2dc45884d6f3d838cd3a239f8e4ffacf26f44ffca94e85a3548b96"
+  }
+}
