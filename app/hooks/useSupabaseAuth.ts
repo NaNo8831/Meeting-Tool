@@ -120,6 +120,15 @@ export const refreshStoredSession =
     return inFlightSessionRefresh;
   };
 
+/**
+ * Expiry timestamp of the stored session, or null when there is none.
+ *
+ * Used by autosave failure diagnostics to record how much token lifetime was
+ * left when a write was rejected.
+ */
+export const getStoredSessionExpiresAt = () =>
+  readStoredSession()?.expiresAt ?? null;
+
 export const useSupabaseAuth = () => {
   const [session, setSession] = useState<SupabaseAuthSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);

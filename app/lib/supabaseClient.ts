@@ -1247,9 +1247,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(response, "Meeting settings autosave"),
-      );
+      throw await createRequestError(response, "Meeting settings autosave");
     }
 
     const savedSettings = (await response.json()) as SupabaseMeetingSettings[];
@@ -1314,9 +1312,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(response, "Agenda items autosave"),
-      );
+      throw await createRequestError(response, "Agenda items autosave");
     }
 
     return (await response.json()) as SupabaseAgendaItem[];
@@ -1345,9 +1341,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(response, "Agenda items cleanup"),
-      );
+      throw await createRequestError(response, "Agenda items cleanup");
     }
   },
 
@@ -1406,9 +1400,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(response, "Meeting notes autosave"),
-      );
+      throw await createRequestError(response, "Meeting notes autosave");
     }
 
     return (await response.json()) as SupabaseMeetingNote[];
@@ -1437,9 +1429,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(response, "Meeting notes cleanup"),
-      );
+      throw await createRequestError(response, "Meeting notes cleanup");
     }
   },
 
@@ -1496,9 +1486,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(response, "Objectives autosave"),
-      );
+      throw await createRequestError(response, "Objectives autosave");
     }
 
     return (await response.json()) as SupabaseObjective[];
@@ -1527,9 +1515,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(response, "Objectives cleanup"),
-      );
+      throw await createRequestError(response, "Objectives cleanup");
     }
   },
 
@@ -1586,7 +1572,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(await getRestErrorMessage(response, "Tasks autosave"));
+      throw await createRequestError(response, "Tasks autosave");
     }
 
     return (await response.json()) as SupabaseTask[];
@@ -1615,7 +1601,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(await getRestErrorMessage(response, "Tasks cleanup"));
+      throw await createRequestError(response, "Tasks cleanup");
     }
   },
 
@@ -1677,12 +1663,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(
-          response,
-          "Standard Operating Objectives autosave",
-        ),
-      );
+      throw await createRequestError(response, "Standard Operating Objectives autosave");
     }
 
     return (await response.json()) as SupabaseStandardOperatingObjective[];
@@ -1711,12 +1692,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(
-          response,
-          "Standard Operating Objectives cleanup",
-        ),
-      );
+      throw await createRequestError(response, "Standard Operating Objectives cleanup");
     }
   },
 
@@ -1841,9 +1817,7 @@ export const supabaseMeetingClient = {
     });
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(response, "Strategic topics autosave"),
-      );
+      throw await createRequestError(response, "Strategic topics autosave");
     }
 
     return (await response.json()) as SupabaseStrategicTopic[];
@@ -1872,9 +1846,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(response, "Strategic topics cleanup"),
-      );
+      throw await createRequestError(response, "Strategic topics cleanup");
     }
   },
 
