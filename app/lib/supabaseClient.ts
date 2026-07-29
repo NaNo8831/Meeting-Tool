@@ -395,6 +395,82 @@ const getAuthHeaders = (accessToken?: string) => {
   return getSupabaseHeaders(accessToken);
 };
 
+/**
+ * Error carrying the HTTP status and raw body of a failed Supabase request.
+ *
+ * Plain `Error` loses the status code, which callers need in order to tell an
+ * expired token (retryable — refresh and try again) apart from an RLS denial
+ * (not retryable) or a transient network/5xx failure (retryable, but must not
+ * sign the user out). Sprint 2 introduced this for the auth-expiry fix; it is
+ * used on the refresh/getUser paths and the autosave write paths only, so the
+ * remaining call sites continue to throw plain `Error`.
+ */
+export class SupabaseRequestError extends Error {
+  readonly status: number;
+  readonly body: string;
+
+  constructor(message: string, status: number, body: string) {
+    super(message);
+    this.name = "SupabaseRequestError";
+    this.status = status;
+    this.body = body;
+  }
+}
+
+const createRequestError = async (response: Response, fallback: string) => {
+  const bodyText = await response.text().catch(() => "");
+
+  let message = "";
+  try {
+    const parsed = JSON.parse(bodyText) as {
+      error_description?: string;
+      msg?: string;
+      error?: string;
+      message?: string;
+      details?: string;
+    };
+    message =
+      parsed.error_description ||
+      parsed.msg ||
+      parsed.error ||
+      parsed.message ||
+      parsed.details ||
+      "";
+  } catch {
+    // Non-JSON body; fall through to the status-based fallback message.
+  }
+
+  return new SupabaseRequestError(
+    message || `${fallback} failed with status ${response.status}.`,
+    response.status,
+    bodyText,
+  );
+};
+
+/**
+ * True when a request was rejected because the access token is expired or
+ * invalid.
+ *
+ * Deliberately `401` only. PostgREST returns `403` for a row-level-security
+ * denial, which is a real authorization failure that must fail fast and stay
+ * visible rather than being retried.
+ */
+export const isExpiredTokenError = (error: unknown) =>
+  error instanceof SupabaseRequestError && error.status === 401;
+
+/**
+ * True when Supabase genuinely rejected the refresh token itself, meaning the
+ * session cannot be recovered and the user must sign in again.
+ *
+ * A 5xx or network failure is NOT this: the refresh token may still be good and
+ * the current access token may still be valid, so the caller must keep the
+ * session and retry rather than signing the user out mid-meeting.
+ */
+export const isRefreshTokenRejected = (error: unknown) =>
+  error instanceof SupabaseRequestError &&
+  error.status >= 400 &&
+  error.status < 500;
+
 const getAuthErrorMessage = async (response: Response) => {
   try {
     const body = (await response.json()) as SupabaseAuthResponse;
@@ -491,7 +567,7 @@ export const supabaseAuthClient = {
     );
 
     if (!response.ok) {
-      throw new Error(await getAuthErrorMessage(response));
+      throw await createRequestError(response, "Session refresh");
     }
 
     const session = normalizeSession(
@@ -511,7 +587,7 @@ export const supabaseAuthClient = {
     });
 
     if (!response.ok) {
-      throw new Error(await getAuthErrorMessage(response));
+      throw await createRequestError(response, "Current user fetch");
     }
 
     const user = (await response.json()) as SupabaseAuthUserResponse;
@@ -1171,9 +1247,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(response, "Meeting settings autosave"),
-      );
+      throw await createRequestError(response, "Meeting settings autosave");
     }
 
     const savedSettings = (await response.json()) as SupabaseMeetingSettings[];
@@ -1238,9 +1312,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(response, "Agenda items autosave"),
-      );
+      throw await createRequestError(response, "Agenda items autosave");
     }
 
     return (await response.json()) as SupabaseAgendaItem[];
@@ -1269,9 +1341,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(response, "Agenda items cleanup"),
-      );
+      throw await createRequestError(response, "Agenda items cleanup");
     }
   },
 
@@ -1330,9 +1400,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(response, "Meeting notes autosave"),
-      );
+      throw await createRequestError(response, "Meeting notes autosave");
     }
 
     return (await response.json()) as SupabaseMeetingNote[];
@@ -1361,9 +1429,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(response, "Meeting notes cleanup"),
-      );
+      throw await createRequestError(response, "Meeting notes cleanup");
     }
   },
 
@@ -1420,9 +1486,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(response, "Objectives autosave"),
-      );
+      throw await createRequestError(response, "Objectives autosave");
     }
 
     return (await response.json()) as SupabaseObjective[];
@@ -1451,9 +1515,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(response, "Objectives cleanup"),
-      );
+      throw await createRequestError(response, "Objectives cleanup");
     }
   },
 
@@ -1510,7 +1572,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(await getRestErrorMessage(response, "Tasks autosave"));
+      throw await createRequestError(response, "Tasks autosave");
     }
 
     return (await response.json()) as SupabaseTask[];
@@ -1539,7 +1601,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(await getRestErrorMessage(response, "Tasks cleanup"));
+      throw await createRequestError(response, "Tasks cleanup");
     }
   },
 
@@ -1601,12 +1663,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(
-          response,
-          "Standard Operating Objectives autosave",
-        ),
-      );
+      throw await createRequestError(response, "Standard Operating Objectives autosave");
     }
 
     return (await response.json()) as SupabaseStandardOperatingObjective[];
@@ -1635,12 +1692,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(
-          response,
-          "Standard Operating Objectives cleanup",
-        ),
-      );
+      throw await createRequestError(response, "Standard Operating Objectives cleanup");
     }
   },
 
@@ -1765,9 +1817,7 @@ export const supabaseMeetingClient = {
     });
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(response, "Strategic topics autosave"),
-      );
+      throw await createRequestError(response, "Strategic topics autosave");
     }
 
     return (await response.json()) as SupabaseStrategicTopic[];
@@ -1796,9 +1846,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(
-        await getRestErrorMessage(response, "Strategic topics cleanup"),
-      );
+      throw await createRequestError(response, "Strategic topics cleanup");
     }
   },
 

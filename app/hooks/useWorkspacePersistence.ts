@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useRef } from "react";
 import {
+  isExpiredTokenError,
+  SupabaseRequestError,
   supabaseMeetingClient,
   type SupabaseMeetingNoteUpsert,
   type SupabaseMeetingSettingsUpsert,
@@ -12,6 +14,10 @@ import {
   type SupabaseStrategicTopic,
   type SupabaseTaskUpsert,
 } from "@/app/lib/supabaseClient";
+import {
+  getStoredSessionExpiresAt,
+  refreshStoredSession,
+} from "@/app/hooks/useSupabaseAuth";
 import { getWorkspaceStorageSignature } from "@/app/lib/workspaceBackup";
 import type { MeetingItem, MeetingRecord } from "@/app/types/dashboard";
 
@@ -28,6 +34,99 @@ type ObjectivesAutosaveStatus = "ready" | "pending" | "saving" | "saved" | "erro
 interface AuthSession {
   accessToken: string;
 }
+
+// --- autosave write execution ---
+
+/**
+ * Diagnostic detail for a failed autosave write.
+ *
+ * The originating bug was reported only as "system keeps timing out", and
+ * identifying it as token expiry took a code read, because the catch blocks
+ * below keep nothing but `error.message`. Recording the status, the raw body,
+ * and the remaining token lifetime means any recurrence is diagnosable from a
+ * console log instead of inferred.
+ */
+const describeAutosaveFailure = (error: unknown) => {
+  const expiresAt = getStoredSessionExpiresAt();
+
+  return {
+    status: error instanceof SupabaseRequestError ? error.status : null,
+    body: error instanceof SupabaseRequestError ? error.body : null,
+    message: error instanceof Error ? error.message : String(error),
+    secondsUntilTokenExpiry:
+      expiresAt === null ? null : expiresAt - Math.floor(Date.now() / 1000),
+  };
+};
+
+/**
+ * Run an autosave write, retrying once against a freshly renewed token when the
+ * write was rejected because the access token had expired.
+ *
+ * Deliberately narrow:
+ *   - retries only on an expired token (401). An RLS denial (403), a validation
+ *     error, or a network failure still fails fast and stays visible;
+ *   - retries exactly once — no backoff loop, no retry queue;
+ *   - stays silent and does not retry during deliberate sign-out, where a 401
+ *     from an in-flight write is expected.
+ *
+ * `write` receives the token to use, so the retry runs against the renewed one
+ * rather than the captured one. It may perform several requests: every surface
+ * here is upsert plus delete-missing, so re-running the sequence is idempotent.
+ */
+const runAutosaveWrite = async <T>(
+  options: {
+    surface: string;
+    accessToken: string;
+    isSigningOut: () => boolean;
+  },
+  write: (accessToken: string) => Promise<T>,
+): Promise<T> => {
+  try {
+    return await write(options.accessToken);
+  } catch (error) {
+    if (options.isSigningOut()) throw error;
+
+    if (!isExpiredTokenError(error)) {
+      console.error(
+        `[autosave] ${options.surface} write failed.`,
+        describeAutosaveFailure(error),
+      );
+      throw error;
+    }
+
+    console.warn(
+      `[autosave] ${options.surface} write rejected with an expired token; renewing and retrying once.`,
+      describeAutosaveFailure(error),
+    );
+
+    let renewedSession: Awaited<ReturnType<typeof refreshStoredSession>>;
+    try {
+      renewedSession = await refreshStoredSession();
+    } catch (renewalError) {
+      console.error(
+        `[autosave] ${options.surface} token renewal failed; surfacing the original write error.`,
+        describeAutosaveFailure(renewalError),
+      );
+      throw error;
+    }
+
+    if (renewedSession === null) throw error;
+
+    try {
+      const result = await write(renewedSession.accessToken);
+      console.info(
+        `[autosave] ${options.surface} write succeeded after token renewal.`,
+      );
+      return result;
+    } catch (retryError) {
+      console.error(
+        `[autosave] ${options.surface} write failed after token renewal.`,
+        describeAutosaveFailure(retryError),
+      );
+      throw retryError;
+    }
+  }
+};
 
 // --- hook params ---
 
@@ -281,11 +380,21 @@ export function useWorkspacePersistence(
       setCloudMeetingMessage("Saving meeting settings to cloud…");
 
       try {
-        await supabaseMeetingClient.saveMeetingSettings({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          settings: JSON.parse(pendingSignature) as SupabaseMeetingSettingsUpsert,
-        });
+        await runAutosaveWrite(
+          {
+            surface: "Meeting settings",
+            accessToken: authSession.accessToken,
+            isSigningOut: () => isSigningOutRef.current === true,
+          },
+          (accessToken) =>
+            supabaseMeetingClient.saveMeetingSettings({
+              accessToken,
+              workspaceId: selectedMeetingId,
+              settings: JSON.parse(
+                pendingSignature,
+              ) as SupabaseMeetingSettingsUpsert,
+            }),
+        );
         lastMeetingSettingsAutosaveSignatureRef.current = pendingSignature;
 
         if (
@@ -410,16 +519,28 @@ export function useWorkspacePersistence(
       setCloudMeetingMessage("Saving Strategic Topics to cloud…");
 
       try {
-        const savedTopics = await supabaseMeetingClient.saveStrategicTopics({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          topics: pendingTopics,
-        });
-        await supabaseMeetingClient.deleteMissingStrategicTopics({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          retainedClientItemIds: pendingTopics.map((topic) => topic.client_item_id),
-        });
+        const savedTopics = await runAutosaveWrite(
+          {
+            surface: "Strategic Topics",
+            accessToken: authSession.accessToken,
+            isSigningOut: () => isSigningOutRef.current === true,
+          },
+          async (accessToken) => {
+            const topics = await supabaseMeetingClient.saveStrategicTopics({
+              accessToken,
+              workspaceId: selectedMeetingId,
+              topics: pendingTopics,
+            });
+            await supabaseMeetingClient.deleteMissingStrategicTopics({
+              accessToken,
+              workspaceId: selectedMeetingId,
+              retainedClientItemIds: pendingTopics.map(
+                (topic) => topic.client_item_id,
+              ),
+            });
+            return topics;
+          },
+        );
         lastStrategicTopicsAutosaveSignatureRef.current = pendingSignature;
 
         const savedTopicIdsByClientId = new Map(
@@ -579,18 +700,27 @@ export function useWorkspacePersistence(
       setCloudMeetingMessage("Saving Meeting Notes to cloud…");
 
       try {
-        await supabaseMeetingClient.saveMeetingNotes({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          notes: pendingNotes,
-        });
-        await supabaseMeetingClient.deleteMissingMeetingNotes({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          retainedClientMeetingIds: pendingNotes.map(
-            (note) => note.client_meeting_id,
-          ),
-        });
+        await runAutosaveWrite(
+          {
+            surface: "Meeting Notes",
+            accessToken: authSession.accessToken,
+            isSigningOut: () => isSigningOutRef.current === true,
+          },
+          async (accessToken) => {
+            await supabaseMeetingClient.saveMeetingNotes({
+              accessToken,
+              workspaceId: selectedMeetingId,
+              notes: pendingNotes,
+            });
+            await supabaseMeetingClient.deleteMissingMeetingNotes({
+              accessToken,
+              workspaceId: selectedMeetingId,
+              retainedClientMeetingIds: pendingNotes.map(
+                (note) => note.client_meeting_id,
+              ),
+            });
+          },
+        );
         lastMeetingNotesAutosaveSignatureRef.current = pendingSignature;
 
         if (!isCancelled && !pendingMeetingNotesAutosaveSignatureRef.current) {
@@ -706,18 +836,27 @@ export function useWorkspacePersistence(
       setCloudMeetingMessage("Saving Agenda Items to cloud…");
 
       try {
-        await supabaseMeetingClient.saveAgendaItems({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          agendaItems: pendingAgendaItems,
-        });
-        await supabaseMeetingClient.deleteMissingAgendaItems({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          retainedClientAgendaItemIds: pendingAgendaItems.map(
-            (item) => item.client_agenda_item_id,
-          ),
-        });
+        await runAutosaveWrite(
+          {
+            surface: "Agenda Items",
+            accessToken: authSession.accessToken,
+            isSigningOut: () => isSigningOutRef.current === true,
+          },
+          async (accessToken) => {
+            await supabaseMeetingClient.saveAgendaItems({
+              accessToken,
+              workspaceId: selectedMeetingId,
+              agendaItems: pendingAgendaItems,
+            });
+            await supabaseMeetingClient.deleteMissingAgendaItems({
+              accessToken,
+              workspaceId: selectedMeetingId,
+              retainedClientAgendaItemIds: pendingAgendaItems.map(
+                (item) => item.client_agenda_item_id,
+              ),
+            });
+          },
+        );
         lastAgendaItemsAutosaveSignatureRef.current = pendingSignature;
 
         if (!isCancelled && !pendingAgendaItemsAutosaveSignatureRef.current) {
@@ -834,52 +973,63 @@ export function useWorkspacePersistence(
       setCloudMeetingMessage("Saving Objectives, Tasks, and SOOs to cloud…");
 
       try {
-        const savedObjectives = await supabaseMeetingClient.saveObjectives({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          objectives: pendingPayload.objectiveRows,
-        });
-        const objectiveUuidByClientId = new Map(
-          savedObjectives.map((objective) => [
-            objective.client_objective_id,
-            objective.id,
-          ]),
+        await runAutosaveWrite(
+          {
+            surface: "Objectives, Tasks and SOOs",
+            accessToken: authSession.accessToken,
+            isSigningOut: () => isSigningOutRef.current === true,
+          },
+          async (accessToken) => {
+            const savedObjectives = await supabaseMeetingClient.saveObjectives({
+              accessToken,
+              workspaceId: selectedMeetingId,
+              objectives: pendingPayload.objectiveRows,
+            });
+            const objectiveUuidByClientId = new Map(
+              savedObjectives.map((objective) => [
+                objective.client_objective_id,
+                objective.id,
+              ]),
+            );
+            await supabaseMeetingClient.saveTasks({
+              accessToken,
+              workspaceId: selectedMeetingId,
+              tasks: pendingPayload.taskRows.map((task) => ({
+                ...task,
+                objective_id:
+                  objectiveUuidByClientId.get(task.client_objective_id) ?? null,
+              })),
+            });
+            await supabaseMeetingClient.deleteMissingTasks({
+              accessToken,
+              workspaceId: selectedMeetingId,
+              retainedClientTaskIds: pendingPayload.taskRows.map(
+                (task) => task.client_task_id,
+              ),
+            });
+            await supabaseMeetingClient.deleteMissingObjectives({
+              accessToken,
+              workspaceId: selectedMeetingId,
+              retainedClientObjectiveIds: pendingPayload.objectiveRows.map(
+                (objective) => objective.client_objective_id,
+              ),
+            });
+            await supabaseMeetingClient.saveStandardOperatingObjectives({
+              accessToken,
+              workspaceId: selectedMeetingId,
+              standardOperatingObjectives: pendingPayload.sooRows,
+            });
+            await supabaseMeetingClient.deleteMissingStandardOperatingObjectives(
+              {
+                accessToken,
+                workspaceId: selectedMeetingId,
+                retainedClientSooIds: pendingPayload.sooRows.map(
+                  (soo) => soo.client_soo_id,
+                ),
+              },
+            );
+          },
         );
-        await supabaseMeetingClient.saveTasks({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          tasks: pendingPayload.taskRows.map((task) => ({
-            ...task,
-            objective_id:
-              objectiveUuidByClientId.get(task.client_objective_id) ?? null,
-          })),
-        });
-        await supabaseMeetingClient.deleteMissingTasks({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          retainedClientTaskIds: pendingPayload.taskRows.map(
-            (task) => task.client_task_id,
-          ),
-        });
-        await supabaseMeetingClient.deleteMissingObjectives({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          retainedClientObjectiveIds: pendingPayload.objectiveRows.map(
-            (objective) => objective.client_objective_id,
-          ),
-        });
-        await supabaseMeetingClient.saveStandardOperatingObjectives({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          standardOperatingObjectives: pendingPayload.sooRows,
-        });
-        await supabaseMeetingClient.deleteMissingStandardOperatingObjectives({
-          accessToken: authSession.accessToken,
-          workspaceId: selectedMeetingId,
-          retainedClientSooIds: pendingPayload.sooRows.map(
-            (soo) => soo.client_soo_id,
-          ),
-        });
         lastObjectivesAutosaveSignatureRef.current = pendingSignature;
 
         if (!isCancelled && !pendingObjectivesAutosaveSignatureRef.current) {

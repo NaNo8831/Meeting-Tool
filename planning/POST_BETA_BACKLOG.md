@@ -23,6 +23,24 @@ prioritize based on beta feedback.
   (currently duplicated logic in dashboard/page.tsx).
 
 ## Persistence
+- **Autosave resilience sprint (Architect) — Gaps A & B from the
+  Sprint 2 audit (2026-07-19).** The token fix stops writes from
+  failing; these harden what happens *if* a write ever fails, so a
+  transient failure can no longer become permanent loss.
+  - *Gap A — Manual Save has no stale-token retry.* `saveWorkspaceData`
+    (MeetingWorkspace.tsx, Manual Save to `meetings.meeting_data`) is
+    not wrapped by the Sprint 2 retry helper. The one action a user
+    reaches for to rescue unsaved work fails the same way an autosave
+    does when the token is stale. Consider routing it through the same
+    auth-aware retry.
+  - *Gap B — a reload discards local edits newer than the server.* The
+    browser cache holds uncommitted edits until a reload rebuilds from
+    server state and overwrites them (`storeWorkspaceBackupInBrowser`
+    on load). There is no "local is newer than cloud" guard. This is
+    the mechanism that made the 2026-07-15 loss permanent. Consider a
+    pre-reload safety copy or a local-newer detection/warning.
+  - These are persistence-design changes (they alter what wins between
+    local and cloud), so they need an Architect session, not a hotfix.
 - Manual Save decommission revisit. Manual Save is kept as
   the rollback path while structured autosave proves reliable
   in real use. Revisit removing it once beta feedback confirms
@@ -31,6 +49,22 @@ prioritize based on beta feedback.
   stale-tacticalSessions issue was fixed (synchronous reset
   on meeting change), but the broader pattern of state
   bleeding between meeting switches is worth watching.
+
+## Deferred Feedback (2026-07-18 pull)
+Three feedback items deferred from Sprint 2, which actioned only
+the Blocking autosave-timeout report. See
+`planning/feedback/2026-07-18-feedback-report.md`.
+- **Editors should have Edit Playbook access.** *Product decision,
+  not a bug — Project Lead's call.* This reverses the deliberate
+  owner-only Edit Playbook decision (DECISIONS.md, 2026-06-11).
+  Do not implement without an explicit decision to change roles.
+- **Tactical History does not capture Cascading Communication or
+  Agenda Item outcomes; also want Defining Objective / SOO colours
+  in the snapshot.** Feature scope for the Architect to design;
+  intersects the deferred Agenda/Decision snapshot model.
+- **Rename a meeting from the dashboard Actions menu.** Small feature.
+  The `rename_owned_meeting(target_meeting_id, meeting_name)` owner-only
+  RPC already exists (Phase 3 PR 3D); only the dashboard UI is unwired.
 
 ## Known Quirks (documented, accepted)
 - Test Mode may allow more than one open meeting at a time
