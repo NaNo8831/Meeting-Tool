@@ -124,8 +124,11 @@ rejected autosave write.
 | `npm run lint` | 5 errors, all in untracked 120x `scripts/`. Identical on `dev` — no regression. None in `app/`. |
 | §1 diagnosis | Confirmed (live JWT-expiry error + static proof). |
 | §3 retry (Test B) | Confirmed live: `401 PGRST301` rejected → single-flight renew → retry → saved, no data lost. |
-| §2 / §5 / §6 | Pending on a Vercel preview (shortened-expiry method). |
-| §8 preview | Required gate before `main`. |
+| §2 renewal | Confirmed (local shortened-expiry, 2026-07-19): 2 renewals fired, both 200, one per cycle (single-flight + reschedule), no autosave error. |
+| §6 long-meeting | **Confirmed:** edits at 5 and 10 min post-login (past the 5-min token) survived reload. The criterion that matters. |
+| §2 tab-wake / timer-accumulation | Not separately run. Lower risk; optional before `main`. |
+| §5 flows + sign-out/in | Pending — task/rich-text/Backup pass and sign-out/in. |
+| §8 preview smoke | Required gate before `main` (open meeting, autosave saves, sign-in/out). |
 
 ## Recommended next Architect action
 
