@@ -3,7 +3,7 @@
 ## Current Snapshot
 
 - Product: Meeting Tool by LyArk in the `Meeting-Tool` repo.
-- Status: **Beta launched. Header redesign v2 and Sprint 5 editable-surface standardization are merged and live in `main`/production. Sprint 1 (line-ending normalization) and Sprint 2 (autosave session-expiry fix) are on `dev`, validated, and are the pending `dev` → `main` release. Sprint 3 (autosave resilience — Manual Save retry + reload recovery banner) is implemented on `fix/autosave-resilience`, locally validated (lint/tsc/build clean), and pending Project Lead sign-in-gated manual testing before merge to `dev`.**
+- Status: **Beta launched. Header redesign v2, Sprint 5 editable-surface standardization, Sprint 1 (line-ending normalization), Sprint 2 (autosave session-expiry fix), and Sprint 3 (autosave resilience — Manual Save retry + reload recovery banner) are all merged and live in `main`/production as of 2026-07-29 (`main` at `c4531c3`). The Project Lead live-tested Sprint 3's recovery banner before this release and flagged its lack of a "which copy is correct" signal as a trust/reliability risk — see `planning/POST_MAIN_ROADMAP.md`, "Stale-tab / long-idle reconnection check," now escalated as the next `/architect` session.**
 - Branch model: `dev` is the integration branch. `main` is production. Feature branches merge to `dev`; `dev` merges to `main` for releases.
 - Roles model with viewer invites complete (Sprint 3B-4). Feedback review system in place.
 - Deployment: Vercel (main branch).
@@ -232,8 +232,10 @@ See `planning/POST_MAIN_ROADMAP.md` Sprint 3 section for full scope. High-priori
 4. ~~**Sprint 2 — Simplification and UX Fixes**~~ — complete.
 5. ~~**Merge `sprint-pre-beta-header-v2` to `dev`**~~ — complete (`39dc152`).
 6. ~~**Beta launch**~~ — complete (`558113a`), Sprint 5 editable-surfaces and header v2 are live in `main`/production.
-7. **Merge Sprint 1 (line endings) + Sprint 2 (autosave session-expiry fix) to `main`** — both validated on `dev`; pending a Vercel `dev`-preview smoke test (§8) before merge.
-8. **Merge Sprint 3 (autosave resilience — Manual Save retry + reload recovery banner) to `dev`** — implemented on `fix/autosave-resilience`, locally validated (lint/tsc/build clean); pending Project Lead sign-in-gated manual testing (Manual Save retry, recovery banner, sign-out/in, acceptance §6 reproduction) and Vercel preview validation (§8) before merge.
+7. ~~**Merge Sprint 1 (line endings) + Sprint 2 (autosave session-expiry fix) to `main`**~~ — complete, part of the 2026-07-29 release below.
+8. ~~**Merge Sprint 3 (autosave resilience) to `dev`**~~ — complete (`dev` merge `22990c7`), Project Lead live-tested before merge.
+9. **Sprint 3 shipped to `main`, 2026-07-29** — `dev` → `main` merge `c4531c3`, pushed to `origin/main`. Ships Sprint 1 + Sprint 2 + Sprint 3 together. `npx tsc --noEmit`, `npm run build` clean on the merged `main`; `npm run lint` shows only the 5 pre-existing errors in the untracked 120x `scripts/` folder (no regression). Confirm the Vercel production deploy completes and do a quick smoke check (sign-in, open a meeting, Manual Save) once it's live.
+10. **Next Architect priority: stale-tab / long-idle reconciliation design** — Project Lead flagged the Sprint 3 recovery banner's ambiguity (no way to tell which copy is correct) as a reliability risk after live-testing it. See `planning/POST_MAIN_ROADMAP.md`, "Stale-tab / long-idle reconnection check," for the escalation and reasoning.
 
 ## PR 3A — User Profile Foundation
 
