@@ -51,6 +51,7 @@ import {
   collectWorkspaceStorage,
   createWorkspaceBackup,
   getWorkspaceStorageSignature,
+  hasMeaningfulWorkspaceStorage,
   validateWorkspaceBackup,
   type WorkspaceBackupFeedback,
   type WorkspaceBackupFile,
@@ -201,6 +202,24 @@ const getStrategicTopicNoteDraft = (
 const strategicTopicsStorageKey = "leadership-strategic-topic-items";
 const strategicTopicNotesStorageKey = "leadership-strategic-topic-notes";
 const meetingSetupCompletedStorageKey = "leadership-meeting-setup-completed";
+
+// The keys `getCurrentWorkspaceStorage` treats as the live workspace-state
+// surface — everything `useLocalStorage`/`useObjectives` continuously mirrors
+// to localStorage as the user types. Strategic Topic Notes are deliberately
+// excluded: they are not localStorage-mirrored, so a reload can't destroy an
+// uncommitted copy of them the way it can for these keys.
+const localMirroredWorkspaceStorageKeys = [
+  "leadership-objectives",
+  "leadership-meetings",
+  "leadership-active-meeting-id",
+  "leadership-dashboard-title",
+  "leadership-organization-info",
+  meetingSetupCompletedStorageKey,
+  "leadership-meeting-section-order",
+  strategicTopicsStorageKey,
+  "leadership-standard-operating-objectives",
+];
+const reloadRecoverySnapshotStorageKey = "recovery-snapshot";
 
 const topicNotesAutosaveDebounceMs = 1000;
 
@@ -905,6 +924,34 @@ const readBackupEntry = <T,>(
   return value === undefined ? fallback : (value as T);
 };
 
+// Reads the scoped-localStorage snapshot of the workspace-mirrored keys as it
+// stands right now, direct from localStorage rather than React state — state
+// may not have finished its async initial hydration (`useLocalStorage`'s load
+// effect) yet, while localStorage itself always reflects what was actually
+// cached from a prior session.
+const readLocalMirroredWorkspaceSnapshot = (
+  cloudWorkspaceId: string,
+): Record<string, unknown> => {
+  if (typeof window === "undefined") return {};
+
+  return localMirroredWorkspaceStorageKeys.reduce<Record<string, unknown>>(
+    (entries, key) => {
+      const storedValue = window.localStorage.getItem(
+        getWorkspaceScopedStorageKey(key, cloudWorkspaceId),
+      );
+      if (storedValue === null) return entries;
+
+      try {
+        entries[key] = JSON.parse(storedValue) as unknown;
+      } catch {
+        entries[key] = storedValue;
+      }
+      return entries;
+    },
+    {},
+  );
+};
+
 const createBlankMeeting = (
   date = getTodayDate(),
   isTestMeeting = false,
@@ -1166,6 +1213,13 @@ export default function MeetingWorkspace() {
   const [cloudMeetingMessage, setCloudMeetingMessage] = useState("");
   const [hasUnsavedFullWorkspaceChanges, setHasUnsavedFullWorkspaceChanges] =
     useState(false);
+  // Gap B reload safety net: a preserved pre-load local snapshot that
+  // differed meaningfully from what the server just loaded. Non-null shows
+  // the recovery banner; never applied automatically.
+  const [reloadRecoverySnapshot, setReloadRecoverySnapshot] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
   const workspaceMode = "cloud" as const;
   const getStorageKey = (baseKey: string) =>
     getWorkspaceScopedStorageKey(baseKey, selectedMeetingId);
@@ -2781,6 +2835,34 @@ export default function MeetingWorkspace() {
     ],
   );
 
+  const clearReloadRecoverySnapshot = useCallback(() => {
+    if (typeof window === "undefined" || !selectedMeetingId) return;
+    window.localStorage.removeItem(
+      getWorkspaceScopedStorageKey(
+        reloadRecoverySnapshotStorageKey,
+        selectedMeetingId,
+      ),
+    );
+    setReloadRecoverySnapshot(null);
+  }, [selectedMeetingId]);
+
+  const handleRestoreReloadRecoverySnapshot = useCallback(() => {
+    if (!reloadRecoverySnapshot) return;
+    applyWorkspaceBackupToState(
+      createWorkspaceBackup(reloadRecoverySnapshot),
+      historicalMeetingIds,
+    );
+    clearReloadRecoverySnapshot();
+  }, [
+    applyWorkspaceBackupToState,
+    clearReloadRecoverySnapshot,
+    historicalMeetingIds,
+    reloadRecoverySnapshot,
+  ]);
+
+  const handleDismissReloadRecoverySnapshot = useCallback(() => {
+    clearReloadRecoverySnapshot();
+  }, [clearReloadRecoverySnapshot]);
 
   const applyMeetingSettingsToState = useCallback(
     (settings: SupabaseMeetingSettings | null) => {
@@ -3082,6 +3164,31 @@ export default function MeetingWorkspace() {
 
       const backup = validateWorkspaceBackup(cloudData);
       const signature = getWorkspaceStorageSignature(backup.localStorage);
+
+      // Gap B safety net: before the incoming server copy overwrites this
+      // browser's cached copy, check whether the cache holds meaningful
+      // content the server never received, and if so preserve it somewhere
+      // this overwrite cannot reach. This never blocks or delays the load —
+      // the server copy becomes active exactly as it does today either way.
+      const preLoadLocalEntries = readLocalMirroredWorkspaceSnapshot(selectedMeetingId);
+      const recoverySnapshotStorageKey = getWorkspaceScopedStorageKey(
+        reloadRecoverySnapshotStorageKey,
+        selectedMeetingId,
+      );
+      if (
+        hasMeaningfulWorkspaceStorage(preLoadLocalEntries) &&
+        getWorkspaceStorageSignature(preLoadLocalEntries) !== signature
+      ) {
+        window.localStorage.setItem(
+          recoverySnapshotStorageKey,
+          JSON.stringify(preLoadLocalEntries),
+        );
+        setReloadRecoverySnapshot(preLoadLocalEntries);
+      } else {
+        window.localStorage.removeItem(recoverySnapshotStorageKey);
+        setReloadRecoverySnapshot(null);
+      }
+
       storeWorkspaceBackupInBrowser(backup, selectedMeetingId);
       setActiveCloudWorkspaceId(selectedMeetingId);
       applyWorkspaceBackupToState(backup, loadedEndedMeetingIds);
@@ -3655,6 +3762,32 @@ export default function MeetingWorkspace() {
           <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
             <span className="font-semibold">This meeting has been ended.</span>{" "}
             Content is read-only.
+          </div>
+        ) : null}
+
+        {reloadRecoverySnapshot ? (
+          <div className="mb-6 flex items-start justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <p>
+              <span className="font-semibold">This browser has local changes that differ from what just loaded.</span>{" "}
+              These may not have been saved to the cloud. You can review and restore them, or dismiss this if the difference is expected.
+            </p>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRestoreReloadRecoverySnapshot}
+                className="rounded-full border border-amber-300 bg-white px-3 py-1 font-semibold text-amber-900 hover:bg-amber-100"
+              >
+                Restore local changes
+              </button>
+              <button
+                type="button"
+                onClick={handleDismissReloadRecoverySnapshot}
+                className="rounded-full px-3 py-1 text-lg leading-none text-amber-700 hover:bg-amber-100"
+                aria-label="Dismiss local changes notice"
+              >
+                ×
+              </button>
+            </div>
           </div>
         ) : null}
 
