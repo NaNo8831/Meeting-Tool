@@ -4,7 +4,7 @@ This document tracks all known post-main work organized by priority and sprint.
 It is the source of truth for backlog sequencing. Update it as sprints complete
 and new items are identified.
 
-Last updated: 2026-06-24
+Last updated: 2026-07-29
 
 ---
 
@@ -228,6 +228,34 @@ without a scoped requirement and explicit prioritization.
 - Organizations / workspace administration model (org container above meetings, org-level settings, org-scoped invitations)
 
 **Collaboration and concurrency:**
+- **Stale-tab / long-idle reconnection check — ESCALATED, next Architect
+  session (flagged by Project Lead 2026-07-29).** Surfaced during Sprint 3
+  autosave-resilience planning (2026-07-29) as a deferred design question:
+  when a tab has been backgrounded or idle well beyond normal session
+  length, or when a meeting has more than one active editor, the app has no
+  mechanism to detect that the server has moved on and reconcile before the
+  user keeps editing against a stale view. Sprint 3 shipped the safe-but-
+  ambiguous version of this — a reload never silently discards a locally
+  cached copy that differs from the server, but the recovery banner it shows
+  has no timestamp and no way to tell the user which copy is actually
+  correct, only that they differ. This was a deliberate scope boundary, not
+  an oversight: comparing timestamps was considered and rejected during
+  planning, because a displayed "newer" timestamp gets read as evidence of
+  correctness even though it isn't — a stale, forgotten tab's clock is not
+  evidence its content is right, and a teammate's deliberate save on another
+  device can legitimately be "older" by the clock while being the correct
+  copy.
+  **Project Lead live-tested the banner on 2026-07-29 and flagged the
+  resulting ambiguity as a trust/reliability risk to the product, not a
+  cosmetic gap** — "users can not be questioning their data / saved work, it
+  makes the tool unreliable and a risk not an asset." This moves the item
+  from general backlog to the explicit next `/architect` session: design a
+  real reconciliation mechanism (presence/concurrent-editor awareness,
+  detect-and-refresh on wake, warn-and-reconcile, or equivalent) before Last
+  Save Wins can be trusted at real multi-editor scale. Do not patch this as
+  a quick timestamp addition to the existing banner without that design
+  pass — see `planning/DECISIONS.md` (2026-07-29 Sprint 3 entry) for why a
+  bare timestamp was rejected as worse than the current ambiguity.
 - Last Save Wins concurrency / conflict UI
 - Realtime collaboration, presence, locks, CRDTs
 - Session concurrency: two sessions open simultaneously — warning or force-close

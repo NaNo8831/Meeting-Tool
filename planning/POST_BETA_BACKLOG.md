@@ -23,6 +23,20 @@ prioritize based on beta feedback.
   (currently duplicated logic in dashboard/page.tsx).
 
 ## Persistence
+- ~~Autosave resilience sprint (Architect) — Gaps A & B from the Sprint 2
+  audit (2026-07-19).~~ **Closed by Sprint 3 (`fix/autosave-resilience`,
+  2026-07-29).** Gap A: Manual Save now throws `SupabaseRequestError` and
+  retries once through the shared `runAutosaveWrite` helper, same as the
+  five autosave surfaces. Gap B: before a cloud-meeting load overwrites the
+  browser's cached copy, the pre-load local snapshot is compared against the
+  incoming server copy; a meaningful difference is preserved in a distinct
+  per-workspace `recovery-snapshot` slot and offered back via a dismissible
+  banner — never auto-restored, never timestamp-compared. See
+  `planning/DECISIONS.md` (2026-07-29) for the durable decision and
+  Non-Goals. Stale-tab/long-idle reconciliation (deciding which copy should
+  win when multiple editors are active) remains open — see
+  `planning/POST_MAIN_ROADMAP.md`, "Stale-tab / long-idle reconnection
+  check."
 - Manual Save decommission revisit. Manual Save is kept as
   the rollback path while structured autosave proves reliable
   in real use. Revisit removing it once beta feedback confirms
@@ -31,6 +45,22 @@ prioritize based on beta feedback.
   stale-tacticalSessions issue was fixed (synchronous reset
   on meeting change), but the broader pattern of state
   bleeding between meeting switches is worth watching.
+
+## Deferred Feedback (2026-07-18 pull)
+Three feedback items deferred from Sprint 2, which actioned only
+the Blocking autosave-timeout report. See
+`planning/feedback/2026-07-18-feedback-report.md`.
+- **Editors should have Edit Playbook access.** *Product decision,
+  not a bug — Project Lead's call.* This reverses the deliberate
+  owner-only Edit Playbook decision (DECISIONS.md, 2026-06-11).
+  Do not implement without an explicit decision to change roles.
+- **Tactical History does not capture Cascading Communication or
+  Agenda Item outcomes; also want Defining Objective / SOO colours
+  in the snapshot.** Feature scope for the Architect to design;
+  intersects the deferred Agenda/Decision snapshot model.
+- **Rename a meeting from the dashboard Actions menu.** Small feature.
+  The `rename_owned_meeting(target_meeting_id, meeting_name)` owner-only
+  RPC already exists (Phase 3 PR 3D); only the dashboard UI is unwired.
 
 ## Known Quirks (documented, accepted)
 - Test Mode may allow more than one open meeting at a time

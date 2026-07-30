@@ -1,0 +1,6 @@
+interface:
+  display_name: "120x Architect"
+  short_description: "Plan a 120x sprint through guided discovery"
+  default_prompt: "Use $120x-architect to begin the Architect workflow for this project."
+policy:
+  allow_implicit_invocation: false

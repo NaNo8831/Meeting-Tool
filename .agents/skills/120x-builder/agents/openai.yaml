@@ -1,0 +1,6 @@
+interface:
+  display_name: "120x Builder"
+  short_description: "Apply and build an approved 120x sprint"
+  default_prompt: "Use $120x-builder to begin the Builder workflow for this project."
+policy:
+  allow_implicit_invocation: false
