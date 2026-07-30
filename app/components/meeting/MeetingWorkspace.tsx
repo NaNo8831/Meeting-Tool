@@ -34,7 +34,10 @@ import { useBodyScrollLock } from "@/app/hooks/useBodyScrollLock";
 import { useLocalStorage } from "@/app/hooks/useLocalStorage";
 import { useObjectives } from "@/app/hooks/useObjectives";
 import { useSupabaseAuth } from "@/app/hooks/useSupabaseAuth";
-import { useWorkspacePersistence } from "@/app/hooks/useWorkspacePersistence";
+import {
+  useWorkspacePersistence,
+  runAutosaveWrite,
+} from "@/app/hooks/useWorkspacePersistence";
 import { useWorkspaceMembers } from "@/app/hooks/useWorkspaceMembers";
 import {
   defaultDashboardTitle,
@@ -3153,11 +3156,19 @@ export default function MeetingWorkspace() {
       }
 
       const backup = createWorkspaceBackup(workspaceEntries);
-      await supabaseMeetingClient.saveWorkspaceData({
-        accessToken: authSession.accessToken,
-        workspaceId: selectedMeetingId,
-        data: backup,
-      });
+      await runAutosaveWrite(
+        {
+          surface: "Manual Save",
+          accessToken: authSession.accessToken,
+          isSigningOut: () => isSigningOutRef.current === true,
+        },
+        (accessToken) =>
+          supabaseMeetingClient.saveWorkspaceData({
+            accessToken,
+            workspaceId: selectedMeetingId,
+            data: backup,
+          }),
+      );
       storeWorkspaceBackupInBrowser(backup, selectedMeetingId);
       setActiveCloudWorkspaceId(selectedMeetingId);
       lastCloudAutosaveSignatureRef.current = getWorkspaceStorageSignature(
@@ -3294,12 +3305,14 @@ export default function MeetingWorkspace() {
         setTimeout(() => setManualSaveJustSucceeded(false), 2000);
       }
     } catch (error) {
-      setCloudSaveStatus("error");
-      setCloudMeetingMessage(
-        error instanceof Error
-          ? error.message
-          : "Cloud workspace could not be saved.",
-      );
+      if (!isSigningOutRef.current) {
+        setCloudSaveStatus("error");
+        setCloudMeetingMessage(
+          error instanceof Error
+            ? error.message
+            : "Cloud workspace could not be saved.",
+        );
+      }
     }
   }, [
     authSession,
