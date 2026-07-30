@@ -1,142 +1,156 @@
 # Architect Briefing
 
-Refreshed 2026-07-19 at the close of Sprint 2 (autosave session expiry).
+Refreshed 2026-07-29 at the close of Sprint 3 (autosave resilience).
 
 ## Where things stand
 
-A beta user lost a whole meeting's worth of notes during a live session. The
-cause is now understood and fixed: after about an hour signed in, the app's
-security token quietly expired, and nothing was renewing it while the tab stayed
-open — so every autosave silently started failing, and the page-refresh people
-used to clear the error threw away everything they'd typed since. The fix keeps
-that token alive for as long as the tab is open, and quietly retries the one
-save that might still slip through. It works: we reproduced the exact failure
-and watched the fix catch it and save the data with no error.
+Sprint 2 fixed the confirmed cause of the 2026-07-15 data-loss report (a
+Supabase token that quietly expired mid-meeting). This sprint finished the
+job the Sprint 2 audit called out: the app still had no safety net if a save
+ever failed *for any reason*, and two specific rescue paths were unprotected.
+Both are now fixed. Manual Save — the button people reach for specifically to
+rescue their work — now retries a stale-token rejection once, the same way
+the five autosave surfaces already did. And a page reload, which used to
+silently overwrite the browser's cached copy of a meeting with whatever the
+server had (even if that cache held edits the server never received), now
+checks first: if the two differ in a way that matters, it saves the local
+copy somewhere safe and offers it back through a small banner — without
+slowing down or blocking the reload. Nothing is ever thrown away silently
+anymore, and nothing is ever auto-restored either; a person always decides.
 
-Two things still need to happen before this reaches live users. First, a
-real-length test on a preview copy of the app (the same test the beta user
-cares about — hold a meeting open past the hour and confirm nothing is lost).
-Second — and this is the more important message for you — the audit that came
-out of this sprint found that **the app has no safety net if a save ever fails
-for any reason.** This fix removes the most common cause, but the underlying
-fragility (a refresh can still throw away unsaved work, and the "Manual Save"
-button people reach for to rescue their work can fail the same way) is a
-separate, deeper problem that deserves its own designed sprint. That is the next
-thing I'd want you to weigh in on.
+The code is written, and the automated checks (typecheck, build, lint) are
+clean. What's left is the manual, hands-on-the-keyboard part: signing in and
+actually clicking through Manual Save, forcing a save to fail, reloading, and
+confirming the recovery banner gets the edit back. I don't have sign-in
+credentials and I'm not able to enter a password even when offered one — so
+that pass, plus the usual pre-merge Vercel preview check, is the one thing
+still waiting on you before this reaches `dev`.
 
 ## Current status
 
-- **Sprint:** Sprint 2 — Autosave Session Expiry. Code complete, docs written.
-- **Branch:** `fix/autosave-session-expiry`, cut from `dev`, 2 code commits
-  (Step 1, Step 2) plus this planning commit.
-- **Not yet merged, not yet pushed.** About to merge to `dev` per Project Lead
-  direction; no GitHub PR (gh CLI unavailable).
-- **`main` untouched.** The reported loss happened on `main`, which does not yet
-  have this fix.
-- Acceptance §1 (diagnosis) and §3 (retry, verified live) confirmed. §2/§5/§6
-  (long-meeting + flows) pending on a Vercel preview; §8 preview is the gate
-  before `main`.
+- **Sprint:** Sprint 3 — Autosave Resilience (Rescue Paths). Code complete,
+  docs written, not yet manually validated by a human.
+- **Branch:** `fix/autosave-resilience`, cut from `dev`. Not yet committed,
+  not yet pushed, not yet merged.
+- **`dev` and `main` untouched.**
+- Acceptance §1 (diagnosis, confirmed by re-reading the code during planning)
+  holds. §5 (lint/tsc/build) passed. §2, §3, §6 (the sign-in-gated
+  behavioral checks) and §8 (Vercel preview, Project Lead confirmation) are
+  pending — see Validation / test status below.
 
 ## Since last sprint
 
-Sprint 1 (line-ending normalization) merged to `dev` (`30a5c88`). This sprint:
+Sprint 2 (autosave session expiry) is complete and sitting on `dev`,
+validated, pending merge to `main` alongside Sprint 1. This sprint:
 
-1. **Step 1 — session stays fresh** (`app/hooks/useSupabaseAuth.ts`). Renewal
-   scheduled from the session's own `expiresAt` minus a 60s buffer, rescheduling
-   after each success, cleared on unmount, and re-checked on `visibilitychange`
-   for tabs that wake past expiry. Refresh is **single-flight at module scope**
-   so the three hook instances (`app/page.tsx`, `app/dashboard/page.tsx`,
-   `MeetingWorkspace.tsx`) cannot double-redeem the one refresh token and sign
-   the user out. Sign-out only on a genuinely rejected refresh token (4xx); a
-   transient 5xx/network failure keeps the session and retries.
-2. **Step 2 — no data loss on a rejected write**
-   (`app/hooks/useWorkspacePersistence.ts`). One shared `runAutosaveWrite`
-   helper retries a write rejected for a stale token once against a fresh token.
-   401 only — an RLS denial (403) or validation error still fails fast. Logs
-   status, body, and remaining token lifetime on failure so any recurrence is
-   diagnosable from the console.
-3. **`SupabaseRequestError`** (`app/lib/supabaseClient.ts`) carries the HTTP
-   status/body so callers can tell expiry (401) from RLS (403) from transient
-   failure. Applied to the refresh/getUser paths and the 13 autosave-write throw
-   sites only; the ~33 other error sites and the 6 read/load sites are untouched.
-
-**Key finding that shaped the work:** writes genuinely commit when the token is
-valid (2xx from PostgREST = committed; verified live). The loss was not "autosave
-never commits" — it was post-expiry edits never committing and the recovery
-reload discarding them.
+1. **Gap A — Manual Save retry** (`app/lib/supabaseClient.ts`,
+   `app/hooks/useWorkspacePersistence.ts`,
+   `app/components/meeting/MeetingWorkspace.tsx`). `saveWorkspaceData` now
+   throws `SupabaseRequestError` instead of a plain `Error`, matching the
+   five autosave write functions. `runAutosaveWrite` — the shared
+   retry-once-on-expired-token helper Sprint 2 built — is now exported and
+   reused (not duplicated) by Manual Save's call site. A 401 retries once
+   against a renewed token; a 403 or anything else fails fast; a 401 during
+   deliberate sign-out neither retries nor surfaces an error, matching the
+   guard the five autosave surfaces already had.
+2. **Gap B — reload recovery banner**
+   (`app/components/meeting/MeetingWorkspace.tsx`). Before a cloud-meeting
+   load overwrites the browser's cached copy, the nine
+   `useLocalStorage`/`useObjectives`-mirrored keys are read straight from
+   scoped `localStorage` (not React state, which can lag on first mount) and
+   compared against the incoming server copy's signature, gated by a
+   meaningful-difference check. A real difference is preserved in a new,
+   distinctly-named per-workspace `recovery-snapshot` key the overwrite
+   never touches, and a small dismissible banner offers to restore it —
+   reusing the existing `applyWorkspaceBackupToState` restore path rather
+   than building a new one. The load itself is never delayed or blocked.
+3. **No "newer wins" anywhere.** This was the one thing explicitly forbidden
+   during planning: no timestamp comparison, no automatic preference for
+   "local" or "server," no suppressing the banner because it will fire
+   often in ordinary multi-device use. The banner offers; a person decides.
 
 ## Architecture / file map
 
 | File | Nature |
 | --- | --- |
-| `app/hooks/useSupabaseAuth.ts` | Rewritten: module-scope single-flight refresh, timer + visibility renewal, broadcast to all instances, failure policy. |
-| `app/hooks/useWorkspacePersistence.ts` | `runAutosaveWrite` retry helper + diagnostics; 5 autosave surfaces routed through it. |
-| `app/lib/supabaseClient.ts` | `SupabaseRequestError` + `isExpiredTokenError`/`isRefreshTokenRejected`; refresh/getUser and 13 autosave throw sites converted. |
-| `planning/STATE.md`, `DECISIONS.md`, `RISKS.md`, `POST_BETA_BACKLOG.md`, `feedback/2026-07-18-feedback-report.md` | Sprint 3 docs. |
+| `app/lib/supabaseClient.ts` | `saveWorkspaceData` converted to throw `SupabaseRequestError` (one line). |
+| `app/hooks/useWorkspacePersistence.ts` | `runAutosaveWrite` exported for reuse; no behavior change. |
+| `app/components/meeting/MeetingWorkspace.tsx` | Manual Save's write wrapped in `runAutosaveWrite`; sign-out guard added to its catch. New `readLocalMirroredWorkspaceSnapshot` helper, pre-overwrite diff check in `handleLoadCloudMeeting`, `recovery-snapshot` storage slot, restore/dismiss handlers, and the recovery banner in the render tree. |
+| `planning/STATE.md`, `DECISIONS.md`, `RISKS.md`, `POST_BETA_BACKLOG.md` | Sprint 3 docs. |
 
-No schema, migration, or RLS change. No `MeetingWorkspace.tsx` refactor. Manual
-Save, export/import, autosave debounce, and per-surface status unchanged.
+No schema, migration, or RLS change. No `MeetingWorkspace.tsx` refactor
+beyond these two call sites. No change to the five already-hardened autosave
+surfaces, Backup/Restore, export/import, or the Manual Save button's visible
+states.
 
 ## Decisions
 
-Recorded in `planning/DECISIONS.md` (2026-07-19): Supabase session lifetime is
-managed for the whole time a workspace tab is open, not only on mount — timer +
-visibility renewal from `expiresAt`, single-flight across instances, sign-out
-only on a genuinely rejected refresh token, and a single auth-only retry on a
-rejected autosave write.
+Recorded in `planning/DECISIONS.md` (2026-07-29): Manual Save shares the
+autosave retry pattern; a reload never silently discards a locally cached
+copy that differs from the server, but neither rescue path decides which
+copy is correct — no timestamps, no auto-restore, no suppressing the banner
+for the expected multi-device case. That was considered and explicitly
+rejected: Meeting Tool is shared, and "newer wins" would let a stale,
+forgotten tab silently overwrite a teammate's current, deliberately saved
+work — a new way to lose data, not a fix for this one.
 
 ## Risks / watch-items
 
-- **Resilience gaps A & B (the important ones).** The token fix removes the
-  common cause of failure but not the fragility beneath it:
-  - *Gap A* — Manual Save (`saveWorkspaceData`) has no stale-token retry, so the
-    rescue action fails the same way an autosave does.
-  - *Gap B* — a reload rebuilds from the server and discards local edits newer
-    than the server; no "local is newer than cloud" guard. This is what made the
-    2026-07-15 loss permanent.
-  Both are persistence-design changes → an Architect sprint, not a hotfix.
-  Recorded in `planning/POST_BETA_BACKLOG.md`.
+- **Stale-tab / long-idle reconnection is still open.** The recovery banner
+  will legitimately fire any time someone else saved this meeting since this
+  browser last loaded it — that's expected, not a bug, but it means the
+  banner could get noisy enough in ordinary multi-device use that people
+  start ignoring it. That is evidence for the deferred reconciliation
+  design (presence, or a smarter "worth showing" heuristic), not a reason to
+  add "newer wins" logic now. Tracked in `planning/POST_MAIN_ROADMAP.md`,
+  "Stale-tab / long-idle reconnection check," for a future Architect
+  session.
 - **Still no automated test suite and no CI.** Manual validation per
-  `acceptance.md` is the whole safety net. This remains the largest standing
-  risk (the deferred safety-net sprint).
-- **`client_meeting_id` uses `Date.now()`** — already in the backlog as a
-  collision risk; relevant because it keys the meeting-notes round-trip. Stable
-  within a session, so not implicated in this loss.
+  `acceptance.md` is the whole safety net for both gaps closed this sprint.
+- **The recovery-snapshot slot itself could go stale if a future change
+  touches the same keys without going through this path.** It's scoped and
+  cleared on both restore and dismiss, and recomputed fresh on every load,
+  so it shouldn't drift — but it's a new piece of state to remember when
+  touching `handleLoadCloudMeeting` again.
 
 ## Open questions for the Architect
 
-1. **Prioritize the resilience sprint (Gaps A & B) vs the safety-net (CI/tests)
-   sprint next?** Both are now overdue; the resilience work is what would have
-   *saved* the lost meeting even without the token fix.
-2. **Should Manual Save route through the same auth-aware retry as autosave?**
-   Smallest slice of Gap A; arguably belongs with the token fix, but was kept out
-   to hold this sprint narrow.
-3. **Deferred feedback item — editors and Edit Playbook.** This is a product
-   decision reversing the owner-only choice (DECISIONS 2026-06-11), not a bug.
-   Needs a Project Lead decision before it can be scoped.
+1. **Is the recovery banner's frequency in ordinary multi-device use
+   acceptable for the Team Beta, or does it need the smarter
+   "worth-showing" heuristic sooner than expected?** Real usage data after
+   this ships will answer this better than more design work would now.
+2. **When should the stale-tab / long-idle reconciliation design happen?**
+   This sprint made the failure mode safe (nothing is silently lost) but
+   deliberately did not solve which copy should win when multiple editors
+   are legitimately active. That's the deeper design work still ahead.
 
 ## Validation / test status
 
 | Check | Result |
 | --- | --- |
-| `tsc --noEmit` | Clean, exit 0. |
-| `next build` | Succeeds. All 5 routes generated. |
-| `npm run lint` | 5 errors, all in untracked 120x `scripts/`. Identical on `dev` — no regression. None in `app/`. |
-| §1 diagnosis | Confirmed (live JWT-expiry error + static proof). |
-| §3 retry (Test B) | Confirmed live: `401 PGRST301` rejected → single-flight renew → retry → saved, no data lost. |
-| §2 renewal | Confirmed (local shortened-expiry, 2026-07-19): 2 renewals fired, both 200, one per cycle (single-flight + reschedule), no autosave error. |
-| §6 long-meeting | **Confirmed:** edits at 5 and 10 min post-login (past the 5-min token) survived reload. The criterion that matters. |
-| §2 tab-wake / timer-accumulation | Not separately run. Lower risk; optional before `main`. |
-| §5 flows + sign-out/in | Pending — task/rich-text/Backup pass and sign-out/in. |
-| §8 preview smoke | Required gate before `main` (open meeting, autosave saves, sign-in/out). |
+| `npx tsc --noEmit` | Clean, exit 0. |
+| `npm run build` | Succeeds. All 5 routes generated. |
+| `npm run lint` | 5 errors, all in the untracked 120x `scripts/` folder — identical to Sprint 2, no regression, none in `app/`. |
+| §1 diagnosis | Confirmed by re-reading the code during planning (2026-07-29); all file/line references verified current. |
+| §2 Gap B reload/recovery reproduction | **Not run.** Requires Supabase sign-in; handed to the Project Lead. |
+| §3 Gap A retry-on-401 | **Not run.** Requires Supabase sign-in; handed to the Project Lead. |
+| §4 "nothing else changed" | Confirmed by diff review during implementation. |
+| §5 flows (task/rich-text/Backup + sign-out/in) | **Not run.** Requires Supabase sign-in; handed to the Project Lead. |
+| §6 end-to-end reproduction (the scenario that matters) | **Not run.** Requires Supabase sign-in; handed to the Project Lead. |
+| §7 documentation | Confirmed — `STATE.md`, `DECISIONS.md`, `RISKS.md`, `POST_BETA_BACKLOG.md` all updated this sprint. |
+| §8 Vercel preview / Project Lead confirmation | **Pending** — required gate before merge to `dev`. |
 
 ## Recommended next Architect action
 
-Let the Builder merge Steps 1 & 2 to `dev` and validate them on a Vercel preview
-(shortened JWT expiry makes the hour-long test a few minutes). Once §6 passes on
-preview, `dev` → `main` to get real users protected.
+None needed yet — this is a Project Lead action, not an Architect one: sign
+in (locally at `http://localhost:3000`, already running, or on a Vercel
+preview once pushed) and run through Manual Save, a forced-failure-then-
+reload to see the recovery banner, and sign-out/in. Once that passes, merge
+`fix/autosave-resilience` to `dev` alongside Sprint 1 and Sprint 2, which are
+already validated and waiting.
 
-Then open an **`/architect` session for the autosave-resilience sprint (Gaps A &
-B)** — Manual Save retry and a local-newer-than-cloud safety net. That is the
-layer that turns "a save failed" into a recoverable event instead of lost work,
-and it is the real lesson of this incident.
+After that, the open design question from this sprint — stale-tab /
+long-idle reconciliation, i.e. which copy should win when multiple editors
+are legitimately active — is the next thing worth an `/architect` session,
+whenever real Team Beta usage makes it worth prioritizing over other
+backlog items.
