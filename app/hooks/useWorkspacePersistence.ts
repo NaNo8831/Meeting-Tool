@@ -73,7 +73,7 @@ const describeAutosaveFailure = (error: unknown) => {
  * rather than the captured one. It may perform several requests: every surface
  * here is upsert plus delete-missing, so re-running the sequence is idempotent.
  */
-const runAutosaveWrite = async <T>(
+export const runAutosaveWrite = async <T>(
   options: {
     surface: string;
     accessToken: string;

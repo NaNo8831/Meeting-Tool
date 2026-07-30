@@ -23,24 +23,20 @@ prioritize based on beta feedback.
   (currently duplicated logic in dashboard/page.tsx).
 
 ## Persistence
-- **Autosave resilience sprint (Architect) — Gaps A & B from the
-  Sprint 2 audit (2026-07-19).** The token fix stops writes from
-  failing; these harden what happens *if* a write ever fails, so a
-  transient failure can no longer become permanent loss.
-  - *Gap A — Manual Save has no stale-token retry.* `saveWorkspaceData`
-    (MeetingWorkspace.tsx, Manual Save to `meetings.meeting_data`) is
-    not wrapped by the Sprint 2 retry helper. The one action a user
-    reaches for to rescue unsaved work fails the same way an autosave
-    does when the token is stale. Consider routing it through the same
-    auth-aware retry.
-  - *Gap B — a reload discards local edits newer than the server.* The
-    browser cache holds uncommitted edits until a reload rebuilds from
-    server state and overwrites them (`storeWorkspaceBackupInBrowser`
-    on load). There is no "local is newer than cloud" guard. This is
-    the mechanism that made the 2026-07-15 loss permanent. Consider a
-    pre-reload safety copy or a local-newer detection/warning.
-  - These are persistence-design changes (they alter what wins between
-    local and cloud), so they need an Architect session, not a hotfix.
+- ~~Autosave resilience sprint (Architect) — Gaps A & B from the Sprint 2
+  audit (2026-07-19).~~ **Closed by Sprint 3 (`fix/autosave-resilience`,
+  2026-07-29).** Gap A: Manual Save now throws `SupabaseRequestError` and
+  retries once through the shared `runAutosaveWrite` helper, same as the
+  five autosave surfaces. Gap B: before a cloud-meeting load overwrites the
+  browser's cached copy, the pre-load local snapshot is compared against the
+  incoming server copy; a meaningful difference is preserved in a distinct
+  per-workspace `recovery-snapshot` slot and offered back via a dismissible
+  banner — never auto-restored, never timestamp-compared. See
+  `planning/DECISIONS.md` (2026-07-29) for the durable decision and
+  Non-Goals. Stale-tab/long-idle reconciliation (deciding which copy should
+  win when multiple editors are active) remains open — see
+  `planning/POST_MAIN_ROADMAP.md`, "Stale-tab / long-idle reconnection
+  check."
 - Manual Save decommission revisit. Manual Save is kept as
   the rollback path while structured autosave proves reliable
   in real use. Revisit removing it once beta feedback confirms

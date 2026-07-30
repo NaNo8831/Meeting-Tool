@@ -1183,7 +1183,7 @@ export const supabaseMeetingClient = {
     );
 
     if (!response.ok) {
-      throw new Error(await getRestErrorMessage(response, "Workspace save"));
+      throw await createRequestError(response, "Workspace save");
     }
 
     const meetings = (await response.json()) as SupabaseMeeting[];
